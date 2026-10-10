@@ -2097,7 +2097,7 @@ function coachHome(){
       <button class="hbtn" data-a="homego" data-k="priv"><b>Lezioni private</b><span>${S.athletes.filter(a=>a.groupId==='priv').length} allievi</span></button>
       <button class="hbtn" data-a="homelib"><b>Libreria esercizi</b><span>${P.ex.length+(S.customEx||[]).length} esercizi</span></button>
       
-      <button class="hbtn" data-a="staffopen"><b>Staff e accessi</b><span>colleghi e preparatori</span></button><button class="hbtn" data-a="homego" data-k="backup"><b>Copia di sicurezza</b><span>salva o ripristina i dati</span></button>
+      <button class="hbtn" data-a="staffopen"><b>Staff e accessi</b><span>colleghi e preparatori</span></button><button class="hbtn" data-a="homego" data-k="backup"><b>Copia di sicurezza</b><span>salva o ripristina i dati</span></button><button class="hbtn" data-a="cleanopen"><b>Togli i dati di prova</b><span>tornei, schede e profili</span></button>
     </div>`;
 }
 function backupView(){
@@ -2122,9 +2122,9 @@ function cleanView(){
   if(!U.clean) U.clean = {sel:Object.fromEntries(all.filter(x=>/simulazione/i.test(x.t.name)).map(x=>[x.k,true])), res:true, forms:true, prof:true};
   const C_ = U.clean, nres = all.filter(x=>hasEntries(x.t)).length, nf = (S.forms||[]).length, np = Object.keys(S.profiles||{}).length, nsel = all.filter(x=>C_.sel[x.k]).length;
   const ck = (c,k,on,label,sub) => `<label class="ckrow"><input type="checkbox" data-c="${c}" data-k="${k}" ${on?'checked':''}><span><b>${label}</b>${sub?`<br><span class="small muted">${sub}</span>`:''}</span></label>`;
-  return `<button class="btn ghost" data-a="cleanback" style="align-self:flex-start">‹ Copia di sicurezza</button>
+  return `<button class="btn ghost" data-a="cleanback" style="align-self:flex-start">‹ Home</button>
     <h1>Togli i dati di prova</h1>
-    <div class="note">Prima di procedere tocca <b>Copia i dati</b> nella pagina precedente: così, se togli qualcosa per sbaglio, puoi rimetterlo.</div>
+    <div class="note">Prima di procedere fai una copia: Home → <b>Copia di sicurezza</b> → <b>Copia i dati</b>, così, se togli qualcosa per sbaglio, puoi rimetterlo.</div>
     <section class="card"><h3>Tornei da eliminare</h3><p class="small muted">Sono già spuntati quelli con "(simulazione)" nel nome. Spunta anche gli altri che avevi inserito per prova.</p>
       <div class="row"><button class="chip" data-a="cleanall" data-k="1">Seleziona tutti</button><button class="chip" data-a="cleanall" data-k="0">Nessuno</button></div>
       ${all.length ? `<div class="list">${all.map(x=>ck('cleantour', x.k, C_.sel[x.k], esc(x.t.name), `${dRange(...tSpan(x.t,x.y,x.n))} ${x.y}`)).join('')}</div>` : '<p class="muted small">Nessun torneo in calendario.</p>'}</section>
@@ -2555,7 +2555,7 @@ const ACT = {
   taddalt(){ weekData(U.tWeek.y,U.tWeek.n).t.push({name:'', kind:'', deadline:'', info:'', players:[], results:{}}); },
   tsave(){ save(); toast('Settimana salvata'); ACT.closeweekT(); window.scrollTo(0,0); },
   cleanopen(){ U.homeView='clean'; U.clean=null; U.confirm=null; window.scrollTo(0,0); },
-  cleanback(){ U.homeView='backup'; U.confirm=null; },
+  cleanback(){ U.homeView=null; U.confirm=null; },
   cleanall(k){ const on = k==='1'; cleanTours().forEach(x=>{ U.clean.sel[x.k]=on; }); },
   cleanrun(){ const C_ = U.clean; const keys = cleanTours().filter(x=>C_.sel[x.k]);
     keys.sort((a,b)=>b.y-a.y||b.n-a.n||(+b.k.split(':')[2])-(+a.k.split(':')[2])).forEach(x=>{ const w = S.season[x.y].weeks[x.n], i = +x.k.split(':')[2];
@@ -2563,7 +2563,7 @@ const ACT = {
     if(C_.res) cleanTours().forEach(x=>{ x.t.players=[]; x.t.requests=[]; x.t.results={}; });
     if(C_.forms) S.forms = [];
     if(C_.prof) S.profiles = {};
-    U.confirm=null; U.clean=null; U.homeView='backup'; U.tOpen=null; save(); toast(`Dati di prova eliminati (${keys.length} tornei)`); },
+    U.confirm=null; U.clean=null; U.homeView=null; U.tOpen=null; save(); toast(`Dati di prova eliminati (${keys.length} tornei)`); },
   bkcopy(){ const txt=JSON.stringify(Object.assign({}, S, {session:null, live:null})); try{ navigator.clipboard.writeText(txt).then(()=>toast('Dati copiati'), ()=>{ U.restoreText=txt; render(); toast('Seleziona il testo e copialo'); }); }catch(e){ U.restoreText=txt; toast('Seleziona il testo e copialo'); } },
   askrestore(){ if(!(U.restoreText||'').trim()){ toast('Incolla prima i dati'); return; } U.confirm='restore'; },
   bkrestore(){ try{ const d=JSON.parse(U.restoreText); if(!d.athletes||!d.groups) throw 0; const sess=S.session; S=d; S.session=sess; U.restoreText=''; U.confirm=null; save(); toast('Dati ripristinati'); }catch(e){ toast('Questi dati non sono validi'); U.confirm=null; } },
