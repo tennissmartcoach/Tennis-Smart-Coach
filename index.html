@@ -333,6 +333,7 @@ main{padding-bottom:100px}
 .big.yes{background:#1E7A4C}.big.no{background:#B0372B}
 .pin span.f{background:var(--clay);border-color:var(--clay)}
 .tdd b,.tdd{white-space:nowrap;letter-spacing:-.04em}
+textarea.input{font-family:var(--f-body);font-size:16px;line-height:1.4}
 .ckrow{display:flex;gap:12px;align-items:flex-start;font-size:15px}
 .ckrow input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--clay)}
 </style>
@@ -813,7 +814,7 @@ function athleteView(id, self){
     const pc = profileCard(id), pv = privOf(id);
     const goals = a.groupId===PRIV_ID ? '' : ((role==='coach'||role==='mind') ? `<section class="card"><h3>Obiettivi personali</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted small">Nessun obiettivo.</p>'}
       <div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
-      <div class="row"><input id="f-goal" class="input" placeholder="Es. Seconda carica, 7 su 10 dentro" style="flex:1;min-width:0"><button class="btn" data-a="goaladd" data-k="${id}">Aggiungi</button></div></section>`
+      <div class="row"><input id="f-goal" class="input" placeholder="Es. Seconda carica, 7 su 10 dentro" style="flex:1;min-width:0"><button class="btn" data-a="goaladd" data-k="${id}">Aggiungi</button></div>${U.goalPaste===id ? `<div class="field"><label for="f-goals">Incolla gli obiettivi, uno per riga</label><textarea id="f-goals" class="input" rows="6" placeholder="Seconda carica, 7 su 10 dentro&#10;Tattica: aprire il campo con il dritto incrociato&#10;Mentale: routine dopo l'errore"></textarea><p class="small muted">Se una riga inizia con Tecnica:, Tattica:, Mentale: o Fisico: va in quell'area, altrimenti nell'area scelta sopra.</p><div class="row"><button class="btn" data-a="goalpaste" data-k="${id}" style="flex:1">Aggiungi tutti</button><button class="btn ghost" data-a="goalpastetoggle" data-k="${id}">Annulla</button></div></div>` : `<button class="chip" data-a="goalpastetoggle" data-k="${id}" style="align-self:flex-start">Incolla più obiettivi insieme</button>`}</section>`
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
@@ -853,11 +854,17 @@ function athList(){
   const g = grp(U.resGroup);
   const gname = x => x.id===PRIV_ID ? 'Lezioni private' : x.name;
   const picker = `<div class="field"><label for="f-athgrp">Gruppo</label><select id="f-athgrp" class="input inbig" data-c="athgrp">${gs.map(x=>`<option value="${x.id}" ${x.id===U.resGroup?'selected':''}>${esc(gname(x))} (${S.athletes.filter(a=>a.groupId===x.id).length})</option>`).join('')}</select></div>`;
-  const newForm = U.newAth ? `<section class="card"><h3>Nuovo atleta</h3>
+  const newForm = U.newAth ? `<section class="card"><h3>${U.athBulk?'Aggiungi una lista di atleti':'Nuovo atleta'}</h3>
+      <div class="seg" role="group"><button data-a="athbulk" data-k="0" aria-pressed="${!U.athBulk}">Uno alla volta</button><button data-a="athbulk" data-k="1" aria-pressed="${!!U.athBulk}">Incolla una lista</button></div>
+      ${U.athBulk ? `<div class="field"><label for="f-na-list">Nomi, uno per riga</label><textarea id="f-na-list" class="input" rows="8" placeholder="Luca R.&#10;Giulia M.&#10;&#10;Scuola tennis martedì:&#10;Marco B.&#10;Sara T."></textarea>
+        <p class="small muted">Nome e iniziale del cognome. Una riga che finisce con i due punti (per esempio "Scuola tennis martedì:") crea un gruppo nuovo, o usa quello con lo stesso nome; i nomi sotto vanno in quel gruppo. Gli altri vanno nel gruppo scelto qui sotto.</p></div>
+      <div class="field"><label for="f-na-grp">Gruppo</label><select id="f-na-grp" class="input">${gs.map(x=>`<option value="${x.id}" ${x.id===U.resGroup?'selected':''}>${esc(gname(x))}</option>`).join('')}</select></div>
+      <div class="row"><button class="btn clay" data-a="athbulkadd" style="flex:1">Aggiungi tutti</button><button class="btn ghost" data-a="athnewtoggle">Annulla</button></div>
+      </section>` : `
       <div class="field"><label for="f-na-name">Nome e iniziale del cognome</label><input id="f-na-name" class="input" placeholder="Es. Luca R."></div>
       <div class="field"><label for="f-na-grp">Gruppo</label><select id="f-na-grp" class="input">${gs.map(x=>`<option value="${x.id}" ${x.id===U.resGroup?'selected':''}>${esc(gname(x))}</option>`).join('')}</select></div>
       <div class="row"><button class="btn clay" data-a="athnew" style="flex:1">Aggiungi</button><button class="btn ghost" data-a="athnewtoggle">Annulla</button></div>
-      </section>` : '';
+      </section>`}` : '';
   const gTools = g ? `<div class="row" style="gap:8px">${g.id!==PRIV_ID?`<span class="small muted">Codice gruppo <b style="font-family:var(--f-disp);font-size:17px;color:var(--ink);letter-spacing:.04em">${esc(g.code||'')}</b></span>`:''}
       <span style="flex:1"></span>
       <button class="chip" data-a="pinstoggle" aria-pressed="${!!U.showPins}">${U.showPins?'Nascondi PIN':'Codici e PIN'}</button>
@@ -1590,7 +1597,7 @@ function privDetail(id){
       <button class="btn ghost" data-a="ppsave" data-k="${id}">Salva programma</button></section>
     <section class="card"><h3>Obiettivi</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted">Nessun obiettivo. Aggiungine uno qui sotto.</p>'}
       <div class="field"><label>Nuovo obiettivo</label><div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
-      <div class="row"><input id="f-goal" class="input" placeholder="Es. Seconda di servizio carica, 7 su 10 dentro" style="flex:1;min-width:0"><button class="btn" data-a="goaladd" data-k="${id}">Aggiungi</button></div></div></section>
+      <div class="row"><input id="f-goal" class="input" placeholder="Es. Seconda di servizio carica, 7 su 10 dentro" style="flex:1;min-width:0"><button class="btn" data-a="goaladd" data-k="${id}">Aggiungi</button></div>${U.goalPaste===id ? `<div class="field"><label for="f-goals">Incolla gli obiettivi, uno per riga</label><textarea id="f-goals" class="input" rows="6" placeholder="Seconda carica, 7 su 10 dentro&#10;Tattica: aprire il campo con il dritto incrociato&#10;Mentale: routine dopo l'errore"></textarea><p class="small muted">Se una riga inizia con Tecnica:, Tattica:, Mentale: o Fisico: va in quell'area, altrimenti nell'area scelta sopra.</p><div class="row"><button class="btn" data-a="goalpaste" data-k="${id}" style="flex:1">Aggiungi tutti</button><button class="btn ghost" data-a="goalpastetoggle" data-k="${id}">Annulla</button></div></div>` : `<button class="chip" data-a="goalpastetoggle" data-k="${id}" style="align-self:flex-start">Incolla più obiettivi insieme</button>`}</div></section>
     <section class="card"><h3>Diario delle lezioni</h3>
       <div class="field"><label for="f-ldate">Data</label><input id="f-ldate" class="input" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
       <div class="field"><label for="f-lwhat">Cosa abbiamo fatto</label><textarea id="f-lwhat" class="input" rows="3" placeholder="Esercizi, temi, risultati delle prove"></textarea></div>
@@ -2474,7 +2481,23 @@ const ACT = {
     U.maKind=''; U.maRole=''; save(); toast('Torneo aggiunto'); },
   marole(k){ U.maRole=k; },
   trole(k,d){ const nk=setTourRole(k,d.v); if(U.tOpen===k) U.tOpen=nk; save(); toast(d.v==='main'?'Ora è la prima scelta':d.v==='alt'?'Ora è un\'alternativa':'Torneo in più nella settimana'); },
-  athnewtoggle(){ U.newAth=!U.newAth; U.newGrp=false; },
+  athbulk(k){ U.athBulk = k==='1'; },
+  athbulkadd(){ const txt = document.getElementById('f-na-list').value; let gid = document.getElementById('f-na-grp').value; const made = [], newG = [];
+    txt.split(/\r?\n/).forEach(raw=>{ let l = raw.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim(); if(!l) return;
+      if(/:$/.test(l)){ const gn = l.slice(0,-1).trim(); if(!gn) return; if(/^lezioni private$/i.test(gn)){ gid = PRIV_ID; return; }
+        let g = S.groups.find(x=>x.id!==PRIV_ID && x.name.toLowerCase()===gn.toLowerCase()); if(!g){ g = {id:uid(), name:gn, code:genCode(gn), week:1}; S.groups.push(g); newG.push(gn); } gid = g.id; return; }
+      if(S.athletes.some(a=>a.groupId===gid && a.name.toLowerCase()===l.toLowerCase())) return;
+      const id = uid(); S.athletes.push({id, groupId:gid, name:l, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); made.push(id); });
+    if(!made.length && !newG.length){ toast('Nessun nome nuovo da aggiungere'); return; }
+    save(); U.newAth=false; U.athBulk=false; U.resGroup=gid; toast(`${made.length} atleti aggiunti`+(newG.length?` · ${newG.length} gruppi nuovi`:'')); },
+  goalpastetoggle(k){ U.goalPaste = U.goalPaste===k ? null : k; },
+  goalpaste(k){ const txt = document.getElementById('f-goals').value, def = U.goalArea||(S.session.role==='mind'?'men':'tec'), pv = privOf(k); let n = 0;
+    const AR = {tecnica:'tec', tecnico:'tec', tattica:'tat', tattico:'tat', mentale:'men', fisico:'fis', fisica:'fis', atletica:'fis', atletico:'fis'};
+    txt.split(/\r?\n/).forEach(raw=>{ let l = raw.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim(); if(!l) return; let area = def;
+      const m = l.match(/^([A-Za-zàèéìòù]+)\s*:\s*(.+)$/); if(m && AR[m[1].toLowerCase()]){ area = AR[m[1].toLowerCase()]; l = m[2].trim(); }
+      pv.goals.push({id:uid(), area, text:l, st:'todo'}); n++; });
+    if(!n){ toast('Incolla almeno un obiettivo'); return; } U.goalPaste=null; save(); toast(n+' obiettivi aggiunti'); },
+  athnewtoggle(){ U.athBulk=false; U.newAth=!U.newAth; U.newGrp=false; },
   grpnewtoggle(){ U.newGrp=!U.newGrp; U.newAth=false; },
   grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
   pinstoggle(){ U.showPins=!U.showPins; U.confirm=null; },
