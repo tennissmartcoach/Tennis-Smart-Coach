@@ -91,6 +91,10 @@ main{flex:1;padding:16px 16px 104px;display:flex;flex-direction:column;gap:16px}
 .input{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:12px 14px;width:100%;font-size:17px}
 .input.code{text-transform:uppercase;letter-spacing:.08em;font-family:var(--f-disp);font-size:24px;font-weight:600}
 select.input{appearance:auto}
+.pinrow{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.pin{font-family:var(--f-disp);font-size:18px;color:var(--ink);margin:0 4px;letter-spacing:.05em}
+.chip.mini{padding:2px 8px;font-size:13px}
+.pinl{white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
 .sync{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:2px 2px}
 .sync i{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
 .sync.saving i{background:var(--ochre)} .sync.off i{background:var(--muted)} .sync.err i{background:var(--ko)} .sync.err span{color:var(--ko);font-weight:600}
@@ -574,7 +578,7 @@ function renderInner(){
   const tabs = role==='fit' ? [['fhome','Home',IC.home],['fprog','Programma',IC.plan],['sath','Atleti',IC.people],['stest','Test',IC.test],['tour','Tornei',IC.trophy]]
     : role==='mind' ? [['mhome','Home',IC.home],['sath','Atleti',IC.people],['mschede','Schede',IC.form],['tour','Tornei',IC.trophy]]
     : role==='coach'
-    ? [['home','Home',IC.home],['plan','Programma',IC.plan],['match','Match Analysis',IC.match],['ath','Atleti',IC.prog],['tour','Tornei',IC.trophy]]
+    ? [['home','Home',IC.home],['plan','Programma',IC.plan],['match','Match Analysis',IC.match],['ath','Gruppi e atleti',IC.people],['tour','Tornei',IC.trophy]]
     : role==='parent'
     ? (isPriv ? [['phome','Home',IC.home],['pprog','Programma',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]] : [['phome','Home',IC.home],['pweek','Settimana',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]])
     : (isPriv ? [['shome','Home',IC.home],['pprog','Programma',IC.today],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]
@@ -807,9 +811,29 @@ function athList(){
       <div class="field"><label for="f-na-name">Nome e iniziale del cognome</label><input id="f-na-name" class="input" placeholder="Es. Luca R."></div>
       <div class="field"><label for="f-na-grp">Gruppo</label><select id="f-na-grp" class="input">${gs.map(x=>`<option value="${x.id}" ${x.id===U.resGroup?'selected':''}>${esc(gname(x))}</option>`).join('')}</select></div>
       <div class="row"><button class="btn clay" data-a="athnew" style="flex:1">Aggiungi</button><button class="btn ghost" data-a="athnewtoggle">Annulla</button></div>
-      <p class="small muted">Per creare un gruppo nuovo: Home → Gruppi.</p></section>` : '';
-  const head = `<div class="row between"><h1>Atleti</h1>${U.newAth?'':`<button class="btn clay" data-a="athnewtoggle">+ Nuovo atleta</button>`}</div>${newForm}${picker}`;
-  if(!g) return head + `<section class="card"><p>Nessun gruppo. Crealo da Home → Gruppi.</p></section>`;
+      </section>` : '';
+  const gTools = g ? `<div class="row" style="gap:8px">${g.id!==PRIV_ID?`<span class="small muted">Codice gruppo <b style="font-family:var(--f-disp);font-size:17px;color:var(--ink);letter-spacing:.04em">${esc(g.code||'')}</b></span>`:''}
+      <span style="flex:1"></span>
+      <button class="chip" data-a="pinstoggle" aria-pressed="${!!U.showPins}">${U.showPins?'Nascondi PIN':'Codici e PIN'}</button>
+      ${g.id!==PRIV_ID?`<button class="chip" data-a="grpedit" aria-pressed="${!!U.grpEdit}">Gestisci gruppo</button>`:''}</div>` : '';
+  const newGrp = U.newGrp ? `<section class="card"><h3>Nuovo gruppo</h3>
+      <div class="field"><label for="f-gname">Nome del gruppo</label><input id="f-gname" class="input" placeholder="Es. U12 Pre-agonistica"></div>
+      <div class="row"><button class="btn clay" data-a="grpnew" style="flex:1">Crea il gruppo</button><button class="btn ghost" data-a="grpnewtoggle">Annulla</button></div>
+      <p class="small muted">Il codice del gruppo viene creato in automatico.</p></section>` : '';
+  const grpEdit = (U.grpEdit && g && g.id!==PRIV_ID) ? (()=>{ const n = S.athletes.filter(a=>a.groupId===g.id).length; return `<section class="card"><h3>Gestisci ${esc(g.name)}</h3>
+      <div class="field"><label for="f-grn">Nome</label><input id="f-grn" class="input" data-c="grname" value="${esc(g.name)}"></div>
+      <div class="row"><span class="small muted">Codice del gruppo <b style="color:var(--ink)">${esc(g.code||'')}</b></span><button class="chip" data-a="grpcode">Nuovo codice</button></div>
+      ${n ? `<p class="small muted">Per eliminare il gruppo sposta o togli prima i suoi ${n} atleti.</p>` : (U.confirm==='grp:'+g.id ? `<div class="confirm"><span>Eliminare il gruppo ${esc(g.name)}?</span><div class="row"><button class="btn danger" data-a="grpdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>` : `<button class="btn danger" data-a="askdel" data-k="grp:${g.id}" style="align-self:flex-start">Elimina gruppo</button>`)}</section>`; })() : '';
+  const pins = (U.showPins && g) ? (()=>{ const as = S.athletes.filter(a=>a.groupId===g.id); return `<section class="card"><h3>Codici e PIN · ${esc(g.id===PRIV_ID?'Lezioni private':g.name)}</h3>
+      ${as.length?`<div class="list">${as.map(a=>`<div class="pinrow">
+        <b>${esc(a.name)}</b>
+        <div class="row" style="gap:6px 14px"><span class="small muted pinl">PIN atleta <b class="pin">${esc(a.pin||'')}</b><button class="chip mini" data-a="newpin" data-k="${a.id}" aria-label="Nuovo PIN atleta">↻</button></span><span class="small muted pinl">PIN genitore <b class="pin">${esc(a.ppin||'')}</b><button class="chip mini" data-a="newppin" data-k="${a.id}" aria-label="Nuovo PIN genitore">↻</button></span></div>
+        <div class="row" style="gap:8px;flex-wrap:nowrap"><select class="input" style="flex:1;min-width:0" data-c="athmove" data-k="${a.id}" aria-label="Gruppo di ${esc(a.name)}">${S.groups.map(x=>`<option value="${x.id}" ${x.id===a.groupId?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select>${U.confirm==='ath:'+a.id?`<button class="btn danger" data-a="del" data-k="ath:${a.id}">Sì, togli</button><button class="chip" data-a="nodel">No</button>`:`<button class="chip" data-a="askdel" data-k="ath:${a.id}">Togli</button>`}</div></div>`).join('')}</div>
+      <p class="small muted">Il PIN servirà ad atleti e genitori per entrare nell'app con il codice del gruppo. ↻ ne crea uno nuovo. Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
+  const head = `<div class="row between"><h1>Gruppi e atleti</h1></div>
+    <div class="row" style="gap:8px">${U.newAth?'':`<button class="btn clay" data-a="athnewtoggle" style="flex:1">+ Nuovo atleta</button>`}${U.newGrp?'':`<button class="btn ghost" data-a="grpnewtoggle" style="flex:1">+ Nuovo gruppo</button>`}</div>
+    ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}`;
+  if(!g) return head + `<section class="card"><p>Nessun gruppo. Crealo con "+ Nuovo gruppo".</p></section>`;
   const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id)), seen = S.seen || '';
   if(g.id===PRIV_ID){
     return head + (as.length ? `<div class="agrid">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(x=>x.st==='done').length;
@@ -2025,7 +2049,7 @@ function coachHome(){
     <div class="hgrid">
       <button class="hbtn" data-a="homego" data-k="priv"><b>Lezioni private</b><span>${S.athletes.filter(a=>a.groupId==='priv').length} allievi</span></button>
       <button class="hbtn" data-a="homelib"><b>Libreria esercizi</b><span>${P.ex.length+(S.customEx||[]).length} esercizi</span></button>
-      <button class="hbtn" data-a="homego" data-k="groups"><b>Gruppi e atleti</b><span>${teamGroups().length} gruppi</span></button>
+      
       <button class="hbtn" data-a="staffopen"><b>Staff e accessi</b><span>colleghi e preparatori</span></button><button class="hbtn" data-a="homego" data-k="backup"><b>Copia di sicurezza</b><span>salva o ripristina i dati</span></button>
     </div>`;
 }
@@ -2034,7 +2058,11 @@ function backupView(){
     <section class="card"><h2>Copia di sicurezza</h2><p class="small">Copia tutti i dati e incollali in un messaggio a te stesso o in una nota. Per ripristinarli, incollali qui sotto.</p>
       <button class="btn" data-a="bkcopy">Copia i dati</button></section>
     <section class="card"><h3>Ripristina</h3><textarea id="f-restore" class="input" rows="4" data-c="restore" placeholder="Incolla qui i dati copiati">${esc(U.restoreText||'')}</textarea>
-      ${U.confirm==='restore'?`<div class="confirm"><span>I dati di questo telefono verranno sostituiti. Procedo?</span><div class="row"><button class="btn danger" data-a="bkrestore">Sì, ripristina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askrestore">Ripristina questi dati</button>`}</section>`;
+      ${U.confirm==='restore'?`<div class="confirm"><span>I dati di questo telefono verranno sostituiti. Procedo?</span><div class="row"><button class="btn danger" data-a="bkrestore">Sì, ripristina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askrestore">Ripristina questi dati</button>`}</section>
+    <section class="card"><h3>Dati</h3>
+      ${U.confirm==='reset'?`<div class="confirm"><span>Cancellare tutti i dati?</span><div class="row"><button class="btn danger" data-a="reset" data-k="empty">Sì, cancella tutto</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:
+      `<div class="row"><button class="btn danger" data-a="askdel" data-k="reset">Cancella tutti i dati</button><button class="btn ghost" data-a="reset" data-k="example">Ripristina il gruppo di prova AGO 1</button></div>`}
+    </section>`;
 }
 
 /* ---------- tournaments v2: simple cards, calendar strip, requests ---------- */
@@ -2368,7 +2396,13 @@ const ACT = {
     U.maKind=''; U.maRole=''; save(); toast('Torneo aggiunto'); },
   marole(k){ U.maRole=k; },
   trole(k,d){ const nk=setTourRole(k,d.v); if(U.tOpen===k) U.tOpen=nk; save(); toast(d.v==='main'?'Ora è la prima scelta':d.v==='alt'?'Ora è un\'alternativa':'Torneo in più nella settimana'); },
-  athnewtoggle(){ U.newAth=!U.newAth; },
+  athnewtoggle(){ U.newAth=!U.newAth; U.newGrp=false; },
+  grpnewtoggle(){ U.newGrp=!U.newGrp; U.newAth=false; },
+  grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
+  pinstoggle(){ U.showPins=!U.showPins; U.confirm=null; },
+  grpedit(){ U.grpEdit=!U.grpEdit; U.confirm=null; },
+  grpcode(){ const g=grp(U.resGroup); g.code=genCode(g.name); save(); toast('Nuovo codice: '+g.code); },
+  grpdel(){ const id=U.resGroup; S.groups=S.groups.filter(x=>x.id!==id); U.resGroup=null; U.grpEdit=false; U.confirm=null; save(); toast('Gruppo eliminato'); },
   athnew(){ const n=document.getElementById('f-na-name').value.trim(), gid=document.getElementById('f-na-grp').value; if(!n){ toast('Scrivi il nome'); return; }
     const id=uid(); S.athletes.push({id, groupId:gid, name:n, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); save(); U.newAth=false; U.resGroup=gid; toast(n+' aggiunto a '+(gid===PRIV_ID?'Lezioni private':grp(gid).name)); },
   athpriv(k){ U.athPriv=k; window.scrollTo(0,0); },
@@ -2561,6 +2595,7 @@ document.addEventListener('change', e=>{
   if(c==='mfgrp'){ U.mfGroup=t.value; render(); return; }
   if(c==='fitdate'){ U.fitDate=t.value||todayISO(); render(); return; }
   if(c==='snshare'){ U.snShare=t.checked; return; }
+  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
   if(c==='attdate'){ U.attDate=t.value||todayISO(); render(); return; }
@@ -2580,6 +2615,7 @@ document.addEventListener('input', e=>{
   if(c==='fitplan'){ S.fitPlan=S.fitPlan||{}; (S.fitPlan[t.dataset.k]=S.fitPlan[t.dataset.k]||{})[U.fitDate||todayISO()]=t.value; save(); return; }
   if(c==='ftn' && U.ftNew){ U.ftNew[t.dataset.k]=t.value; return; }
   if(c==='filo'){ S.filoEdit=S.filoEdit||{}; S.filoEdit[t.dataset.k]=t.value; save(); return; }
+  if(c==='grname'){ const g=grp(U.resGroup); if(g){ g.name=t.value; save(); } return; }
   if(c==='fpwname'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].name=t.value; save(); return; }
   if(c==='fpdt'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].days[+t.dataset.k].title=t.value; save(); return; }
   if(c==='fpdx'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].days[+t.dataset.k].text=t.value; save(); return; }
