@@ -6,10 +6,21 @@ service cloud.firestore {
     function memberPath(c) { return /databases/$(database)/documents/clubs/$(c)/members/$(request.auth.uid); }
     function isMember(c) { return signedIn() && exists(memberPath(c)); }
     function isAdmin(c) { return isMember(c) && get(memberPath(c)).data.admin == true; }
+    function me(c) { return get(memberPath(c)).data; }
+    function isStaff(c) { return isMember(c) && me(c).role in ['coach', 'fit', 'mind']; }
+    function isCoach(c) { return isMember(c) && me(c).role == 'coach'; }
+    function isAthleteOf(c, aid) { return isMember(c) && me(c).role in ['student', 'parent'] && me(c).athleteId == aid; }
     function invitePath() { return /databases/$(database)/documents/invites/$(myEmail()); }
 
     match /users/{uid} {
       allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /codes/{code} {
+      allow get: if true;
+      allow create: if signedIn() && isCoach(request.resource.data.club);
+      allow update: if isCoach(resource.data.club) && request.resource.data.club == resource.data.club;
+      allow delete: if isCoach(resource.data.club);
     }
 
     match /invites/{email} {
@@ -24,14 +35,16 @@ service cloud.firestore {
       allow update: if isAdmin(c);
 
       match /members/{uid} {
-        allow read: if isMember(c);
-        allow create: if signedIn() && uid == request.auth.uid && (
+        allow read: if isStaff(c) || (signedIn() && uid == request.auth.uid);
+        allow create: if (isCoach(c) && request.resource.data.role in ['student', 'parent'] && request.resource.data.admin == false)
+          || signedIn() && uid == request.auth.uid && (
           (get(/databases/$(database)/documents/clubs/$(c)).data.owner == request.auth.uid
             && request.resource.data.admin == true && request.resource.data.role == 'coach')
           || (exists(invitePath()) && get(invitePath()).data.club == c
             && request.resource.data.role == get(invitePath()).data.role
             && request.resource.data.admin == false));
-        allow update, delete: if isAdmin(c);
+        allow update: if isAdmin(c) || (isCoach(c) && resource.data.role in ['student', 'parent'] && request.resource.data.role in ['student', 'parent'] && request.resource.data.admin == false);
+        allow delete: if isAdmin(c) || (isCoach(c) && resource.data.role in ['student', 'parent']);
       }
 
       match /invites/{email} {
@@ -40,7 +53,14 @@ service cloud.firestore {
       }
 
       match /data/{key} {
-        allow read, write: if isMember(c);
+        allow read: if isStaff(c) || (isMember(c) && key in ['groups', 'athletes', 'season', 'plan', 'provaEdit', 'customEx', 'own', 'fitProg', 'notices', 'filoEdit', 'ftests', 'mforms', 'roster', 'example', 'ex4', 'ex5']);
+        allow write: if isStaff(c);
+      }
+
+      match /ath/{aid}/data/{key} {
+        allow read: if isStaff(c) || (isAthleteOf(c, aid) && !(key in ['notes', 'snotes', 'profilesPriv']));
+        allow create, update: if isStaff(c) || (isAthleteOf(c, aid) && key in ['results', 'forms', 'well', 'matches', 'tours', 'massign']);
+        allow delete: if isStaff(c);
       }
     }
   }

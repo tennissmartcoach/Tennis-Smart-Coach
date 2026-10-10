@@ -824,12 +824,12 @@ function athList(){
       <div class="field"><label for="f-grn">Nome</label><input id="f-grn" class="input" data-c="grname" value="${esc(g.name)}"></div>
       <div class="row"><span class="small muted">Codice del gruppo <b style="color:var(--ink)">${esc(g.code||'')}</b></span><button class="chip" data-a="grpcode">Nuovo codice</button></div>
       ${n ? `<p class="small muted">Per eliminare il gruppo sposta o togli prima i suoi ${n} atleti.</p>` : (U.confirm==='grp:'+g.id ? `<div class="confirm"><span>Eliminare il gruppo ${esc(g.name)}?</span><div class="row"><button class="btn danger" data-a="grpdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>` : `<button class="btn danger" data-a="askdel" data-k="grp:${g.id}" style="align-self:flex-start">Elimina gruppo</button>`)}</section>`; })() : '';
-  const pins = (U.showPins && g) ? (()=>{ const as = S.athletes.filter(a=>a.groupId===g.id); return `<section class="card"><h3>Codici e PIN · ${esc(g.id===PRIV_ID?'Lezioni private':g.name)}</h3>
+  const pins = (U.showPins && g) ? (()=>{ const as = S.athletes.filter(a=>a.groupId===g.id); return `<section class="card"><h3>Codici e PIN · ${esc(g.id===PRIV_ID?'Lezioni private':g.name)}</h3>${cloudPinsExtra(g)}
       ${as.length?`<div class="list">${as.map(a=>`<div class="pinrow">
-        <b>${esc(a.name)}</b>
+        <b>${esc(a.name)}</b>${cloudAthExtra(a)}
         <div class="row" style="gap:6px 14px"><span class="small muted pinl">PIN atleta <b class="pin">${esc(a.pin||'')}</b><button class="chip mini" data-a="newpin" data-k="${a.id}" aria-label="Nuovo PIN atleta">↻</button></span><span class="small muted pinl">PIN genitore <b class="pin">${esc(a.ppin||'')}</b><button class="chip mini" data-a="newppin" data-k="${a.id}" aria-label="Nuovo PIN genitore">↻</button></span></div>
         <div class="row" style="gap:8px;flex-wrap:nowrap"><select class="input" style="flex:1;min-width:0" data-c="athmove" data-k="${a.id}" aria-label="Gruppo di ${esc(a.name)}">${S.groups.map(x=>`<option value="${x.id}" ${x.id===a.groupId?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select>${U.confirm==='ath:'+a.id?`<button class="btn danger" data-a="del" data-k="ath:${a.id}">Sì, togli</button><button class="chip" data-a="nodel">No</button>`:`<button class="chip" data-a="askdel" data-k="ath:${a.id}">Togli</button>`}</div></div>`).join('')}</div>
-      <p class="small muted">Il PIN servirà ad atleti e genitori per entrare nell'app con il codice del gruppo. ↻ ne crea uno nuovo. Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
+      <p class="small muted">Atleta e genitore entrano con il codice personale e il loro PIN. ↻ crea un nuovo PIN (quello vecchio smette di funzionare). Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
   const head = `<div class="row between"><h1>Gruppi e atleti</h1></div>
     <div class="row" style="gap:8px">${U.newAth?'':`<button class="btn clay" data-a="athnewtoggle" style="flex:1">+ Nuovo atleta</button>`}${U.newGrp?'':`<button class="btn ghost" data-a="grpnewtoggle" style="flex:1">+ Nuovo gruppo</button>`}</div>
     ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}`;
@@ -2401,7 +2401,7 @@ const ACT = {
   grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
   pinstoggle(){ U.showPins=!U.showPins; U.confirm=null; },
   grpedit(){ U.grpEdit=!U.grpEdit; U.confirm=null; },
-  grpcode(){ const g=grp(U.resGroup); g.code=genCode(g.name); save(); toast('Nuovo codice: '+g.code); },
+  grpcode(){ const g=grp(U.resGroup); if(C.codes && g.code){ fbDb.doc('codes/'+g.code.toUpperCase()).delete().catch(()=>{}); delete C.codes[g.code.toUpperCase()]; } g.code=genCode(g.name); save(); toast('Nuovo codice: '+g.code); },
   grpdel(){ const id=U.resGroup; S.groups=S.groups.filter(x=>x.id!==id); U.resGroup=null; U.grpEdit=false; U.confirm=null; save(); toast('Gruppo eliminato'); },
   athnew(){ const n=document.getElementById('f-na-name').value.trim(), gid=document.getElementById('f-na-grp').value; if(!n){ toast('Scrivi il nome'); return; }
     const id=uid(); S.athletes.push({id, groupId:gid, name:n, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); save(); U.newAth=false; U.resGroup=gid; toast(n+' aggiunto a '+(gid===PRIV_ID?'Lezioni private':grp(gid).name)); },
@@ -2411,7 +2411,7 @@ const ACT = {
   newpin(k){ ath(k).pin=genPin(); save(); toast('Nuovo PIN atleta'); }, newppin(k){ ath(k).ppin=genPin(); save(); toast('Nuovo PIN genitore'); },
   askdel(k){ U.confirm=k; }, nodel(){ U.confirm=null; },
   del(k){ const [t,id]=k.split(':');
-    if(t==='ath'){ S.athletes=S.athletes.filter(a=>a.id!==id); S.results=S.results.filter(r=>r.athleteId!==id); S.matches=S.matches.filter(m=>m.a.id!==id); S.forms=S.forms.filter(f=>f.athleteId!==id); S.tests=S.tests.filter(t=>t.athleteId!==id); toast('Tolto dal gruppo'); }
+    if(t==='ath'){ cloudAthRemoved(id); S.athletes=S.athletes.filter(a=>a.id!==id); S.results=S.results.filter(r=>r.athleteId!==id); S.matches=S.matches.filter(m=>m.a.id!==id); S.forms=S.forms.filter(f=>f.athleteId!==id); S.tests=S.tests.filter(t=>t.athleteId!==id); toast('Tolto dal gruppo'); }
     if(t==='m'){ S.matches=S.matches.filter(m=>m.id!==id); U.matchOpen=null; toast('Partita eliminata'); }
     U.confirm=null; save(); },
   addath(k){ const i=document.getElementById('f-new-'+k); const n=i.value.trim(); if(!n){ toast('Scrivi il nome'); return; } S.athletes.push({id:uid(), groupId:k, name:n, pin:genPin(), ppin:genPin()}); save(); toast(n+' aggiunto al gruppo'); },
@@ -2595,7 +2595,7 @@ document.addEventListener('change', e=>{
   if(c==='mfgrp'){ U.mfGroup=t.value; render(); return; }
   if(c==='fitdate'){ U.fitDate=t.value||todayISO(); render(); return; }
   if(c==='snshare'){ U.snShare=t.checked; return; }
-  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
+  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; cloudMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
   if(c==='attdate'){ U.attDate=t.value||todayISO(); render(); return; }
@@ -2659,9 +2659,9 @@ const FB_CONFIG = {
   messagingSenderId: "1091138705263",
   appId: "1:1091138705263:web:4e3bfed851a700894efa9a"
 };
-const ROLE_LABEL = {coach:'Maestro', fit:'Preparatore atletico', mind:'Preparatore mentale'};
+const ROLE_LABEL = {coach:'Maestro', fit:'Preparatore atletico', mind:'Preparatore mentale', student:'Atleta', parent:'Genitore'};
 const LOCAL_KEYS = new Set(['session','live','seen']);
-const C = { ready:false, screen:'loading', user:null, club:null, clubName:'', member:null, last:{}, dirty:new Set(), timer:null, status:'ok', err:'', info:'', mode:'login', invite:null, unsub:[], busy:false, staff:null, invites:null, pendingRender:false };
+const C = { ready:false, screen:'loading', user:null, club:null, clubName:'', member:null, last:{}, dirty:new Set(), timer:null, status:'ok', err:'', info:'', mode:'ath', invite:null, unsub:[], busy:false, staff:null, invites:null, pendingRender:false };
 let fbAuth = null, fbDb = null;
 
 function normalize(d){
@@ -2685,7 +2685,8 @@ function cErr(e){
     'auth/missing-password':'Scrivi la password.',
     'auth/weak-password':'La password deve avere almeno 6 caratteri.',
     'auth/email-already-in-use':'Esiste già un account con questa email: usa "Accedi".',
-    'auth/invalid-credential':'Email o password non corrette.',
+    'auth/invalid-credential': C.mode==='ath' ? 'Codice o PIN non corretti. Controlla o chiedi al maestro.' : 'Email o password non corrette.',
+    'tsc/code':'Codice non trovato. Controlla di averlo scritto giusto, con i trattini.',
     'auth/wrong-password':'Email o password non corrette.',
     'auth/user-not-found':'Non esiste un account con questa email.',
     'auth/too-many-requests':'Troppi tentativi. Aspetta qualche minuto e riprova.',
@@ -2709,11 +2710,11 @@ function cloudInit(){
     fbAuth.languageCode = 'it';
   }catch(e){ C.err = cErr(e); C.screen='error'; return cloudRender(); }
   fbAuth.onAuthStateChanged(u=>{
-    C.user = u; cloudStop(); C.ready = false; C.last = {}; C.club = null; C.member = null;
+    C.user = u; cloudStop(); C.ready = false; C.last = {}; C.club = null; C.member = null; C.sh = {}; C.pt = {}; C.partLoaded = {}; C.codes = null;
     if(!u){ C.screen='auth'; cloudRender(); return; }
     cloudAfterLogin();
   });
-  document.addEventListener('input', e=>{ const t=e.target; if(t && t.id && /^c-(name|email|club)$/.test(t.id)) (U.cv=U.cv||{})[t.id]=t.value; });
+  document.addEventListener('input', e=>{ const t=e.target; if(t && t.id && /^c-(name|email|club|code)$/.test(t.id)) (U.cv=U.cv||{})[t.id]=t.value; });
   window.addEventListener('online', statusPaint); window.addEventListener('offline', statusPaint);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden' && C.ready){ clearTimeout(C.timer); cloudFlush(); } });
   document.addEventListener('focusout', ()=>{ if(C.pendingRender){ setTimeout(()=>{ const a=document.activeElement; if(!a || !/INPUT|TEXTAREA|SELECT/.test(a.tagName)){ C.pendingRender=false; render(); } }, 50); } });
@@ -2727,6 +2728,7 @@ async function cloudAfterLogin(){
     if(club){
       const m = await fbDb.doc(`clubs/${club}/members/${C.user.uid}`).get();
       if(m.exists) return cloudOpen(club, m.data());
+      if(us.data().athleteId){ C.screen='removed'; return cloudRender(); }
     }
     const email = (C.user.email||'').toLowerCase();
     let inv = null; try{ inv = await fbDb.doc('invites/'+email).get(); }catch(e){}
@@ -2735,53 +2737,308 @@ async function cloudAfterLogin(){
   }catch(e){ C.err = cErr(e); C.screen='error'; cloudRender(); }
 }
 
+/* ---------- data layout ----------
+   clubs/{c}/data/{key}          shared club data (staff write; athletes read only PUBLIC_KEYS)
+   clubs/{c}/ath/{aid}/data/{k}  each athlete's own data (staff all; the athlete and parent their own)
+*/
+const PUBLIC_KEYS = ['groups','athletes','season','plan','provaEdit','customEx','own','fitProg','notices','filoEdit','ftests','mforms','roster','example','ex4','ex5'];
+const PART_ARR = {results:x=>x.athleteId, forms:x=>x.athleteId, well:x=>x.athleteId, tests:x=>x.athleteId, notes:x=>x.athleteId, snotes:x=>x.athleteId, massign:x=>x.athleteId, fres:x=>x.athleteId, matches:m=>m&&m.a&&m.a.id};
+const ATH_READ = ['results','forms','well','tests','massign','fres','matches','priv','profiles','att','tours'];
+const ATH_WRITE = ['results','forms','well','matches','tours','massign'];
+const COMPOSED = ['athletes','season','profiles','priv','att', ...Object.keys(PART_ARR)];
+const isStaffRole = r => r==='coach' || r==='fit' || r==='mind';
+const jclone = v => v===undefined ? undefined : JSON.parse(JSON.stringify(v));
+const itemKey = it => (it && it.id) ? 'i:'+it.id : 'j:'+JSON.stringify(it);
+const isEmptyV = v => v==null || (Array.isArray(v) ? !v.length : (typeof v==='object' && !Object.keys(v).length));
+
+function ensureTourIds(season){
+  Object.entries(season||{}).forEach(([y,s])=>Object.entries((s&&s.weeks)||{}).forEach(([n,w])=>(w.t||[]).forEach((t,i)=>{ if(t && !t.id) t.id = `t${y}-${n}-${i}`; })));
+}
+function composeKey(k){
+  const sh = C.sh, pt = C.pt, known = isStaffRole(C.member.role) ? new Set((sh.athletes||[]).map(a=>a.id)) : null, aids = Object.keys(pt).filter(x=>!known || known.has(x));
+  if(k==='athletes'){ const pins = sh.pins || {}; return (jclone(sh.athletes)||[]).map(a=>Object.assign(a, pins[a.id]||{})); }
+  if(k==='season'){
+    const s = jclone(sh.season) || {}; const tours = {};
+    aids.forEach(aid=>{ const T = pt[aid].tours || {}; Object.keys(T).forEach(tid=>{ (tours[tid] = tours[tid] || {})[aid] = T[tid]; }); });
+    ensureTourIds(s);
+    Object.values(s).forEach(y=>Object.values((y&&y.weeks)||{}).forEach(w=>(w.t||[]).forEach(t=>{
+      const m = tours[t.id]; if(!m) return;
+      t.requests = (t.requests||[]).filter(a=>!(a in m)); t.results = t.results || {};
+      Object.keys(m).forEach(aid=>{ if(m[aid].req) t.requests.push(aid); if(m[aid].res) t.results[aid] = m[aid].res; });
+    })));
+    return s;
+  }
+  if(PART_ARR[k]){
+    const out = (jclone(sh[k]) || []); const seen = new Set(out.map(itemKey));
+    aids.forEach(aid=>(pt[aid][k]||[]).forEach(it=>{ const kk = itemKey(it); if(!seen.has(kk)){ seen.add(kk); out.push(it); } }));
+    return out;
+  }
+  if(k==='profiles' || k==='priv'){
+    const o = jclone(sh[k]) || {};
+    aids.forEach(aid=>{ const v = k==='profiles' ? (pt[aid].profiles || pt[aid].profilesPriv) : pt[aid].priv; if(v) o[aid] = v; });
+    return o;
+  }
+  if(k==='att'){
+    const o = jclone(sh.att) || {};
+    aids.forEach(aid=>{ const A = pt[aid].att || {}; Object.keys(A).forEach(day=>{ (o[day] = o[day] || {})[aid] = A[day]; }); });
+    return o;
+  }
+  return jclone(sh[k]);
+}
+function composeAll(){
+  const d = {};
+  Object.keys(C.sh).forEach(k=>{ if(k!=='pins') d[k] = composeKey(k); });
+  COMPOSED.forEach(k=>{ d[k] = composeKey(k); });
+  return d;
+}
+/* split the in-memory state back into shared docs and per-athlete docs */
+function decompose(S){
+  const out = {sh:{}, pt:{}};
+  if(!isStaffRole(C.member.role)){
+    const aid = C.member.athleteId, P = out.pt[aid] = {};
+    ['results','forms','well','matches','massign'].forEach(k=>{ P[k] = (S[k]||[]).filter(x=>PART_ARR[k](x)===aid); });
+    ensureTourIds(S.season); const T = {};
+    Object.values(S.season||{}).forEach(y=>Object.values((y&&y.weeks)||{}).forEach(w=>(w.t||[]).forEach(t=>{
+      const req = (t.requests||[]).includes(aid), res = (t.results||{})[aid];
+      if(req || res) T[t.id] = Object.assign({}, req?{req:true}:{}, res?{res}:{});
+    })));
+    P.tours = T; return out;
+  }
+  const aids = new Set((S.athletes||[]).map(a=>a.id));
+  aids.forEach(aid=>{ out.pt[aid] = {}; });
+  Object.keys(S).forEach(k=>{ if(!LOCAL_KEYS.has(k) && !COMPOSED.includes(k)) out.sh[k] = S[k]; });
+  const pins = {};
+  out.sh.athletes = (S.athletes||[]).map(a=>{ const {pin, ppin, pin6, ppin6, ...rest} = a; pins[a.id] = {pin, ppin}; return rest; });
+  out.sh.pins = pins;
+  ensureTourIds(S.season); const season = jclone(S.season) || {};
+  Object.values(season).forEach(y=>Object.values((y&&y.weeks)||{}).forEach(w=>(w.t||[]).forEach(t=>{
+    const keepReq = [], keepRes = {};
+    (t.requests||[]).forEach(aid=>{ if(aids.has(aid)){ const T = out.pt[aid].tours = out.pt[aid].tours || {}; (T[t.id] = T[t.id] || {}).req = true; } else keepReq.push(aid); });
+    Object.entries(t.results||{}).forEach(([aid,r])=>{ if(aids.has(aid)){ const T = out.pt[aid].tours = out.pt[aid].tours || {}; (T[t.id] = T[t.id] || {}).res = r; } else keepRes[aid] = r; });
+    t.requests = keepReq; t.results = keepRes;
+  })));
+  out.sh.season = season;
+  Object.keys(PART_ARR).forEach(k=>{
+    const orphans = [];
+    (S[k]||[]).forEach(it=>{ const aid = PART_ARR[k](it); if(aids.has(aid)) (out.pt[aid][k] = out.pt[aid][k] || []).push(it); else orphans.push(it); });
+    out.sh[k] = orphans;
+  });
+  const shProf = {}, shPriv = {};
+  Object.entries(S.profiles||{}).forEach(([aid,v])=>{ if(aids.has(aid)) out.pt[aid][v && v.share===false ? 'profilesPriv' : 'profiles'] = v; else shProf[aid] = v; });
+  Object.entries(S.priv||{}).forEach(([aid,v])=>{ if(aids.has(aid)) out.pt[aid].priv = v; else shPriv[aid] = v; });
+  out.sh.profiles = shProf; out.sh.priv = shPriv;
+  const shAtt = {};
+  Object.entries(S.att||{}).forEach(([day,m])=>Object.entries(m||{}).forEach(([aid,v])=>{ if(aids.has(aid)){ const A = out.pt[aid].att = out.pt[aid].att || {}; A[day] = v; } else (shAtt[day] = shAtt[day] || {})[aid] = v; }));
+  out.sh.att = shAtt;
+  aids.forEach(aid=>{ const P = out.pt[aid]; ['tours','att','profiles','profilesPriv','priv', ...Object.keys(PART_ARR)].forEach(k=>{ if(P[k]===undefined) P[k] = (k==='priv'||k==='profiles'||k==='profilesPriv') ? null : (k==='tours'||k==='att' ? {} : []); }); });
+  return out;
+}
+const affectedBy = (k, part) => part ? ({tours:'season', profilesPriv:'profiles'}[k] || k) : ((k==='pins') ? 'athletes' : k);
+function applyRemote(k, part){
+  const sk = affectedBy(k, part);
+  if(C.timer){ clearTimeout(C.timer); C.timer = null; cloudFlush(); }
+  S[sk] = composeKey(sk); S = normalize(S);
+  const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) C.pendingRender = true; else render();
+}
+
 async function cloudOpen(club, member){
-  C.club = club; C.member = member;
+  C.club = club; C.member = member; C.sh = {}; C.pt = {}; C.partLoaded = {}; C.last = {};
   try{ const cs = await fbDb.doc('clubs/'+club).get(); C.clubName = cs.exists ? (cs.data().name||'') : ''; }catch(e){}
-  let first = true;
-  C.unsub.push(fbDb.collection(`clubs/${club}/data`).onSnapshot(snap=>{
-    if(first){
-      const d = {};
-      snap.forEach(doc=>{ const v = doc.data().v; C.last[doc.id] = v; try{ d[doc.id] = JSON.parse(v); }catch(e){} });
-      S = normalize(d);
-      let seen = ''; try{ seen = localStorage.getItem('tsc.seen.'+C.user.uid) || ''; }catch(e){}
-      S.seen = seen; S.session = {role: member.role};
-      first = false; C.ready = true; C.screen='app'; U.tab = null; render(); return;
+  const staff = isStaffRole(member.role);
+  let pending = 0, started = false;
+  const done = () => {
+    if(C.ready || pending > 0 || !started) return;
+    S = normalize(composeAll());
+    let seen = ''; try{ seen = localStorage.getItem('tsc.seen.'+C.user.uid) || ''; }catch(e){}
+    S.seen = seen; S.session = staff ? {role: member.role} : {role: member.role, athleteId: member.athleteId};
+    if(!staff && !S.athletes.some(a=>a.id===member.athleteId)) S.athletes.push({id:member.athleteId, groupId:'', name:member.name||''});
+    C.ready = true; C.screen = 'app'; U.tab = null; render();
+    if(staff) setTimeout(cloudFlush, 300);
+  };
+  const onErr = e => { C.status='err'; C.err=cErr(e); statusPaint(); if(!C.ready){ C.screen='error'; cloudRender(); } };
+  const watchDoc = (ref, path, setter) => { pending++; let first = true;
+    C.unsub.push(ref.onSnapshot(d=>{
+      const v = d.exists ? d.data().v : undefined;
+      if(first){ first = false; C.last[path] = v; setter(v); pending--; done(); return; }
+      if(d.metadata && d.metadata.hasPendingWrites) return;
+      if(C.last[path]===v) return; C.last[path] = v; setter(v); if(C.ready) applyRemote(path.split('/').pop(), path[0]==='p');
+    }, onErr)); };
+  const parse = v => { try{ return v===undefined ? undefined : JSON.parse(v); }catch(e){ return undefined; } };
+  const watchPart = aid => {
+    if(C.partLoaded[aid] !== undefined) return; C.partLoaded[aid] = false; C.pt[aid] = C.pt[aid] || {};
+    if(staff){ pending++; let first = true;
+      C.unsub.push(fbDb.collection(`clubs/${club}/ath/${aid}/data`).onSnapshot(snap=>{
+        if(first){ first = false; snap.forEach(d=>{ const v = d.data().v; C.last[`p/${aid}/${d.id}`] = v; C.pt[aid][d.id] = parse(v); }); C.partLoaded[aid] = true; pending--;
+          if(C.ready){ COMPOSED.forEach(k=>{ S[k] = composeKey(k); }); S = normalize(S); render(); } else done(); return; }
+        snap.docChanges().forEach(ch=>{ if(ch.type==='removed' || ch.doc.metadata.hasPendingWrites) return; const path = `p/${aid}/${ch.doc.id}`, v = ch.doc.data().v; if(C.last[path]===v) return; C.last[path] = v; C.pt[aid][ch.doc.id] = parse(v); applyRemote(ch.doc.id, true); });
+      }, onErr));
+    } else {
+      ATH_READ.forEach(k=>watchDoc(fbDb.doc(`clubs/${club}/ath/${aid}/data/${k}`), `p/${aid}/${k}`, v=>{ C.pt[aid][k] = parse(v); }));
+      C.partLoaded[aid] = true;
     }
-    let changed = false;
-    snap.docChanges().forEach(ch=>{
-      if(ch.type==='removed') return;
-      if(ch.doc.metadata.hasPendingWrites || C.dirty.has(ch.doc.id)) return;
-      const v = ch.doc.data().v; if(C.last[ch.doc.id]===v) return;
-      C.last[ch.doc.id] = v; try{ S[ch.doc.id] = JSON.parse(v); changed = true; }catch(e){}
-    });
-    if(changed){ S = normalize(S); const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) C.pendingRender = true; else render(); }
-  }, e=>{ C.status='err'; C.err=cErr(e); statusPaint(); }));
+  };
+  C.watchPart = watchPart;
+  if(staff){
+    pending++; let first = true;
+    C.unsub.push(fbDb.collection(`clubs/${club}/data`).onSnapshot(snap=>{
+      if(first){ first = false; snap.forEach(d=>{ const v = d.data().v; C.last['s/'+d.id] = v; C.sh[d.id] = parse(v); });
+        (C.sh.athletes||[]).forEach(a=>watchPart(a.id)); pending--; started = true; done(); return; }
+      snap.docChanges().forEach(ch=>{ if(ch.type==='removed' || ch.doc.metadata.hasPendingWrites) return; const path = 's/'+ch.doc.id, v = ch.doc.data().v; if(C.last[path]===v) return; C.last[path] = v; C.sh[ch.doc.id] = parse(v);
+        if(ch.doc.id==='athletes') (C.sh.athletes||[]).forEach(a=>watchPart(a.id)); applyRemote(ch.doc.id, false); });
+    }, onErr));
+  } else {
+    PUBLIC_KEYS.forEach(k=>watchDoc(fbDb.doc(`clubs/${club}/data/${k}`), 's/'+k, v=>{ C.sh[k] = parse(v); }));
+    watchPart(member.athleteId); started = true; done();
+  }
   C.unsub.push(fbDb.doc(`clubs/${club}/members/${C.user.uid}`).onSnapshot(m=>{
     if(!m.exists && C.ready){ C.ready=false; C.screen='removed'; cloudStop(); cloudRender(); }
-    else if(m.exists){ C.member = m.data(); if(S && S.session && S.session.role!==C.member.role){ S.session.role = C.member.role; U.tab=null; render(); } }
+    else if(m.exists){ C.member = m.data(); }
   }, ()=>{}));
 }
 
-/* save: write only the keys that changed, a moment after the last edit */
+/* save: write only what changed, a moment after the last edit */
 function save(){ if(!C.ready) return; clearTimeout(C.timer); C.status='saving'; statusPaint(); C.timer = setTimeout(cloudFlush, 700); }
 async function cloudFlush(){
+  C.timer = null;
   if(!C.ready || !fbDb) return;
   try{ localStorage.setItem('tsc.seen.'+C.user.uid, S.seen||''); }catch(e){}
-  const batch = fbDb.batch(), keys = [];
-  for(const k of Object.keys(S)){
-    if(LOCAL_KEYS.has(k)) continue;
-    const v = JSON.stringify(S[k]===undefined ? null : S[k]);
-    if(C.last[k]===v) continue;
-    if(v.length > 900000){ C.status='big'; C.err=`La sezione "${k}" è diventata troppo grande per essere salvata.`; continue; }
-    keys.push([k, C.last[k]]); C.last[k] = v; C.dirty.add(k);
-    batch.set(fbDb.doc(`clubs/${C.club}/data/${k}`), {v, at: firebase.firestore.FieldValue.serverTimestamp(), by: C.user.uid});
+  const staff = isStaffRole(C.member.role), D = decompose(S), writes = [];
+  if(staff){
+    (S.athletes||[]).forEach(a=>{ if(C.partLoaded[a.id]===undefined) C.watchPart(a.id); });
+    Object.keys(D.sh).forEach(k=>{ const v = JSON.stringify(D.sh[k]===undefined ? null : D.sh[k]); const path = 's/'+k; if(C.last[path]===v) return; if(C.last[path]===undefined && isEmptyV(D.sh[k])) return; writes.push([path, `clubs/${C.club}/data/${k}`, v]); });
   }
-  if(!keys.length){ if(C.status!=='big') C.status='ok'; statusPaint(); return; }
-  try{ await batch.commit(); C.status='ok'; C.err=''; }
-  catch(e){ keys.forEach(([k,old])=>{ C.last[k]=old; }); C.status='err'; C.err=cErr(e); }
-  finally{ keys.forEach(([k])=>C.dirty.delete(k)); statusPaint(); }
+  Object.keys(D.pt).forEach(aid=>{
+    if(staff && !C.partLoaded[aid]) return;
+    Object.keys(D.pt[aid]).forEach(k=>{ if(!staff && !ATH_WRITE.includes(k)) return; const val = D.pt[aid][k]; const v = JSON.stringify(val===undefined ? null : val); const path = `p/${aid}/${k}`;
+      if(C.last[path]===v) return; if(C.last[path]===undefined && isEmptyV(val)) return; writes.push([path, `clubs/${C.club}/ath/${aid}/data/${k}`, v]); });
+  });
+  if(writes.some(w=>w[2].length > 900000)){ C.status='big'; C.err='Una sezione è diventata troppo grande per essere salvata.'; statusPaint(); return; }
+  if(staff){ Object.keys(D.sh).forEach(k=>{ C.sh[k] = jclone(D.sh[k]); }); }
+  Object.keys(D.pt).forEach(aid=>{ if(staff && !C.partLoaded[aid]) return; C.pt[aid] = C.pt[aid] || {}; Object.keys(D.pt[aid]).forEach(k=>{ if(!staff && !ATH_WRITE.includes(k)) return; C.pt[aid][k] = jclone(D.pt[aid][k]); }); });
+  const prev = writes.map(w=>[w[0], C.last[w[0]]]);
+  writes.forEach(w=>{ C.last[w[0]] = w[2]; });
+  if(!writes.length){ if(C.status!=='big' && C.status!=='err') C.status='ok'; statusPaint(); if(staff && C.member.role==='coach') syncCodes(); return; }
+  try{
+    for(let i=0; i<writes.length; i+=400){ const b = fbDb.batch(); writes.slice(i,i+400).forEach(w=>b.set(fbDb.doc(w[1]), {v:w[2], at:firebase.firestore.FieldValue.serverTimestamp(), by:C.user.uid})); await b.commit(); }
+    C.status='ok'; C.err='';
+  }catch(e){ prev.forEach(([p,old])=>{ C.last[p] = old; }); C.status='err'; C.err=cErr(e); }
+  statusPaint();
+  if(staff && C.member.role==='coach') syncCodes();
 }
+
+/* ---------- athlete and parent accounts ---------- */
+const PIN_LEN = 6;
+const genPin6 = () => String(Math.floor(Math.random()*9e5)+1e5);
+const loginEmail = (aid, role) => `${aid}.${role}@${C.club}.tsc-login.app`.toLowerCase();
+const loginPw = pin => 'TSC' + pin;
+const personalCode = a => { const g = grp(a.groupId); return (g && g.code && a.num) ? `${g.code}-${a.num}` : ''; };
+function nextNum(gid, except){ const used = new Set(S.athletes.filter(x=>x.groupId===gid && x.id!==except && x.num).map(x=>x.num)); for(let i=1;i<100;i++){ const n = String(i).padStart(2,'0'); if(!used.has(n)) return n; } return String(Math.floor(Math.random()*900)+100); }
+async function syncCodes(){
+  if(!C.club) return;
+  const want = {};
+  S.groups.forEach(g=>{ if(!g.code) return; const nums = {}; S.athletes.forEach(a=>{ if(a.groupId===g.id && a.num && a.online) nums[a.num] = a.id; }); if(Object.keys(nums).length) want[g.code.toUpperCase()] = {club:C.club, nums}; });
+  C.codes = C.codes || {};
+  for(const code of Object.keys(want)){ const v = JSON.stringify(want[code]); if(C.codes[code]===v) continue;
+    try{ await fbDb.doc('codes/'+code).set(want[code]); C.codes[code] = v; }
+    catch(e){ toast(`Il codice gruppo ${code} è già usato da un altro circolo: crea un nuovo codice in "Gestisci gruppo".`); C.codes[code] = v; } }
+  for(const code of Object.keys(C.codes)){ if(want[code]) continue; try{ await fbDb.doc('codes/'+code).delete(); }catch(e){} delete C.codes[code]; }
+}
+function secApp(){ const a = (firebase.apps||[]).find(x=>x.name==='sec') || firebase.initializeApp(FB_CONFIG, 'sec'); try{ a.auth().setPersistence(firebase.auth.Auth.Persistence.NONE); }catch(e){} return a; }
+async function ensureAccount(a, role, pinField){
+  const sec = secApp(), sa = sec.auth(), email = loginEmail(a.id, role), pw = loginPw(a[pinField]);
+  let cred;
+  try{ cred = await sa.createUserWithEmailAndPassword(email, pw); }
+  catch(e){ if(e.code==='auth/email-already-in-use') cred = await sa.signInWithEmailAndPassword(email, pw); else throw e; }
+  const uid = cred.user.uid;
+  await sec.firestore().doc('users/'+uid).set({club:C.club, athleteId:a.id, role});
+  await sa.signOut();
+  await fbDb.doc(`clubs/${C.club}/members/${uid}`).set({role, athleteId:a.id, admin:false, name:a.name, at:firebase.firestore.FieldValue.serverTimestamp()});
+  return uid;
+}
+async function flushNow(){ clearTimeout(C.timer); C.timer = null; await cloudFlush(); if(C.status==='err') throw new Error(C.err); }
+async function changePin(aid, role, pinField){
+  const newPin = genPin6(), a = ath(aid);
+  if(!(a.online && a.online[role])){ a[pinField] = newPin; save(); return newPin; }
+  const sec = secApp(), sa = sec.auth();
+  const cred = await sa.signInWithEmailAndPassword(loginEmail(aid, role), loginPw(a[pinField]));
+  await cred.user.updatePassword(loginPw(newPin)); await sa.signOut();
+  ath(aid)[pinField] = newPin; await flushNow(); return newPin;
+}
+Object.assign(ACT, {
+  newpin(k){ cBusyToast(async ()=>{ const p = await changePin(k, 'student', 'pin'); toast('Nuovo PIN atleta: '+p); }); },
+  newppin(k){ cBusyToast(async ()=>{ const p = await changePin(k, 'parent', 'ppin'); toast('Nuovo PIN genitore: '+p); }); },
+  actgroup(){ const gid = U.resGroup; if(!grp(gid)) return; const ids = S.athletes.filter(a=>a.groupId===gid).map(a=>a.id);
+    cBusyToast(async ()=>{ let n = 0;
+      for(let tries=0; tries<6; tries++){
+        const g = grp(gid);
+        if(!g.code || !/-[A-Z0-9]{3}$/.test(g.code)) g.code = genCode(gid===PRIV_ID ? 'PRV' : g.name);
+        const cs = await fbDb.doc('codes/'+g.code.toUpperCase()).get();
+        if(!cs.exists || cs.data().club===C.club) break; g.code = '';
+      }
+      for(const id of ids){
+        for(const [role, f] of [['student','pin'],['parent','ppin']]){
+          let a = ath(id); if(!a) break;
+          if(!a.num) a.num = nextNum(gid, id);
+          if(a.online && a.online[role]) continue;
+          if(!a[f] || a[f].length < PIN_LEN) a[f] = genPin6();
+          await flushNow();                       /* the PIN is stored before the account exists */
+          const uidNew = await ensureAccount(ath(id), role, f);
+          a = ath(id); a.online = Object.assign({}, a.online, {[role]: uidNew}); n++;
+          await flushNow(); render();
+        }
+      }
+      toast(n ? `Accessi attivati per ${ids.length} atleti` : 'Gli accessi erano già attivi');
+    }); },
+  copyacc(k){ const [aid, role] = k.split(':'); const a = ath(aid); const pin = role==='parent' ? a.ppin : a.pin;
+    const t = `Tennis Smart Coach – accesso ${role==='parent'?'genitore di '+a.name:'atleta '+a.name}\nApri ${location.origin+location.pathname}\nTocca "Atleta o genitore", scegli "${role==='parent'?'Genitore':'Atleta'}" e inserisci:\nCodice: ${personalCode(a)}\nPIN: ${pin}`;
+    try{ navigator.clipboard.writeText(t).then(()=>toast('Accesso copiato: incollalo su WhatsApp'), ()=>toast(t)); }catch(e){ toast(t); } }
+});
+function cBusyToast(fn){ if(C.busy) return; C.busy = true; render(); Promise.resolve().then(fn).catch(e=>toast(cErr(e))).finally(()=>{ C.busy = false; render(); }); }
+function cloudPinsExtra(g){
+  if(!C.club || C.member.role!=='coach' || !g) return '';
+  const as = S.athletes.filter(a=>a.groupId===g.id); if(!as.length) return '';
+  const missing = as.filter(a=>!(a.online && a.online.student && a.online.parent)).length;
+  return `<div class="note">${missing ? `<b>Accessi online:</b> ${missing} ${missing===1?'atleta da attivare':'atleti da attivare'}. Ogni atleta e ogni genitore riceve un codice personale e un PIN di 6 cifre.` : '<b>Accessi online attivi</b> per tutto il gruppo.'}</div>
+    ${missing ? `<button class="btn clay block" data-a="actgroup" ${C.busy?'disabled':''}>${C.busy?'Attivazione in corso…':'Attiva gli accessi online'}</button>` : ''}`;
+}
+function cloudAthExtra(a){
+  if(!C.club || C.member.role!=='coach') return '';
+  const code = personalCode(a), on = a.online && a.online.student && a.online.parent;
+  return `<div class="row" style="gap:6px 10px;align-items:center"><span class="small muted">Codice</span><b class="pin" style="display:inline">${esc(code||'—')}</b>${on?'<span class="tstat ok">online</span>':'<span class="tstat wait">da attivare</span>'}</div>
+    ${on?`<div class="row" style="gap:6px"><button class="chip" data-a="copyacc" data-k="${a.id}:student">Copia accesso atleta</button><button class="chip" data-a="copyacc" data-k="${a.id}:parent">Copia accesso genitore</button></div>`:''}`;
+}
+
+/* hooks called by the app */
+function cloudAthRemoved(aid){
+  if(!C.club || !isStaffRole(C.member.role)) return;
+  const a = ath(aid); const uids = a && a.online ? Object.values(a.online) : [];
+  const b = fbDb.batch();
+  uids.forEach(u=>b.delete(fbDb.doc(`clubs/${C.club}/members/${u}`)));
+  Object.keys((C.pt||{})[aid]||{}).concat(ATH_READ).forEach(k=>b.delete(fbDb.doc(`clubs/${C.club}/ath/${aid}/data/${k}`)));
+  ['notes','snotes','profilesPriv'].forEach(k=>b.delete(fbDb.doc(`clubs/${C.club}/ath/${aid}/data/${k}`)));
+  b.commit().catch(()=>{});
+  delete C.pt[aid];
+  Object.keys(C.last).forEach(p=>{ if(p.startsWith(`p/${aid}/`)) delete C.last[p]; });
+}
+function cloudMoved(a){ if(!C.club) return; if(a.num || a.online) a.num = nextNum(a.groupId, a.id); }
+Object.assign(ACT, {
+  crole(k){ U.cRole = k; },
+  calogin(){
+    const raw = cv('c-code').toUpperCase().replace(/\s+/g,''), pin = cv('c-pin');
+    const i = raw.lastIndexOf('-');
+    if(i<1){ C.err = 'Scrivi il codice personale completo, per esempio U12-AB3-01.'; return; }
+    if(!/^\d{6}$/.test(pin)){ C.err = 'Il PIN è di 6 cifre.'; return; }
+    const group = raw.slice(0,i), num = raw.slice(i+1).padStart(2,'0'), role = U.cRole==='parent' ? 'parent' : 'student';
+    cBusy(async ()=>{
+      const cs = await fbDb.doc('codes/'+group).get();
+      const aid = cs.exists ? (cs.data().nums||{})[num] : null;
+      if(!aid){ const e = new Error('code'); e.code = 'tsc/code'; throw e; }
+      const club = cs.data().club;
+      await fbAuth.signInWithEmailAndPassword(`${aid}.${role}@${club}.tsc-login.app`.toLowerCase(), loginPw(pin));
+    });
+  }
+});
+
 function statusText(){
   if(!navigator.onLine) return ['off','Offline: le modifiche restano sul telefono e partono appena torna la rete'];
   if(C.status==='saving') return ['saving','Salvataggio…'];
@@ -2804,7 +3061,13 @@ function cloudView(){
   else if(C.screen==='auth'){
     const m = C.mode;
     inner = `<section class="card">
-      <div class="seg" role="group"><button data-a="cmode" data-k="login" aria-pressed="${m==='login'}">Accedi</button><button data-a="cmode" data-k="signup" aria-pressed="${m==='signup'}">Crea account</button></div>
+      <div class="seg" role="group"><button data-a="cmode" data-k="ath" aria-pressed="${m==='ath'}">Atleta o genitore</button><button data-a="cmode" data-k="login" aria-pressed="${m==='login'||m==='signup'||m==='reset'}">Staff</button></div>
+      ${m==='ath' ? `<div class="field"><label>Chi sei</label><div class="seg" role="group"><button data-a="crole" data-k="student" aria-pressed="${U.cRole!=='parent'}">Atleta</button><button data-a="crole" data-k="parent" aria-pressed="${U.cRole==='parent'}">Genitore</button></div></div>
+      <div class="field"><label for="c-code">Codice personale</label><input id="c-code" class="input inbig" value="${cval('c-code')}" autocapitalize="characters" autocomplete="username" placeholder="Es. U12-AB3-01" style="text-transform:uppercase;letter-spacing:.04em"></div>
+      <div class="field"><label for="c-pin">PIN</label><input id="c-pin" class="input inbig" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="6 cifre"></div>
+      ${err}<button class="btn clay block" data-a="calogin" ${C.busy?'disabled':''}>Entra</button>
+      <p class="small muted">Codice e PIN te li dà il maestro. Il genitore ha lo stesso codice del figlio, con il suo PIN.</p>` : `
+      ${m!=='reset' ? `<div class="seg" role="group" style="margin-top:4px"><button data-a="cmode" data-k="login" aria-pressed="${m==='login'}">Accedi</button><button data-a="cmode" data-k="signup" aria-pressed="${m==='signup'}">Crea account</button></div>` : ''}
       ${m==='reset' ? `<h2>Password dimenticata</h2><p class="small muted">Ti mandiamo un'email con il link per sceglierne una nuova.</p>` : ''}
       ${m==='signup' ? `<div class="field"><label for="c-name">Nome e cognome</label><input id="c-name" class="input" value="${cval('c-name')}" autocomplete="name" placeholder="Es. Mario Rossi"></div>` : ''}
       <div class="field"><label for="c-email">Email</label><input id="c-email" class="input" value="${cval('c-email')}" type="email" autocomplete="email" inputmode="email" placeholder="nome@esempio.it"></div>
@@ -2812,9 +3075,8 @@ function cloudView(){
       ${err}${info}
       ${m==='login' ? `<button class="btn clay block" data-a="clogin" ${C.busy?'disabled':''}>Accedi</button><button class="btn ghost block" data-a="cmode" data-k="reset">Password dimenticata?</button>` : ''}
       ${m==='signup' ? `<button class="btn clay block" data-a="csignup" ${C.busy?'disabled':''}>Crea account</button><p class="small muted">Se un collega ti ha invitato, usa la stessa email dell'invito.</p>` : ''}
-      ${m==='reset' ? `<button class="btn clay block" data-a="creset" ${C.busy?'disabled':''}>Mandami il link</button><button class="btn ghost block" data-a="cmode" data-k="login">‹ Torna all'accesso</button>` : ''}
-    </section>
-    <p class="small muted" style="text-align:center">Atleti e genitori potranno entrare nella prossima tappa.</p>`;
+      ${m==='reset' ? `<button class="btn clay block" data-a="creset" ${C.busy?'disabled':''}>Mandami il link</button><button class="btn ghost block" data-a="cmode" data-k="login">‹ Torna all'accesso</button>` : ''}`}
+    </section>`;
   }
   else if(C.screen==='join'){
     const I = C.invite || {};
@@ -2884,7 +3146,7 @@ Object.assign(ACT, {
 async function cloudLoadStaff(){
   try{
     const [ms, is] = await Promise.all([fbDb.collection(`clubs/${C.club}/members`).get(), C.member.admin ? fbDb.collection(`clubs/${C.club}/invites`).get() : Promise.resolve(null)]);
-    C.staff = []; ms.forEach(d=>C.staff.push({uid:d.id, ...d.data()}));
+    C.staff = []; ms.forEach(d=>{ const m = d.data(); if(isStaffRole(m.role)) C.staff.push({uid:d.id, ...m}); });
     C.invites = []; if(is) is.forEach(d=>C.invites.push({email:d.id, ...d.data()}));
   }catch(e){ C.staff = []; C.invites = []; toast(cErr(e)); }
   render();
