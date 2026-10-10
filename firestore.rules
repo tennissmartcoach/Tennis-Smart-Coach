@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function memberPath(c) { return /databases/$(database)/documents/clubs/$(c)/members/$(request.auth.uid); }
+    function isMember(c) { return signedIn() && exists(memberPath(c)); }
+    function isAdmin(c) { return isMember(c) && get(memberPath(c)).data.admin == true; }
+    function invitePath() { return /databases/$(database)/documents/invites/$(myEmail()); }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /invites/{email} {
+      allow get: if signedIn() && myEmail() == email;
+      allow create, update: if isAdmin(request.resource.data.club);
+      allow delete: if signedIn() && (myEmail() == email || isAdmin(resource.data.club));
+    }
+
+    match /clubs/{c} {
+      allow read: if isMember(c);
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow update: if isAdmin(c);
+
+      match /members/{uid} {
+        allow read: if isMember(c);
+        allow create: if signedIn() && uid == request.auth.uid && (
+          (get(/databases/$(database)/documents/clubs/$(c)).data.owner == request.auth.uid
+            && request.resource.data.admin == true && request.resource.data.role == 'coach')
+          || (exists(invitePath()) && get(invitePath()).data.club == c
+            && request.resource.data.role == get(invitePath()).data.role
+            && request.resource.data.admin == false));
+        allow update, delete: if isAdmin(c);
+      }
+
+      match /invites/{email} {
+        allow read, create, update: if isAdmin(c);
+        allow delete: if isAdmin(c) || (signedIn() && myEmail() == email);
+      }
+
+      match /data/{key} {
+        allow read, write: if isMember(c);
+      }
+    }
+  }
+}
