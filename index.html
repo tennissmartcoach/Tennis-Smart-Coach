@@ -2124,6 +2124,12 @@ function cleanView(){
   const ck = (c,k,on,label,sub) => `<label class="ckrow"><input type="checkbox" data-c="${c}" data-k="${k}" ${on?'checked':''}><span><b>${label}</b>${sub?`<br><span class="small muted">${sub}</span>`:''}</span></label>`;
   return `<button class="btn ghost" data-a="cleanback" style="align-self:flex-start">‹ Home</button>
     <h1>Togli i dati di prova</h1>
+    <section class="card"><h3>Ripartire da zero</h3>
+      <p class="small">Tiene solo <b>gruppi e atleti</b> (nomi, codici, PIN e accessi online). Toglie tutto il resto: tornei e calendario, prove del giorno, partite, schede, profili, test, presenze, fatica e dolori, note, avvisi e i contenuti delle lezioni private.</p>
+      <p class="small muted">Restano anche i programmi, gli esercizi e le schede preparate dallo staff.</p>
+      ${U.confirm==='wipe' ? `<div class="confirm"><span>Tolgo tutto tranne gruppi e atleti? Non si può annullare.</span><div class="row"><button class="btn danger" data-a="wipeall">Sì, togli tutto</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`
+        : `<button class="btn danger block" data-a="askdel" data-k="wipe">Togli tutto tranne gruppi e atleti</button>`}</section>
+    <h2>Oppure scegli cosa togliere</h2>
     <div class="note">Prima di procedere fai una copia: Home → <b>Copia di sicurezza</b> → <b>Copia i dati</b>, così, se togli qualcosa per sbaglio, puoi rimetterlo.</div>
     <section class="card"><h3>Tornei da eliminare</h3><p class="small muted">Sono già spuntati quelli con "(simulazione)" nel nome. Spunta anche gli altri che avevi inserito per prova.</p>
       <div class="row"><button class="chip" data-a="cleanall" data-k="1">Seleziona tutti</button><button class="chip" data-a="cleanall" data-k="0">Nessuno</button></div>
@@ -2557,6 +2563,12 @@ const ACT = {
   cleanopen(){ U.homeView='clean'; U.clean=null; U.confirm=null; window.scrollTo(0,0); },
   cleanback(){ U.homeView=null; U.confirm=null; },
   cleanall(k){ const on = k==='1'; cleanTours().forEach(x=>{ U.clean.sel[x.k]=on; }); },
+  wipeall(){
+    ['results','matches','forms','tests','well','notes','snotes','fres','massign','notices'].forEach(k=>{ S[k] = []; });
+    S.profiles = {}; S.att = {}; S.live = null;
+    Object.keys(S.priv||{}).forEach(id=>{ S.priv[id] = {prog:{title:'',freq:''}, goals:[], lessons:[]}; });
+    const yrs = Object.keys(S.season||{}); S.season = {}; (yrs.length?yrs:['2026']).forEach(y=>{ S.season[y] = {weeks:{}}; }); if(!S.season[2026]) S.season[2026] = {weeks:{}};
+    U.confirm=null; U.clean=null; U.homeView=null; U.tOpen=null; U.athleteOpen=null; U.matchOpen=null; save(); toast('Fatto: sono rimasti solo gruppi e atleti'); },
   cleanrun(){ const C_ = U.clean; const keys = cleanTours().filter(x=>C_.sel[x.k]);
     keys.sort((a,b)=>b.y-a.y||b.n-a.n||(+b.k.split(':')[2])-(+a.k.split(':')[2])).forEach(x=>{ const w = S.season[x.y].weeks[x.n], i = +x.k.split(':')[2];
       if(i===w.t.length-1) w.t.pop(); else w.t[i] = {name:'', kind:'', deadline:'', info:'', players:[], results:{}}; });
