@@ -14,10 +14,10 @@
 <title>Tennis Smart Coach</title>
 </head>
 <body>
-<meta name="theme-color" content="#1B3A6B">
+<meta name="theme-color" content="#0F1620">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
 <style>
 /* Layout: one-column phone app, header + scrolling content + bottom tab bar; court-side controls are big and high-contrast */
 :root{
@@ -82,7 +82,7 @@ main{flex:1;padding:16px 16px 104px;display:flex;flex-direction:column;gap:16px}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .btn{border:0;border-radius:10px;padding:13px 18px;font-weight:700;font-size:16px;background:var(--pri);color:var(--on-pri)}
 .btn.ghost{background:var(--sunk);color:var(--ink)}
-.btn.clay{background:var(--clay);color:#fff}
+.btn.clay{background:var(--clay);color:var(--on-clay,#fff)}
 .btn.danger{background:var(--ko-soft);color:var(--ko)}
 .btn.block{width:100%}
 .btn:disabled{opacity:.45}
@@ -141,7 +141,7 @@ select.input{appearance:auto}
 .brow .pts{background:rgba(255,255,255,.1);border-radius:8px;text-align:center;font-size:32px;font-weight:700;padding:2px 0;font-variant-numeric:tabular-nums}
 .board .status{display:flex;gap:8px;flex-wrap:wrap;min-height:22px}
 .board .status span{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:2px 8px;background:rgba(255,255,255,.12)}
-.board .status .hot{background:var(--clay);color:#fff}
+.board .status .hot{background:var(--clay);color:var(--on-clay,#fff)}
 .pick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pick button{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 10px;text-align:left;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center;min-height:56px}
 .pick button i{font-style:normal;font-family:var(--f-disp);font-size:22px;font-weight:700;color:var(--clay)}
@@ -188,7 +188,7 @@ table.grid td{padding:8px 2px;border-top:1px solid var(--line);text-align:center
 .hero p{opacity:.9}
 .hero .lines{position:absolute;right:-30px;top:-10px;width:170px;height:190px;border:3px solid rgba(255,255,255,.18);border-right:0}
 .hero .lines::after{content:"";position:absolute;left:0;right:0;top:50%;border-top:3px solid rgba(255,255,255,.18)}
-.dot{position:absolute;top:4px;left:calc(50% + 6px);background:var(--clay);color:#fff;border-radius:999px;min-width:18px;height:18px;font-size:11px;line-height:18px;padding:0 5px;font-family:var(--f-body)}
+.dot{position:absolute;top:4px;left:calc(50% + 6px);background:var(--clay);color:var(--on-clay,#fff);border-radius:999px;min-width:18px;height:18px;font-size:11px;line-height:18px;padding:0 5px;font-family:var(--f-body)}
 .ex{background:var(--surface);border:1px solid var(--line);border-left:6px solid;border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .phase{color:#fff;font-family:var(--f-disp);font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:3px 9px}
 .exl{display:flex;flex-direction:column;gap:6px;font-size:15px}
@@ -266,7 +266,7 @@ details.pres .list{margin-top:8px}
 .smini{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}.smini .chip{padding:6px 10px;font-size:14px;white-space:nowrap}.smini a.chip{text-decoration:none}
 .tcard{display:flex;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;text-align:left;width:100%}
 .tcard.past{opacity:.85}
-.tdate{width:64px;flex:none;background:var(--clay);color:#fff;border-radius:10px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;font-family:var(--f-disp);line-height:1}
+.tdate{width:64px;flex:none;background:var(--clay);color:var(--on-clay,#fff);border-radius:10px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;font-family:var(--f-disp);line-height:1}
 .tcard.past .tdate{background:var(--muted)}
 .tdate b{font-size:24px}.tdate span{font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
 .tname{font-size:17px;display:block}
@@ -284,11 +284,57 @@ details.pres .list{margin-top:8px}
 .tname-in{font-family:var(--f-disp);font-size:26px;font-weight:700}
 .sbtn{flex:1;min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-decoration:none;padding:14px 16px}
 .sbtn b{font-family:var(--f-disp);font-size:20px;line-height:1.05}.sbtn span{font-size:13px;font-weight:600;opacity:.9}
-.sbtn.fitp{background:#1E7A4C;color:#fff}.sbtn.te{background:#1B3A6B;color:#fff}
+.sbtn.fitp{background:#1E7A4C;color:#fff}.sbtn.te{background:#24497F;color:#fff}
 .paste{border-color:var(--clay)}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:20;max-width:90%}
 .confirm{background:var(--ko-soft);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== Progressi theme (always dark) ===== */
+:root:root:root{
+  --bg:#0F1620; --surface:#18222F; --sunk:#222E3E; --ink:#F4F6FA; --muted:#9AA6B8; --line:#2A374B;
+  --pri:#3B6FD8; --on-pri:#FFFFFF; --pri-soft:#172C4F; --pri-ink:#8DB6FF;
+  --clay:#D7E84A; --clay-bg:#D7E84A; --on-clay:#0F1620; --clay-soft:#2C3214; --teal:#5FD3C4; --teal-soft:#12302E; --ochre:#F2B84B;
+  --ok:#4CC587; --ok-soft:#163626; --ko:#F07A6C; --ko-soft:#3D1D1A;
+  --board:#0A0F16; --board-ink:#F4F6FA; --board-dim:#8296B8; --ball:#D7E84A; --nav:#131C28; --nav-ink:#9AA6B8;
+  --f-disp:'Sora','Segoe UI',Arial,sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+  --r:16px; color-scheme:dark;
+}
+h1,h2,h3{font-weight:700;letter-spacing:-.03em;line-height:1.1}
+h1{font-size:26px} h2{font-size:21px} h3{font-size:17px}
+.top{background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line);padding:10px 16px}
+.top .mark{width:40px;height:40px;flex:none;display:block}
+.top .t small{display:block;font:600 10px var(--f-body);letter-spacing:.22em;color:var(--clay)}
+.top .t b{font-size:19px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.top .t span{opacity:1;color:var(--muted);font-size:12px}
+.top button{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;min-height:40px;padding:0 16px;font-weight:600}
+main{padding-bottom:100px}
+.tabs{background:var(--nav);border-top:1px solid var(--line)}
+.tabs button{color:var(--nav-ink)}
+.tabs button[aria-current="page"]{color:var(--clay)}
+.tabs button[aria-current="page"] svg{stroke:var(--clay)}
+.hero{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.hero .lines{border-color:rgba(215,232,74,.14)}
+.hero .lines::after{border-top-color:rgba(215,232,74,.14)}
+.hero h1{font-size:30px}
+.btn{border-radius:12px}
+.btn.clay{background:var(--clay-bg);color:var(--on-clay)}
+.chip{border-color:var(--line)}
+.chip[aria-pressed="true"]{background:var(--clay-bg);border-color:var(--clay-bg);color:var(--on-clay)}
+.seg button[aria-pressed="true"]{background:var(--sunk);box-shadow:0 0 0 1px var(--line)}
+.input{border-radius:12px;background:var(--bg)}
+.dot{background:var(--clay-bg);color:var(--on-clay)}
+.board .status .hot{background:var(--clay-bg);color:var(--on-clay)}
+.tag{font-family:var(--f-body)}
+.big,.win,.tally,.kpi b,.keypad button,.brow .nm,.brow .sets,.brow .pts{letter-spacing:-.03em}
+.tally .pct{font-size:54px}
+.brow .nm{font-size:20px}
+.big.yes{background:#1E7A4C}.big.no{background:#B0372B}
+.pin span.f{background:var(--clay);border-color:var(--clay)}
+.tdd b,.tdd{white-space:nowrap;letter-spacing:-.04em}
+.ckrow{display:flex;gap:12px;align-items:flex-start;font-size:15px}
+.ckrow input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--clay)}
 </style>
 
 <div class="app" id="app"></div>
@@ -305,7 +351,7 @@ const PROF = {"1":{"idea":"Comandare lo scambio da fondo, restare vicino alla li
 const SEASON2026 = {"weeks":{"8":{"type":"comp","t":[{"name":"Antalya TE 14 cat. 3","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"9":{"type":"comp","t":[{"name":"Tappa Junior Next Gen","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"10":{"type":"train","t":[],"note":""},"11":{"type":"train","t":[{"name":"","kind":"","deadline":"","info":"","players":[],"results":{}},{"name":"Palmanova TE 14 cat. 3","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"12":{"type":"train","t":[],"note":""},"13":{"type":"train","t":[{"name":"","kind":"","deadline":"","info":"","players":[],"results":{}},{"name":"Tappa Junior Next Gen","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"14":{"type":"comp","t":[{"name":"Tirana TE 14 cat. 3","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"15":{"type":"comp","t":[{"name":"Tirana TE 14 cat. 3","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"16":{"type":"train","t":[],"note":""},"17":{"type":"train","t":[],"note":""},"18":{"type":"comp","t":[{"name":"Pavia TE 14 cat. 2","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"19":{"type":"comp","t":[],"note":"Torneo da definire"},"20":{"type":"train","t":[{"name":"","kind":"","deadline":"","info":"","players":[],"results":{}},{"name":"Correggio TE 14 cat. 2","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"21":{"type":"comp","t":[{"name":"Pescara TE 14 cat. 2","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"22":{"type":"comp","t":[{"name":"Milano TE 14 Super Category","kind":"","deadline":"","info":"","players":[],"results":{}},{"name":"Milano TE 14 Super Category","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"23":{"type":"comp","t":[{"name":"Brindisi TE 14 cat. 3","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""},"24":{"type":"train","t":[],"note":""},"25":{"type":"comp","t":[{"name":"Velletri TE 14 cat. 3","kind":"","deadline":"","info":"","players":[],"results":{}}],"note":""}}};
 const DAYS = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì'];
 const DAYS_S = ['Lun','Mar','Mer','Gio','Ven'];
-const TYPE_COL = ['#1B3A6B','#B4532A','#0E6670','#8A6200','#6A3D8F','#4A4F57'];
+const TYPE_COL = ['#3B6FD8','#C4622D','#1F8A7A','#9A7400','#7A4FB0','#5A6270'];
 const wcol = n => TYPE_COL[(n-1)%6];
 const TYPES = [['F','Attaccante da fondo','comanda lo scambio da dietro, vicino alla linea, con profondità e il colpo forte.'],['C','Contrattaccante','difende benissimo, rimanda tutto e gira il punto quando l’avversario cala.'],['P','Attacking Player','prende l’iniziativa subito, con servizio e risposta; punti brevi.'],['R','Giocatore di rete','cerca la rete: approccio, volée, smash.'],['V','Giocatore completo','ha tanti colpi diversi e cambia ritmo, altezza, rotazione.'],['U','Universale','guarda l’avversario e cambia il modo di giocare durante la partita.']];
 const tcol = k => TYPE_COL[TYPES.findIndex(t=>t[0]===k)];
@@ -613,7 +659,7 @@ function renderInner(){
     case 'match': body = matchTab(); break;
   }
   root.innerHTML = `
-    <header class="top"><div class="mark" aria-hidden="true"></div><div class="t"><b>Tennis Smart Coach</b><span>${who}</span></div><button data-a="logout">Esci</button></header>
+    <header class="top"><svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x="1.5" y="1.5" width="117" height="117" rx="27" fill="#18222F" stroke="#2A374B" stroke-width="3"/><rect x="24" y="68" width="18" height="28" rx="5" fill="#FFFFFF" fill-opacity=".45"/><rect x="50" y="52" width="18" height="44" rx="5" fill="#FFFFFF" fill-opacity=".7"/><rect x="76" y="44" width="18" height="52" rx="5" fill="#FFFFFF"/><circle cx="85" cy="25" r="13" fill="#D7E84A"/></svg><div class="t"><small>TENNIS</small><b>Smart Coach</b><span>${who}</span></div><button data-a="logout">Esci</button></header>
     <main>${exampleNote()}${body}</main>
     <div class="tabs"><nav>${tabs.map(([k,l,i])=>`<button data-a="tab" data-k="${k}" ${U.tab===k?'aria-current="page"':''} style="position:relative">${i}<span>${l}</span>${k==='ath'&&newForms()?`<b class="dot" aria-label="${newForms()} schede nuove">${newForms()}</b>`:''}</button>`).join('')}</nav></div>`;
 }
@@ -674,7 +720,7 @@ function loginView(){
       </div>`;
   }
   return `<main style="padding-bottom:32px">
-    <section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:#F2C9A8">Settore agonistico</span><h1>Tennis Smart Coach</h1><p>Il programma della settimana, gli esercizi e la partita guidata, dal tuo telefono.</p></section>
+    <section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:var(--clay)">Settore agonistico</span><h1>Tennis Smart Coach</h1><p>Il programma della settimana, gli esercizi e la partita guidata, dal tuo telefono.</p></section>
     ${inner}</main>`;
 }
 
@@ -1288,7 +1334,7 @@ function athleteExtra(id){
 /* ---------- programme detail, exercise library, court editor ---------- */
 const EXMAP = {}; P.ex.forEach(e=>EXMAP[e.id]=e);
 const exById = id => EXMAP[id] || (S.customEx||[]).find(e=>e.id===id);
-const PH = {att:['Attivazione','#5B6068',"12–15'"], pr:['Fase centrale','#1B3A6B',"25–30'"], ri:['Richiamo','#1B3A6B',"20'"], sr:['Servizio e risposta','#0E6670',"15–20'"], ap:['Parte aperta · partita','#B4532A',"30'"]};
+const PH = {att:['Attivazione','#5B6068',"12–15'"], pr:['Fase centrale','#3B6FD8',"25–30'"], ri:['Richiamo','#3B6FD8',"20'"], sr:['Servizio e risposta','#0E6670',"15–20'"], ap:['Parte aperta · partita','#B4532A',"30'"]};
 const PH_ORDER = ['att','pr','ri','sr','ap'];
 const LIB_PH = [['all','Tutti'],['att','Attivazione'],['pr','Fase centrale'],['sr','Servizio'],['ap','Partita']];
 const phOf = e => e.ph==='ri' ? 'pr' : e.ph;
@@ -1346,8 +1392,8 @@ function dayView(w, d){
       return exCard(ex, edit ? {html:`<div class="row"><button class="chip" data-a="dayedex" data-k="${ph}:${i}">Modifica</button><button class="chip" data-a="pickex" data-k="${ph}:${i}">Sostituisci</button><button class="chip" data-a="dropex" data-k="${ph}:${i}">Togli</button>${i>0?`<button class="chip" data-a="upex" data-k="${ph}:${i}" aria-label="Sposta su">↑</button>`:''}</div>`} : null); }).join('');
     return items + (edit ? `<div class="row"><button class="btn ghost" data-a="pickex" data-k="${ph}:new" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="daynewex" data-k="${ph}" style="flex:1">+ Scrivi un esercizio</button></div>` : '') + (!ids.length && !edit ? `<p class="muted small">Nessun esercizio in questa fase.</p>` : '');
   };
-  const segs = fri ? [['#5B6068',13,"Attiv."],['var(--sunk)',4,''],['#1B3A6B',20,'Richiamo'],['var(--sunk)',3,''],['#0E6670',15,'S/R'],['#B4532A',48,'Match guidato']]
-                   : [['#5B6068',13,'Attiv.'],['var(--sunk)',4,''],['#1B3A6B',28,'Centrale'],['var(--sunk)',3,''],['#8A6200',10,'Filo'],['#0E6670',17,'S/R'],['#B4532A',30,'Partita']];
+  const segs = fri ? [['#5B6068',13,"Attiv."],['var(--sunk)',4,''],['#3B6FD8',20,'Richiamo'],['var(--sunk)',3,''],['#0E6670',15,'S/R'],['#B4532A',48,'Match guidato']]
+                   : [['#5B6068',13,'Attiv.'],['var(--sunk)',4,''],['#3B6FD8',28,'Centrale'],['var(--sunk)',3,''],['#8A6200',10,'Filo'],['#0E6670',17,'S/R'],['#B4532A',30,'Partita']];
   return `
     <button class="btn ghost" data-a="closeday" style="align-self:flex-start">‹ Settimana ${w}</button>
     <section class="card">
@@ -1438,7 +1484,7 @@ function taskLive(m){
       <p class="muted small">Puoi toccarne più di uno. Se non ha fatto nessun compito, non segnare niente.</p>
       <div class="pick">${m.tasks.map((t,i)=>`<button data-a="tsel" data-k="${i}" aria-pressed="${sel.includes(i)}"><i>${cnt(i)}</i><span>${esc(t)}</span></button>`).join('')}</div>
       <span class="eyebrow">2 · Com'è finito il punto?</span>
-      <div class="winrow"><button class="win a" data-a="tpoint" data-k="0" ${sel.length?'':'disabled'} style="background:var(--ok)">Vinto</button><button class="win b" data-a="tpoint" data-k="1" ${sel.length?'':'disabled'} style="background:var(--ko)">Perso</button></div>
+      <div class="winrow"><button class="win a" data-a="tpoint" data-k="0" ${sel.length?'':'disabled'} style="background:#1E7A4C">Vinto</button><button class="win b" data-a="tpoint" data-k="1" ${sel.length?'':'disabled'} style="background:#B0372B">Perso</button></div>
       <button class="btn ghost block" data-a="tpoint" data-k="x" ${sel.length?'':'disabled'}>Salva senza esito</button>
       <button class="chip" data-a="tempty" style="align-self:center">+1 punto giocato senza compito <span class="muted">(facoltativo)</span></button>
     </section>
@@ -1596,7 +1642,7 @@ function weekMonday(year, n){ return new Date(firstMonday(year).getTime() + (n-1
 function weekOf(iso){ const t = new Date(iso+'T00:00Z'); let y = t.getUTCFullYear(); if(t < firstMonday(y)) y--; return {year:y, n:1+Math.floor((t-firstMonday(y))/(7*864e5))}; }
 
 /* ---------- tournaments: annual planner ---------- */
-const WTYPES = [['train','Allenamento','#1B3A6B'],['comp','Competizione','#B4532A'],['taper','Scarico','#0E6670'],['rest','Riposo','#6B7280']];
+const WTYPES = [['train','Allenamento','#3B6FD8'],['comp','Competizione','#B4532A'],['taper','Scarico','#0E6670'],['rest','Riposo','#6B7280']];
 const TKIND = [['ob','Obiettivo'],['sv','Sviluppo'],['esp','Esperienza']];
 const ROUNDS = ['Qualificazioni','1° turno','2° turno','3° turno','Ottavi','Quarti','Semifinale','Finale','Vincitore'];
 const hasRes = r => !!(r && (r.round || (r.matches||[]).length));
@@ -1749,7 +1795,7 @@ function finalProfile(id){
   const ms = S.matches.filter(m=>m.done && m.a.id===id && m.mode!=='task'), cs = mergeStats(ms).filter(r=>r.n>=3).sort((x,y)=>pct(y.won,y.n)-pct(x.won,x.n));
   const st = attStats(id), goals = privOf(id).goals, done = goals.filter(g=>g.st==='done').length;
   return `<button class="btn ghost" data-a="finalclose" style="align-self:flex-start">‹ ${esc(a.name)}</button>
-    <section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:#F2C9A8">Profilo di fine ciclo · ${esc(grp(a.groupId).name)}</span><h1>${esc(a.name)}</h1><p>${fdate(new Date().toISOString())}</p></section>
+    <section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:var(--clay)">Profilo di fine ciclo · ${esc(grp(a.groupId).name)}</span><h1>${esc(a.name)}</h1><p>${fdate(new Date().toISOString())}</p></section>
     <section class="card"><h3>Come gioca</h3>
       ${last?`<p>Tipologia più vicina: <b style="color:${tcol(tipoResult(last.ans).first)}">${tname(tipoResult(last.ans).first)}</b>, poi ${tname(tipoResult(last.ans).second)}.</p>${first&&first!==last?`<p class="small muted">All'inizio: ${tname(tipoResult(first.ans).first)}.</p>`:''}`:'<p class="muted">Questionario non compilato.</p>'}
       ${la?`<p>La sua arma: <b>${esc(la.ans.arma||'–')}</b>${la.ans.evito?` · evita: ${esc(la.ans.evito)}`:''}</p>`:''}</section>
@@ -1780,7 +1826,7 @@ function tourHomeCard(id, forParent){
     ${open.length?`<p class="small" style="margin-top:4px">${open.length} ${open.length===1?'torneo aperto':'tornei aperti'}: ${forParent?'potete':'puoi'} chiedere l'iscrizione da "Tutti".</p>`:''}
     ${lastPlayed?`<p class="small" style="margin-top:4px">Ultimo giocato: <b>${esc(lastPlayed.t.name)}</b> ${resShort(lastPlayed.t.results[id])}</p>`:''}</section>`;
 }
-function homeHero(title){ const d = new Date(); return `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:#F2C9A8">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>${title}</h1></section>`; }
+function homeHero(title){ const d = new Date(); return `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:var(--clay)">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>${title}</h1></section>`; }
 function staffGroupPicker(){
   const gs = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID));
   if(!U.resGroup || !grp(U.resGroup)) U.resGroup = gs[0]?.id;
@@ -1840,7 +1886,7 @@ function fitProgView(){
   }
   return `<h1>Programma atletico</h1>
     <section class="card"><div class="field"><label for="f-fpgrp">Gruppo</label><select id="f-fpgrp" class="input inbig" data-c="fpgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div></section>
-    <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="fpweek" data-k="${i+1}"><div class="wk" style="background:var(--teal)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.filter(d=>d.title||d.text).length} di 5 sedute scritte</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
+    <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="fpweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.filter(d=>d.title||d.text).length} di 5 sedute scritte</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="fpadd">+ Aggiungi settimana</button>`;
 }
 const FT_SUGG = [['Sprint 20 m','s','low'],['Salto in lungo da fermo','cm','high'],['Spider test (ventaglio)','s','low'],['Lancio palla medica','m','high'],['Plank','s','high'],['Navetta 5-10-5','s','low']];
@@ -2023,11 +2069,12 @@ function coachHome(){
   if(U.homeView==='priv') return U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) : `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + privList();
   if(U.homeView==='backup') return backupView();
   if(U.homeView==='staff') return staffView();
+  if(U.homeView==='clean') return cleanView();
   const d = new Date(), di = todayIdx(), wk = d.getDay()>=1 && d.getDay()<=5;
   const lim7 = new Date(Date.now()-7*864e5).toISOString().slice(0,10);
   const pains = (S.well||[]).filter(w=>w.pain && w.date>=lim7), tired = (S.well||[]).filter(w=>w.fat>=5 && w.date>=lim7);
   const nf = newForms(), up = upcoming(30), dl = deadlines(21);
-  return `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:#F2C9A8">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>Buon lavoro</h1></section>
+  return `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:var(--clay)">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>Buon lavoro</h1></section>
     ${teamGroups().map(g=>{ const rec = (S.att||{})[attKey(todayISO(),g.id)] || {}, n = S.athletes.filter(a=>a.groupId===g.id).length, np = Object.values(rec).filter(v=>v==='p').length, pv = PV(g.week, di);
       return `<section class="card"><div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
         <h2>${wk?DAYS[di]+': '+esc(gDayTitle(g,di)):'Oggi niente seduta'}</h2>
@@ -2059,10 +2106,35 @@ function backupView(){
       <button class="btn" data-a="bkcopy">Copia i dati</button></section>
     <section class="card"><h3>Ripristina</h3><textarea id="f-restore" class="input" rows="4" data-c="restore" placeholder="Incolla qui i dati copiati">${esc(U.restoreText||'')}</textarea>
       ${U.confirm==='restore'?`<div class="confirm"><span>I dati di questo telefono verranno sostituiti. Procedo?</span><div class="row"><button class="btn danger" data-a="bkrestore">Sì, ripristina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askrestore">Ripristina questi dati</button>`}</section>
+    <section class="card"><h3>Togli i dati di prova</h3><p class="small muted">Scegli quali tornei, schede e profili inseriti per prova eliminare. Gli atleti e i gruppi restano.</p>
+      <button class="btn ghost" data-a="cleanopen" style="align-self:flex-start">Scegli cosa togliere</button></section>
     <section class="card"><h3>Dati</h3>
       ${U.confirm==='reset'?`<div class="confirm"><span>Cancellare tutti i dati?</span><div class="row"><button class="btn danger" data-a="reset" data-k="empty">Sì, cancella tutto</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:
       `<div class="row"><button class="btn danger" data-a="askdel" data-k="reset">Cancella tutti i dati</button><button class="btn ghost" data-a="reset" data-k="example">Ripristina il gruppo di prova AGO 1</button></div>`}
     </section>`;
+}
+
+/* ---------- remove test data (tournaments, filled forms, profiles) ---------- */
+function cleanTours(){ const all = []; Object.entries(S.season||{}).forEach(([y,s])=>Object.entries((s&&s.weeks)||{}).forEach(([n,w])=>(w.t||[]).forEach((t,i)=>{ if(t && t.name) all.push({k:`${y}:${n}:${i}`, t, y:+y, n:+n}); }))); return all.sort((a,b)=>a.y-b.y||a.n-b.n); }
+const hasEntries = t => (t.players||[]).length || (t.requests||[]).length || Object.keys(t.results||{}).length;
+function cleanView(){
+  const all = cleanTours();
+  if(!U.clean) U.clean = {sel:Object.fromEntries(all.filter(x=>/simulazione/i.test(x.t.name)).map(x=>[x.k,true])), res:true, forms:true, prof:true};
+  const C_ = U.clean, nres = all.filter(x=>hasEntries(x.t)).length, nf = (S.forms||[]).length, np = Object.keys(S.profiles||{}).length, nsel = all.filter(x=>C_.sel[x.k]).length;
+  const ck = (c,k,on,label,sub) => `<label class="ckrow"><input type="checkbox" data-c="${c}" data-k="${k}" ${on?'checked':''}><span><b>${label}</b>${sub?`<br><span class="small muted">${sub}</span>`:''}</span></label>`;
+  return `<button class="btn ghost" data-a="cleanback" style="align-self:flex-start">‹ Copia di sicurezza</button>
+    <h1>Togli i dati di prova</h1>
+    <div class="note">Prima di procedere tocca <b>Copia i dati</b> nella pagina precedente: così, se togli qualcosa per sbaglio, puoi rimetterlo.</div>
+    <section class="card"><h3>Tornei da eliminare</h3><p class="small muted">Sono già spuntati quelli con "(simulazione)" nel nome. Spunta anche gli altri che avevi inserito per prova.</p>
+      <div class="row"><button class="chip" data-a="cleanall" data-k="1">Seleziona tutti</button><button class="chip" data-a="cleanall" data-k="0">Nessuno</button></div>
+      ${all.length ? `<div class="list">${all.map(x=>ck('cleantour', x.k, C_.sel[x.k], esc(x.t.name), `${dRange(...tSpan(x.t,x.y,x.n))} ${x.y}`)).join('')}</div>` : '<p class="muted small">Nessun torneo in calendario.</p>'}</section>
+    <section class="card"><h3>Altro da togliere</h3><div class="list">
+      ${ck('cleanopt','res',C_.res,'Iscrizioni e risultati dei tornei che restano', `${nres} tornei con iscritti, richieste o risultati`)}
+      ${ck('cleanopt','forms',C_.forms,'Schede compilate da atleti e genitori', `${nf} schede (anche la tipologia del giocatore torna "da fare")`)}
+      ${ck('cleanopt','prof',C_.prof,'Profili di fine ciclo', `${np} profili`)}
+    </div></section>
+    ${U.confirm==='clean' ? `<div class="confirm"><span>Elimino ${nsel} tornei${C_.res?', iscrizioni e risultati':''}${C_.forms?', le schede':''}${C_.prof?', i profili':''}?</span><div class="row"><button class="btn danger" data-a="cleanrun">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`
+      : `<button class="btn danger block" data-a="askdel" data-k="clean">Elimina i dati selezionati</button>`}`;
 }
 
 /* ---------- tournaments v2: simple cards, calendar strip, requests ---------- */
@@ -2482,6 +2554,16 @@ const ACT = {
   tplayer(k){ const [i,pid]=k.split(':'); const t=weekData(U.tWeek.y,U.tWeek.n).t[+i]; t.players=t.players||[]; t.players = t.players.includes(pid) ? t.players.filter(x=>x!==pid) : t.players.concat(pid); save(); },
   taddalt(){ weekData(U.tWeek.y,U.tWeek.n).t.push({name:'', kind:'', deadline:'', info:'', players:[], results:{}}); },
   tsave(){ save(); toast('Settimana salvata'); ACT.closeweekT(); window.scrollTo(0,0); },
+  cleanopen(){ U.homeView='clean'; U.clean=null; U.confirm=null; window.scrollTo(0,0); },
+  cleanback(){ U.homeView='backup'; U.confirm=null; },
+  cleanall(k){ const on = k==='1'; cleanTours().forEach(x=>{ U.clean.sel[x.k]=on; }); },
+  cleanrun(){ const C_ = U.clean; const keys = cleanTours().filter(x=>C_.sel[x.k]);
+    keys.sort((a,b)=>b.y-a.y||b.n-a.n||(+b.k.split(':')[2])-(+a.k.split(':')[2])).forEach(x=>{ const w = S.season[x.y].weeks[x.n], i = +x.k.split(':')[2];
+      if(i===w.t.length-1) w.t.pop(); else w.t[i] = {name:'', kind:'', deadline:'', info:'', players:[], results:{}}; });
+    if(C_.res) cleanTours().forEach(x=>{ x.t.players=[]; x.t.requests=[]; x.t.results={}; });
+    if(C_.forms) S.forms = [];
+    if(C_.prof) S.profiles = {};
+    U.confirm=null; U.clean=null; U.homeView='backup'; U.tOpen=null; save(); toast(`Dati di prova eliminati (${keys.length} tornei)`); },
   bkcopy(){ const txt=JSON.stringify(Object.assign({}, S, {session:null, live:null})); try{ navigator.clipboard.writeText(txt).then(()=>toast('Dati copiati'), ()=>{ U.restoreText=txt; render(); toast('Seleziona il testo e copialo'); }); }catch(e){ U.restoreText=txt; toast('Seleziona il testo e copialo'); } },
   askrestore(){ if(!(U.restoreText||'').trim()){ toast('Incolla prima i dati'); return; } U.confirm='restore'; },
   bkrestore(){ try{ const d=JSON.parse(U.restoreText); if(!d.athletes||!d.groups) throw 0; const sess=S.session; S=d; S.session=sess; U.restoreText=''; U.confirm=null; save(); toast('Dati ripristinati'); }catch(e){ toast('Questi dati non sono validi'); U.confirm=null; } },
@@ -2595,6 +2677,8 @@ document.addEventListener('change', e=>{
   if(c==='mfgrp'){ U.mfGroup=t.value; render(); return; }
   if(c==='fitdate'){ U.fitDate=t.value||todayISO(); render(); return; }
   if(c==='snshare'){ U.snShare=t.checked; return; }
+  if(c==='cleantour'){ U.clean.sel[t.dataset.k]=t.checked; return; }
+  if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
   if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; cloudMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
@@ -3050,7 +3134,7 @@ function syncBar(){ const [k,t] = statusText(); return `<div id="sync" class="sy
 
 /* ---------- screens before the app: login, join, create ---------- */
 function cloudView(){
-  const hero = `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:#F2C9A8">Settore agonistico</span><h1>Tennis Smart Coach</h1><p>Programma, atleti, tornei e staff: tutto in un posto, online.</p></section>`;
+  const hero = `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:var(--clay)">Settore agonistico</span><h1>Tennis Smart Coach</h1><p>Programma, atleti, tornei e staff: tutto in un posto, online.</p></section>`;
   const err = C.err ? `<div class="err" role="alert">${esc(C.err)}</div>` : '';
   const info = C.info ? `<div class="note">${esc(C.info)}</div>` : '';
   let inner = '';
