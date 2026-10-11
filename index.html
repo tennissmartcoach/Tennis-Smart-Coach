@@ -336,6 +336,21 @@ main{padding-bottom:100px}
 textarea.input{font-family:var(--f-body);font-size:16px;line-height:1.4}
 .sdots{display:flex;gap:6px}.sdots i{font-style:normal;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--sunk);color:var(--muted)}.sdots i.on{background:var(--clay-bg,var(--clay));color:var(--on-clay,#fff)}
 .phrow{display:flex;align-items:center;gap:6px;padding:8px 0;flex-wrap:wrap}.phrow .input{padding:8px 10px;font-size:15px;min-width:0;flex:1 1 180px}.phrow .phmin{flex:0 0 64px;text-align:center}.phrow .pdot{width:10px;height:10px}
+.orbit{position:relative;width:100%;max-width:340px;aspect-ratio:1;margin:4px auto}
+.orb-lines{position:absolute;inset:0;width:100%;height:100%}
+.orb-lines circle,.orb-lines path{fill:none;stroke:var(--line);stroke-width:.6}
+.orb-lines circle{stroke-dasharray:2 2}
+.orb-sat,.orb-core{position:absolute;transform:translate(-50%,-50%);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;cursor:pointer;font-family:var(--f-body)}
+.orb-sat{width:27%;aspect-ratio:1;background:var(--surface);border:1.5px solid var(--line);color:var(--ink);padding:6px}
+.orb-sat svg{width:34%;height:auto;color:var(--muted)}
+.orb-sat span{font-size:11px;font-weight:600;line-height:1.1}
+.orb-core{left:50%;top:50%;width:38%;aspect-ratio:1;background:var(--clay-bg,var(--clay));color:var(--on-clay,#fff);border:0;box-shadow:0 0 0 8px color-mix(in srgb,var(--clay-bg,var(--clay)) 18%,transparent)}
+.orb-core svg{width:36%;height:auto}
+.orb-core b{font-family:var(--f-disp);font-size:20px;line-height:1}
+.orb-core small{font-size:11px;font-weight:600;opacity:.75}
+.orb-sat.on{border-color:var(--clay);box-shadow:0 0 0 3px color-mix(in srgb,var(--clay) 35%,transparent)}
+.orb-sat.on svg{color:var(--clay)}
+.orb-core.on{box-shadow:0 0 0 8px color-mix(in srgb,var(--clay-bg,var(--clay)) 40%,transparent)}
 .ckrow{display:flex;gap:12px;align-items:flex-start;font-size:15px}
 .ckrow input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--clay)}
 </style>
@@ -706,10 +721,8 @@ function loginView(){
     inner = `
       <div class="card">
         <h2>Chi sei?</h2>
-        <button class="btn block" data-a="role" data-k="student">Sono un atleta</button>
-        <button class="btn clay block" data-a="role" data-k="parent">Sono un genitore</button>
-        <button class="btn ghost block" data-a="role" data-k="coach">Sono un maestro</button>
-        <div class="row"><button class="btn ghost" data-a="role" data-k="fit" style="flex:1">Preparatore atletico</button><button class="btn ghost" data-a="role" data-k="mind" style="flex:1">Preparatore mentale</button></div>
+        ${orbitHTML('role', null)}
+        <p class="small muted" style="text-align:center">L'atleta è al centro del progetto: maestro, genitori e preparatori lavorano intorno a lui.</p>
       </div>
       <div class="note"><b>Accesso libero per la prova:</b> per ora non servono codici né PIN.</div>`;
   } else if(U.step==='code'){
@@ -2261,6 +2274,25 @@ function lessonEditor(g){
 function lessonSnap(){ const g=grp(U.lessonEd); if(!g) return; U.lessonUndo=U.lessonUndo||[]; U.lessonUndo.push(JSON.parse(JSON.stringify(ensureLesson(g)))); if(U.lessonUndo.length>30) U.lessonUndo.shift(); }
 function scalePhases(L, newDur){ if(!L.phases.length){ L.dur = newDur; return; } const tot = L.phases.reduce((t,p)=>t+(+p.m||0),0) || 1; L.phases.forEach(p=>{ p.m = Math.max(p.pause?2:5, Math.round(p.m*newDur/tot)); }); const t2 = L.phases.reduce((t,p)=>t+p.m,0), big = L.phases.filter(p=>!p.pause).sort((a,b)=>b.m-a.m)[0]; if(big) big.m += newDur - t2; L.dur = newDur; }
 
+/* ---------- "who are you": the athlete at the centre, the people around ---------- */
+const ORB_IC = {
+  student:'<circle cx="12" cy="5" r="2.4"/><path d="M12 8v6l-3 6M12 14l3 6M8 10.5l4-1 3 2.5"/><ellipse cx="18.5" cy="6.5" rx="2.2" ry="3" transform="rotate(35 18.5 6.5)"/><path d="M17.3 9 15 11.5"/>',
+  parent:'<circle cx="8" cy="6" r="2.5"/><circle cx="16.5" cy="9" r="2"/><path d="M3.5 20c.4-4 2.2-6.5 4.5-6.5s4.1 2.5 4.5 6.5M13 20c.3-3 1.7-5 3.5-5s3.2 2 3.5 5"/>',
+  coach:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10h7M8.5 14h7M8.5 18h4"/>',
+  fit:'<path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/>',
+  mind:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>'
+};
+const ORB_LAB = {student:'Atleta', parent:'Genitore', coach:'Maestro', fit:'Preparatore atletico', mind:'Preparatore mentale'};
+function orbitHTML(action, sel){
+  const ic = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ORB_IC[k]}</svg>`;
+  const sat = (k, x, y) => `<button class="orb-sat${sel===k?' on':''}" style="left:${x}%;top:${y}%" data-a="${action}" data-k="${k}" aria-pressed="${sel===k}">${ic(k)}<span>${ORB_LAB[k]}</span></button>`;
+  return `<div class="orbit" role="group" aria-label="Chi sei?">
+    <svg class="orb-lines" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="37" /><path d="M50 50 L23 23 M50 50 L77 23 M50 50 L77 77 M50 50 L23 77"/></svg>
+    ${sat('coach',23,23)}${sat('parent',77,23)}${sat('mind',23,77)}${sat('fit',77,77)}
+    <button class="orb-core${sel==='student'?' on':''}" data-a="${action}" data-k="student" aria-pressed="${sel==='student'}">${ic('student')}<b>Atleta</b><small>al centro</small></button>
+  </div>`;
+}
+
 /* ---------- tournaments v2: simple cards, calendar strip, requests ---------- */
 const tKey = x => `${x.y}:${x.n}:${x.i}`;
 const tByKey = k => { const [y,n,i] = k.split(':').map(Number); const w = (seasonOf(y).weeks||{})[n]; const t = w && w.t[i]; if(!t) return null; const [st,en] = tSpan(t,y,n); return {y,n,i,t,date:st,end:en}; };
@@ -3321,7 +3353,7 @@ function cloudAthRemoved(aid){
 }
 function cloudMoved(a){ if(!C.club) return; if(a.num || a.online) a.num = nextNum(a.groupId, a.id); }
 Object.assign(ACT, {
-  crole(k){ U.cRole = k; },
+  crole(k){ U.cRole = k; if(C.screen==='auth') U.cWho = k; },
   calogin(){
     const chk = codeCheck(cv('c-code'), cv('c-pin')); if(typeof chk==='string'){ C.err = chk; return; }
     const role = U.cRole==='parent' ? 'parent' : 'student';
@@ -3349,15 +3381,18 @@ function cloudView(){
   else if(C.screen==='error') inner = `<section class="card"><h2>Qualcosa non ha funzionato</h2>${err}<div class="row"><button class="btn" data-a="cretry">Riprova</button><button class="btn ghost" data-a="clogout">Esci</button></div></section>`;
   else if(C.screen==='removed') inner = `<section class="card"><h2>Accesso rimosso</h2><p>Il tuo accesso a questo circolo è stato rimosso dal maestro responsabile.</p><button class="btn" data-a="clogout">Esci</button></section>`;
   else if(C.screen==='auth'){
-    const m = C.mode;
+    const m = C.mode, who = U.cWho;
+    const quick = accList().length ? `<div class="field"><label>Già usati su questo telefono</label><div class="row" style="gap:6px">${accList().map((x,i)=>`<button class="chip" data-a="cquick" data-k="${i}">${esc((x.name||x.code||'').split(' ')[0])} · ${x.role==='parent'?'genitore':'atleta'}</button>`).join('')}</div></div>` : '';
     inner = `<section class="card">
-      <div class="seg" role="group"><button data-a="cmode" data-k="ath" aria-pressed="${m==='ath'}">Atleta o genitore</button><button data-a="cmode" data-k="login" aria-pressed="${m==='login'||m==='signup'||m==='reset'}">Staff</button></div>
-      ${m==='ath' ? `<div class="field"><label>Chi sei</label><div class="seg" role="group"><button data-a="crole" data-k="student" aria-pressed="${U.cRole!=='parent'}">Atleta</button><button data-a="crole" data-k="parent" aria-pressed="${U.cRole==='parent'}">Genitore</button></div></div>
+      <h2 style="text-align:center">Chi sei?</h2>
+      ${orbitHTML('cwho', who||null)}
+      ${!who ? `<p class="small muted" style="text-align:center">Tocca chi sei per entrare. L'atleta è al centro: intorno a lui lavorano maestro, genitori e preparatori.</p>${quick}` : m==='ath' ? `<h3>Entra come ${who==='parent'?'genitore':'atleta'}</h3>
       <div class="field"><label for="c-code">Codice personale</label><input id="c-code" class="input inbig" value="${cval('c-code')}" autocapitalize="characters" autocomplete="username" placeholder="Es. U12-AB3-01" style="text-transform:uppercase;letter-spacing:.04em"></div>
       <div class="field"><label for="c-pin">PIN</label><input id="c-pin" class="input inbig" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="6 cifre"></div>
       ${err}<button class="btn clay block" data-a="calogin" ${C.busy?'disabled':''}>Entra</button>
-      ${accList().length?`<div class="field"><label>Già usati su questo telefono</label><div class="row" style="gap:6px">${accList().map((x,i)=>`<button class="chip" data-a="cquick" data-k="${i}">${esc((x.name||x.code||'').split(' ')[0])} · ${x.role==='parent'?'genitore':'atleta'}</button>`).join('')}</div></div>`:''}
+      ${quick}
       <p class="small muted">Codice e PIN te li dà il maestro. Il genitore ha lo stesso codice del figlio, con il suo PIN.</p>` : `
+      <h3>Entra come ${esc((ROLE_LABEL[who]||'staff').toLowerCase())}</h3>
       ${m!=='reset' ? `<div class="seg" role="group" style="margin-top:4px"><button data-a="cmode" data-k="login" aria-pressed="${m==='login'}">Accedi</button><button data-a="cmode" data-k="signup" aria-pressed="${m==='signup'}">Crea account</button></div>` : ''}
       ${m==='reset' ? `<h2>Password dimenticata</h2><p class="small muted">Ti mandiamo un'email con il link per sceglierne una nuova.</p>` : ''}
       ${m==='signup' ? `<div class="field"><label for="c-name">Nome e cognome</label><input id="c-name" class="input" value="${cval('c-name')}" autocomplete="name" placeholder="Es. Mario Rossi"></div>` : ''}
@@ -3393,7 +3428,8 @@ function cloudView(){
 
 async function cBusy(fn){ C.busy = true; C.err=''; C.info=''; cloudRender(); try{ await fn(); }catch(e){ C.err = cErr(e); } C.busy = false; cloudRender(); }
 Object.assign(ACT, {
-  cmode(k){ C.mode = k; C.err=''; C.info=''; },
+  cmode(k){ C.mode = k; C.err=''; C.info=''; if(k==='ath'){ if(!U.cWho || !['student','parent'].includes(U.cWho)) U.cWho = U.cRole==='parent'?'parent':'student'; } else if(!U.cWho || ['student','parent'].includes(U.cWho)) U.cWho = 'coach'; },
+  cwho(k){ U.cWho = k; C.err=''; C.info=''; if(k==='student'||k==='parent'){ C.mode='ath'; U.cRole=k; } else if(C.mode==='ath') C.mode='login'; },
   cstart(k){ U.cStart = k; },
   cretry(){ if(C.user) cloudAfterLogin(); },
   clogout(){ if(C.user && C.member && !isStaffRole(C.member.role)) accDrop((C.user.email||'').toLowerCase()); U.addAcc=false; cloudStop(); fbAuth && fbAuth.signOut(); },
