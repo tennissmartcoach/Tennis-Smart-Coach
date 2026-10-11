@@ -205,7 +205,7 @@ table.grid td{padding:8px 2px;border-top:1px solid var(--line);text-align:center
 .pause{display:flex;gap:10px;align-items:baseline;background:var(--sunk);border-radius:10px;padding:8px 12px;font-size:14px}
 .pause b{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.04em;color:var(--muted);flex:none}
 .tl{display:flex;height:26px;border-radius:6px;overflow:hidden;font-family:var(--f-disp);font-weight:600;font-size:13px;color:#fff}
-.tl span{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;min-width:0}
+.tl span{display:block;text-align:center;line-height:26px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .pdot{width:12px;height:12px;border-radius:50%;flex:none}
 .goal{background:var(--sunk);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .goal.done{background:var(--ok-soft)} .goal.done p{text-decoration:line-through;text-decoration-color:var(--ok)}
@@ -956,21 +956,39 @@ function ownOf(gid){ S.own = S.own || {}; const o = S.own[gid] = S.own[gid] || {
 const gWeekNo = g => isOwnG(g) ? ownOf(g.id).cur : g.week;
 const gWeekName = g => { if(!isOwnG(g)) return W(g.week).name; const o = ownOf(g.id), w = o.weeks[o.cur-1]; return w.name || `Settimana ${o.cur}`; };
 const gDayTitle = (g,di) => { if(!isOwnG(g)) return P.prog[g.week][di].title; const o = ownOf(g.id), d = o.weeks[o.cur-1].days[di]; return d.title || 'Seduta da definire'; };
+
+/* own programmes: d.ex = exercise ids, d.exPh = the group phase each one is placed in */
+function mapPh(g, e){ const w = lessonOf(g).phases.filter(p=>!p.pause); if(!w.length) return (e && e.ph) || 'pr'; const k = e ? (e.ph==='ri'?'pr':e.ph) : ''; return w.some(p=>p.k===k) ? k : w[0].k; }
+function ownPh(g, d, i){ return (d.exPh && d.exPh[i]) || mapPh(g, exById(d.ex[i])); }
+function ownSync(g, d){ d.exPh = d.ex.map((id,i)=>ownPh(g, d, i)); return d; }
+function ownItems(g, d){ return d.ex.map((id,i)=>({i, id, e:exById(id), ph:ownPh(g,d,i)})).filter(x=>x.e); }
+function ownByPhase(g, d, render, adders){
+  const L = lessonOf(g), items = ownItems(g, d);
+  if(!L.phases.length) return items.map(x=>render(x)).join('') + (adders ? adders(null) : '');
+  const keys = L.phases.filter(p=>!p.pause).map(p=>p.k); let np = 0;
+  const out = L.phases.map(p=>{
+    if(p.pause){ np++; return pauseRow(`${esc(p.n)}${p.m?' · '+p.m+"'":''}`, 'Acqua e recupero.'); }
+    const its = items.filter(x=>x.ph===p.k);
+    return (its.length ? its.map(x=>render(x)).join('') : (adders ? `<p class="small"><b>${esc(p.n)}</b>${p.m?' · '+p.m+"'":''}</p>` : '')) + (adders ? adders(p) : '');
+  }).join('');
+  const lost = items.filter(x=>!keys.includes(x.ph));
+  return out + (lost.length ? `<p class="small muted">Esercizi in fasi che non ci sono più:</p>` + lost.map(x=>render(x)).join('') : '');
+}
 function ownTodayCard(g, light){
   CUR_LG = g; const o = ownOf(g.id), w = o.weeks[o.cur-1], di = todayIdx(g), wk = curIdx(g)>=0, day = w.days[di];
-  const exs = sortByPhase(g, day.ex.map(exById).filter(Boolean));
+  const exs = ownItems(g, day);
   return `<section class="card"><div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${o.cur}</span>${w.name?`<span class="tag pri">${esc(w.name)}</span>`:''}</div>
     ${sessDots(g)}
     <h2>${esc(sessHead(g, di, day.title||'Seduta da definire'))}</h2>
     ${wk&&day.note?`<p>${esc(day.note)}</p>`:''}
     ${wk&&!light?lessonTL(g):''}
-    ${wk&&exs.length&&light?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>
-    ${wk&&exs.length&&!light?exs.map(e=>exCard(e,{notime:true})).join(''):''}`;
+    ${wk&&exs.length&&light?`<div class="list small">${exs.map(x=>`<div>${x.e.custom?esc(x.e.t):x.e.t}</div>`).join('')}</div>`:''}</section>
+    ${wk&&exs.length&&!light?ownByPhase(g, day, x=>exCard(x.e,{ph:x.ph})):''}`;
 }
 function ownWeekCard(g){
   CUR_LG = g; const o = ownOf(g.id), w = o.weeks[o.cur-1];
   return `<section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${o.cur}</span><h2>${esc(w.name||'Settimana '+o.cur)}</h2></section>
-    ${w.days.slice(0, nS(g)).map((d,i)=>{ const exs = d.ex.map(exById).filter(Boolean); return `<section class="card"><span class="eyebrow">${DAYS[i]}</span><h3>${esc(d.title||'Seduta da definire')}</h3>${d.note?`<p class="small">${esc(d.note)}</p>`:''}${exs.length?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>`; }).join('')}`;
+    ${w.days.slice(0, nS(g)).map((d,i)=>{ const exs = ownItems(g, d).map(x=>x.e); return `<section class="card"><span class="eyebrow">${DAYS[i]}</span><h3>${esc(d.title||'Seduta da definire')}</h3>${d.note?`<p class="small">${esc(d.note)}</p>`:''}${exs.length?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>`; }).join('')}`;
 }
 function planGroupBar(g){
   const tg = teamGroups();
@@ -991,8 +1009,9 @@ function ownPlanView(g){
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
         ${lessonTL(g)}<button class="chip" data-a="lessonopen" data-k="${g.id}" style="align-self:flex-start">Durata e fasi</button></section>
-      ${exs.map((e,i)=>e?exCard(e,{notime:true, html:`<div class="row"><button class="chip" data-a="odrop" data-k="${i}">Togli</button>${i>0?`<button class="chip" data-a="oup" data-k="${i}" aria-label="Sposta su">↑</button>`:''}</div>`}):'').join('') || '<p class="muted small">Nessun esercizio: aggiungili dalla libreria.</p>'}
-      <button class="btn clay block" data-a="opick">+ Aggiungi esercizio dalla libreria</button>${LEGEND}`;
+      ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
+        p=>`<div class="row"><button class="btn ghost" data-a="opick" data-k="${p?p.k:''}" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="onewex" data-k="${p?p.k:''}" style="flex:1">+ Scrivi un esercizio</button></div>`)}
+      ${LEGEND}`;
   }
   if(U.oWeek && o.weeks[U.oWeek-1]){
     const n = U.oWeek, w = o.weeks[n-1];
@@ -1412,8 +1431,9 @@ const LEGEND = `<div class="legend"><span><i style="background:#1B3A6B"></i>colp
 function exVis(e){ if(e.els) return e.els.length ? `<div class="vis"><svg viewBox="0 0 220 110" role="img" aria-label="Disegno dell'esercizio">${courtSVG(e.els)}</svg></div>` : ''; return e.vis ? `<div class="vis">${e.vis}</div>` : ''; }
 function exLines(e){ return e.custom ? (e.lines||[]).map(l=>`<p>${esc(l)}</p>`).join('') : e.lines.map(l=>`<p>${l}</p>`).join(''); }
 function exOrigin(e){ return e.custom ? 'Esercizio aggiunto da te' : `Settimana ${e.w} · ${DAYS[e.d]}`; }
+let CUR_PH = null;
 function exCard(e, tools){
-  const [lab,col,time] = phInfo(e.ph);
+  const [lab,col,time] = phInfo((tools && tools.ph) || CUR_PH || e.ph);
   return `<article class="ex" style="border-left-color:${col}">
     <div class="row between"><span class="phase" style="background:${col}">${lab}</span>${time&&!tools?.notime?`<span class="muted small" style="font-family:var(--f-disp);font-size:18px;font-weight:700">${time}</span>`:''}</div>
     <h3 style="font-size:22px">${e.custom?esc(e.t):e.t}</h3>
@@ -1431,12 +1451,12 @@ function dayView(w, d){
   const pg0 = grp(U.planGroup), LG = (pg0 && !isOwnG(pg0)) ? pg0 : (S.groups.find(x=>x.id!==PRIV_ID && !isOwnG(x) && x.week===w) || pg0); CUR_LG = LG;
   const D = P.prog[w][d], B = dayBlocks(w,d), wk = W(w), fri = d===4, edit = U.editDay;
   const custom = !!(S.plan||{})[dayKey(w,d)] || (S.filoEdit||{})[dayKey(w,d)]!==undefined;
-  const blockHtml = ph => {
+  const blockHtml = ph => { CUR_PH = ph; try{
     const ids = B[ph] || [];
     const items = ids.map((id,i)=>{ const e = exById(id); if(!e) return ''; const ex = fri && ph==='ap' && !e.custom ? {...e, lines:e.lines.concat([`<b>Le scelte:</b> ${wk.choices.map((c,j)=>`${j+1} ${esc(c.label)}`).join(' · ')}`])} : e;
       return exCard(ex, edit ? {html:`<div class="row"><button class="chip" data-a="dayedex" data-k="${ph}:${i}">Modifica</button><button class="chip" data-a="pickex" data-k="${ph}:${i}">Sostituisci</button><button class="chip" data-a="dropex" data-k="${ph}:${i}">Togli</button>${i>0?`<button class="chip" data-a="upex" data-k="${ph}:${i}" aria-label="Sposta su">↑</button>`:''}</div>`} : null); }).join('');
-    return items + (edit ? `<div class="row"><button class="btn ghost" data-a="pickex" data-k="${ph}:new" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="daynewex" data-k="${ph}" style="flex:1">+ Scrivi un esercizio</button></div>` : '') + (!ids.length && !edit ? `<p class="muted small">Nessun esercizio in questa fase.</p>` : '');
-  };
+    return (edit && !ids.length ? `<p class="small"><b>${esc(phInfo(ph)[0])}</b></p>` : '') + items + (edit ? `<div class="row"><button class="btn ghost" data-a="pickex" data-k="${ph}:new" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="daynewex" data-k="${ph}" style="flex:1">+ Scrivi un esercizio</button></div>` : '') + (!ids.length && !edit ? `<p class="muted small"><b>${esc(phInfo(ph)[0])}</b>: nessun esercizio in questa fase.</p>` : '');
+    } finally { CUR_PH = null; } };
   return `
     <button class="btn ghost" data-a="closeday" style="align-self:flex-start">‹ Settimana ${w}</button>
     <section class="card">
@@ -2196,7 +2216,7 @@ const PHCOL = {att:'#5B6068', pr:'#3B6FD8', ri:'#3B6FD8', filo:'#8A6200', sr:'#0
 const XCOL = ['#7A4FB0','#1F8A7A','#9A7400','#C4622D','#5A6270'];
 const lessonOf = g => (g && g.lesson) || {dur:105, phases:DEF_PHASES()};
 const ensureLesson = g => { if(!g.lesson) g.lesson = {dur:105, phases:DEF_PHASES()}; return g.lesson; };
-const phColor = (p,i) => p.pause ? 'var(--sunk)' : (PHCOL[p.k] || XCOL[(p.k.charCodeAt(1)||i)%XCOL.length]);
+const phColor = (p,i) => p.pause ? 'var(--sunk)' : (PHCOL[p.k] || XCOL[i % XCOL.length]);
 const durTxt = m => { const h = Math.floor(m/60), r = m%60; return h ? `${h} h${r?' '+r+"'":''}` : `${r}'`; };
 let CUR_LG = null;
 const getLG = () => CUR_LG || grp(U.planGroup) || teamGroups()[0] || null;
@@ -2213,7 +2233,7 @@ function lessonTL(g, fri){
   const L = lessonOf(g); if(!L.phases.length) return `<p class="small muted">Durata e fasi dell'allenamento non ancora impostate${g?' per '+esc(g.name):''}.</p>`; let ph = L.phases.map((p,i)=>({...p, c:phColor(p,i)}));
   if(fri){ const f = ph.find(p=>p.k==='filo'); ph = ph.filter(p=>p.k!=='filo'); const a = ph.find(p=>p.k==='ap'); if(f && a) a.m += f.m; ph.forEach(p=>{ if(p.k==='pr' && p.n==='Fase centrale') p.n='Richiamo'; if(p.k==='ap' && p.n==='Parte aperta · partita') p.n='Match guidato'; }); }
   const tot = ph.reduce((t,p)=>t+(+p.m||0),0);
-  return `<div class="tl" aria-hidden="true">${ph.map(p=>`<span style="flex:${Math.max(1,+p.m||0)} 1 0;background:${p.c}">${p.pause?'':esc(p.n.split(' ')[0])}</span>`).join('')}</div>
+  return `<div class="tl" aria-hidden="true">${ph.map(p=>`<span style="flex:${Math.max(1,+p.m||0)} 1 0;background:${p.c}">${p.pause?'':esc(p.n)}</span>`).join('')}</div>
     <p class="small muted">${durTxt(tot)} · ${ph.filter(p=>!p.pause).map(p=>`${esc(p.n)} ${p.m}'`).join(' · ')}</p>`;
 }
 const sortByPhase = (g, exs) => { const ord = lessonOf(g).phases.map(p=>p.k); const ix = e => { const i = ord.indexOf(e.ph==='ri'?'pr':e.ph); return i<0 ? 99 : i; }; return exs.slice().sort((a,b)=>ix(a)-ix(b)); };
@@ -2526,9 +2546,10 @@ const ACT = {
   owcopy(){ const o=ownOf(U.planGroup); o.weeks.push(JSON.parse(JSON.stringify(o.weeks[U.oWeek-1]))); save(); U.oWeek=o.weeks.length; toast('Settimana duplicata'); window.scrollTo(0,0); },
   owdel(){ const o=ownOf(U.planGroup); o.weeks.splice(U.oWeek-1,1); if(o.cur>o.weeks.length) o.cur=o.weeks.length; U.oWeek=null; U.confirm=null; save(); toast('Settimana eliminata'); },
   owcur(){ ownOf(U.planGroup).cur=U.oWeek; save(); toast('Settimana in corso aggiornata'); },
-  opick(){ U.pick={own:U.planGroup, w:U.oWeek, d:U.oDay, ph:'pr', i:null}; U.planMode='lib'; U.libPh='all'; U.libOpen=null; U.libQ=''; window.scrollTo(0,0); },
-  odrop(k){ ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay].ex.splice(+k,1); save(); },
-  oup(k){ const a=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay].ex, j=+k; [a[j-1],a[j]]=[a[j],a[j-1]]; save(); },
+  onewex(k){ const g=grp(U.planGroup); U.ed={id:null, ph:k||mapPh(g,null), t:'', chip:'', x:'', els:[], vis:null, from:null, tool:'A', pend:null, ctx:{own:U.planGroup, w:U.oWeek, d:U.oDay, ph:k||mapPh(g,null), i:null}, lib:true}; window.scrollTo(0,0); },
+  opick(k){ U.pick={own:U.planGroup, w:U.oWeek, d:U.oDay, ph:k||'', i:null}; U.planMode='lib'; U.libPh='all'; U.libOpen=null; U.libQ=''; window.scrollTo(0,0); },
+  odrop(k){ const d=ownSync(grp(U.planGroup), ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]); d.ex.splice(+k,1); d.exPh.splice(+k,1); save(); },
+  oup(k){ const d=ownSync(grp(U.planGroup), ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]), j=+k; let i=j-1; while(i>=0 && d.exPh[i]!==d.exPh[j]) i--; if(i<0){ toast('È già il primo della fase'); return; } [d.ex[i],d.ex[j]]=[d.ex[j],d.ex[i]]; [d.exPh[i],d.exPh[j]]=[d.exPh[j],d.exPh[i]]; save(); },
   tnewat(k){ const [y,n,alt]=k.split(':').map(Number); U.tPaste=''; U.tParsed=''; U.tNew={name:'', date:weekMonday(y,n), end:'', alt:alt===1, kind:'', deadline:'', info:''}; window.scrollTo(0,0); },
   ftmode(k){ U.ftMode=k; U.ftOpen=null; U.ftNew=null; },
   ftnew(){ U.ftNew={l:'', u:'', better:'high', x:''}; },
@@ -2742,7 +2763,7 @@ const ACT = {
   dropex(k){ const [ph,i]=k.split(':'); const B=editableBlocks(U.weekOpen,U.dayOpen); B[ph].splice(+i,1); save(); },
   upex(k){ const [ph,i]=k.split(':'); const B=editableBlocks(U.weekOpen,U.dayOpen), a=B[ph], j=+i; [a[j-1],a[j]]=[a[j],a[j-1]]; save(); },
   cancelpick(){ U.pick=null; U.planMode='weeks'; U.libOpen=null; window.scrollTo(0,0); },
-  choose(k){ if(U.pick&&U.pick.own){ const pk=U.pick; ownOf(pk.own).weeks[pk.w-1].days[pk.d].ex.push(k); save(); U.pick=null; U.planMode='weeks'; U.libOpen=null; toast('Esercizio inserito'); window.scrollTo(0,0); return; } const pk=U.pick, B=editableBlocks(pk.w,pk.d); B[pk.ph]=B[pk.ph]||[]; if(pk.i===null) B[pk.ph].push(k); else B[pk.ph][pk.i]=k; save(); U.pick=null; U.planMode='weeks'; U.libOpen=null; U.editDay=true; toast('Esercizio inserito'); window.scrollTo(0,0); },
+  choose(k){ if(U.pick&&U.pick.own){ const pk=U.pick, g0=grp(pk.own), dd=ownSync(g0, ownOf(pk.own).weeks[pk.w-1].days[pk.d]); dd.ex.push(k); dd.exPh.push(pk.ph || mapPh(g0, exById(k))); save(); U.pick=null; U.planMode='weeks'; U.libOpen=null; toast('Esercizio inserito'); window.scrollTo(0,0); return; } const pk=U.pick, B=editableBlocks(pk.w,pk.d); B[pk.ph]=B[pk.ph]||[]; if(pk.i===null) B[pk.ph].push(k); else B[pk.ph][pk.i]=k; save(); U.pick=null; U.planMode='weeks'; U.libOpen=null; U.editDay=true; toast('Esercizio inserito'); window.scrollTo(0,0); },
   libph(k){ U.libPh=k; U.libN=40; }, libmine(){ U.libMine=!U.libMine; U.libN=40; }, libmore(){ U.libN=(U.libN||40)+40; },
   libopen(k){ U.libOpen=k; U.confirm=null; window.scrollTo(0,0); }, libclose(){ U.libOpen=null; U.confirm=null; },
   newex(){ U.ed={id:null, ph:U.libPh&&U.libPh!=='all'?U.libPh:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null}; window.scrollTo(0,0); },
@@ -2766,6 +2787,7 @@ const ACT = {
     if(E.els.length || !E.vis) ex.els=E.els; else ex.vis=E.vis;
     if(E.from) ex.from=E.from; if(E.ctx && !E.lib) ex.hidden=true;
     S.customEx=S.customEx||[]; const i=S.customEx.findIndex(e=>e.id===ex.id); if(i>=0) S.customEx[i]=ex; else S.customEx.push(ex);
+    if(E.ctx && E.ctx.own){ const g0=grp(E.ctx.own), dd=ownSync(g0, ownOf(E.ctx.own).weeks[E.ctx.w-1].days[E.ctx.d]); dd.ex.push(ex.id); dd.exPh.push(E.ctx.ph || mapPh(g0, ex)); save(); U.ed=null; toast('Esercizio aggiunto alla seduta'); window.scrollTo(0,0); return; }
     if(E.ctx){ const B=editableBlocks(E.ctx.w,E.ctx.d); B[E.ctx.ph]=B[E.ctx.ph]||[]; if(E.ctx.i===null) B[E.ctx.ph].push(ex.id); else B[E.ctx.ph][E.ctx.i]=ex.id; save(); U.ed=null; U.editDay=true; toast(E.ctx.i===null?'Esercizio aggiunto alla seduta':'Esercizio modificato'); window.scrollTo(0,0); return; }
     save(); U.ed=null; U.libOpen=ex.id; toast('Esercizio salvato'); window.scrollTo(0,0); },
   addtask(){ U.setup.tasks.push('Nuovo compito'); }, deltask(k){ U.setup.tasks.splice(+k,1); },
@@ -2822,6 +2844,7 @@ document.addEventListener('change', e=>{
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
+  if(c==='omove'){ const d=ownSync(grp(U.planGroup), ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]); d.exPh[+t.dataset.k]=t.value; save(); render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
   if(c==='attdate'){ U.attDate=t.value||todayISO(); render(); return; }
   if(c==='tour' && t.type==='date'){ render(); return; }
