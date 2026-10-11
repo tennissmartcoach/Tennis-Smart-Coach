@@ -977,7 +977,7 @@ function planGroupBar(g){
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
     <div class="field"><label>Programma assegnato</label><div class="seg" role="group"><button data-a="setprog" data-k="12w" aria-pressed="${!isOwnG(g)}">Le 12 settimane</button><button data-a="setprog" data-k="own" aria-pressed="${isOwnG(g)}">Programma personale</button></div></div>
     <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p>
-    <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${durTxt(lessonOf(g).dur)} · ${lessonOf(g).phases.filter(p=>!p.pause).length} fasi</span><button class="chip" data-a="lessonopen" data-k="${g.id}">Modifica</button></div>
+    <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
     <div class="field"><label>Allenamenti a settimana</label><div class="seg" role="group">${[2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
     ${!isOwnG(g) && nS(g)<5 ? `<p class="small muted">Con ${nS(g)} allenamenti a settimana il gruppo fa ${PICK12[nS(g)].map(i=>'il '+(i+1)).join(', ').replace(/, ([^,]*)$/,' e $1')} del programma: il primo e l'ultimo ci sono sempre, per il confronto della prova.</p>` : ''}</section>`;
 }
@@ -1451,7 +1451,7 @@ function dayView(w, d){
       ${lessonTL(LG, fri)}
       <div class="row">${edit?`<button class="btn clay" data-a="editday" data-k="0">Fine modifiche</button>${custom?`<button class="btn danger" data-a="resetday">Ripristina l'originale</button>`:''}`:`<button class="btn" data-a="editday" data-k="1">Modifica il programma</button>${custom?'<span class="tag teal">Modificato</span>':''}`}</div>
     </section>
-    ${(()=>{ let np = 0; return lessonOf(LG).phases.map(fp=>{
+    ${(()=>{ let np = 0; const lp = lessonOf(LG).phases; return (lp.length ? lp : NEUTRAL()).map(fp=>{
       if(fp.pause){ np++; return pauseRow(`${esc(fp.n)} · ${fp.m}'`, np===1 ? (fri ? 'Acqua. Il maestro spiega come funziona il match guidato e le scelte della settimana.' : `Acqua. Il maestro spiega il tema del giorno${D.kw?` e la parola chiave: <b>${esc(D.kw)}</b>`:''}.`) : np===2 ? (fri ? 'Acqua, poi servizio e risposta.' : 'Acqua, poi si passa al servizio.') : 'Acqua e recupero.'); }
       if(fp.k==='filo') return !fri ? (()=>{ const fk = dayKey(w,d), ov = (S.filoEdit||{})[fk], txt = ov!==undefined ? ov : D.filo; if(!edit && !txt) return '';
       return `<article class="ex" style="border-left-color:#8A6200"><div class="row between"><span class="phase" style="background:#8A6200">${esc(fp.n)} · ${fp.m}'</span>${ov!==undefined&&!edit?'<span class="tag teal">modificato</span>':''}</div>${edit?`<textarea class="input" rows="4" data-c="filo" data-k="${fk}" placeholder="Il lavoro fisso di 10' di questa seduta">${esc(ov!==undefined?ov:plainTxt(D.filo||''))}</textarea>${ov!==undefined?`<button class="chip" data-a="filoreset" data-k="${fk}" style="align-self:flex-start">Ripristina l'originale</button>`:''}`:`<div class="exl">${ov!==undefined?`<p style="white-space:pre-line">${esc(ov)}</p>`:`<p>${D.filo}</p>`}</div>`}</article>`; })() : '';
@@ -2202,12 +2202,15 @@ let CUR_LG = null;
 const getLG = () => CUR_LG || grp(U.planGroup) || teamGroups()[0] || null;
 function phInfo(k){
   const L = lessonOf(getLG()), kk = k==='ri' ? 'pr' : k, i = L.phases.findIndex(x=>x.k===kk), p = L.phases[i];
-  if(p) return [k==='ri' && p.n==='Fase centrale' ? 'Richiamo' : p.n, phColor(p,i), p.m+"'"];
-  return PH[k] || ['Esercizio','#5A6270',''];
+  if(p) return [k==='ri' && p.n==='Fase centrale' ? 'Richiamo' : p.n, phColor(p,i), p.m ? p.m+"'" : ''];
+  if(PH[k]) return [PH[k][0], PH[k][1], L.phases.length ? PH[k][2] : ''];
+  return ['Esercizio','#5A6270',''];
 }
-const workPhases = g => lessonOf(g).phases.filter(p=>!p.pause && p.k!=='filo');
+const noLesson = g => !lessonOf(g).phases.length;
+const NEUTRAL = () => ['att','pr','filo','sr','ap'].map(k=>({k, n:k==='filo'?'Filo fisso':PH[k][0], m:0}));
+const workPhases = g => { const w = lessonOf(g).phases.filter(p=>!p.pause && p.k!=='filo'); return w.length ? w : ['att','pr','sr','ap'].map(k=>({k, n:PH[k][0], m:0})); };
 function lessonTL(g, fri){
-  const L = lessonOf(g); let ph = L.phases.map((p,i)=>({...p, c:phColor(p,i)}));
+  const L = lessonOf(g); if(!L.phases.length) return `<p class="small muted">Durata e fasi dell'allenamento non ancora impostate${g?' per '+esc(g.name):''}.</p>`; let ph = L.phases.map((p,i)=>({...p, c:phColor(p,i)}));
   if(fri){ const f = ph.find(p=>p.k==='filo'); ph = ph.filter(p=>p.k!=='filo'); const a = ph.find(p=>p.k==='ap'); if(f && a) a.m += f.m; ph.forEach(p=>{ if(p.k==='pr' && p.n==='Fase centrale') p.n='Richiamo'; if(p.k==='ap' && p.n==='Parte aperta · partita') p.n='Match guidato'; }); }
   const tot = ph.reduce((t,p)=>t+(+p.m||0),0);
   return `<div class="tl" aria-hidden="true">${ph.map(p=>`<span style="flex:${Math.max(1,+p.m||0)} 1 0;background:${p.c}">${p.pause?'':esc(p.n.split(' ')[0])}</span>`).join('')}</div>
@@ -2215,12 +2218,12 @@ function lessonTL(g, fri){
 }
 const sortByPhase = (g, exs) => { const ord = lessonOf(g).phases.map(p=>p.k); const ix = e => { const i = ord.indexOf(e.ph==='ri'?'pr':e.ph); return i<0 ? 99 : i; }; return exs.slice().sort((a,b)=>ix(a)-ix(b)); };
 function lessonEditor(g){
-  const L = ensureLesson(g), tot = L.phases.reduce((t,p)=>t+(+p.m||0),0), diff = tot - L.dur;
+  const L = ensureLesson(g), tot = L.phases.reduce((t,p)=>t+(+p.m||0),0), diff = (L.dur && L.phases.length) ? tot - L.dur : 0;
   return `<button class="btn ghost" data-a="lessonclose" style="align-self:flex-start">‹ Programma di ${esc(g.name)}</button>
     <h1>Durata e fasi · ${esc(g.name)}</h1>
     <section class="card"><h3>Quanto dura l'allenamento</h3>
       <div class="seg" role="group">${[60,75,90,105,120].map(m=>`<button data-a="lessondur" data-k="${m}" aria-pressed="${L.dur===m}">${durTxt(m)}</button>`).join('')}</div>
-      <div class="field"><label for="f-ldur">Altra durata (minuti)</label><input id="f-ldur" class="input" type="number" inputmode="numeric" min="30" max="240" value="${L.dur}" data-c="lessondur"></div>
+      <div class="field"><label for="f-ldur">Altra durata (minuti)</label><input id="f-ldur" class="input" type="number" inputmode="numeric" min="30" max="240" value="${L.dur||''}" placeholder="Es. 70" data-c="lessondur"></div>
       <p class="small muted">Cambiando la durata, i minuti delle fasi si adattano in proporzione.</p></section>
     <section class="card"><h3>Le fasi</h3>
       ${lessonTL(g)}
@@ -2228,15 +2231,15 @@ function lessonEditor(g){
         <input class="input" data-c="phname" data-k="${i}" value="${esc(p.n)}" aria-label="Nome della fase ${i+1}">
         <input class="input phmin" type="number" inputmode="numeric" min="0" max="120" data-c="phmin" data-k="${i}" value="${p.m}" aria-label="Minuti di ${esc(p.n)}"><span class="small muted">min</span>
         <span class="row" style="gap:4px;flex-wrap:nowrap">${i>0?`<button class="chip mini" data-a="phup" data-k="${i}" aria-label="Sposta su">↑</button>`:''}<button class="chip mini" data-a="phdel" data-k="${i}" aria-label="Togli ${esc(p.n)}">✕</button></span></div>`).join('')}</div>
-      <p class="small ${diff?'':'muted'}" style="${diff?'color:var(--ko);font-weight:600':''}">Totale ${tot} minuti${diff?` · ${diff>0?diff+' in più':(-diff)+' in meno'} rispetto a ${L.dur}`:' · torna con la durata'}</p>
+      ${!L.phases.length?'<p class="small muted">Nessuna fase: aggiungi le fasi del tuo allenamento con "+ Fase" e "+ Pausa".</p>':''}<p class="small ${diff?'':'muted'}" style="${diff?'color:var(--ko);font-weight:600':''}">Totale ${tot} minuti${diff?` · ${diff>0?diff+' in più':(-diff)+' in meno'} rispetto a ${L.dur}`:(L.dur&&L.phases.length?' · torna con la durata':'')}</p>
       <div class="row"><button class="btn ghost" data-a="phadd" data-k="work" style="flex:1">+ Fase</button><button class="btn ghost" data-a="phadd" data-k="pause" style="flex:1">+ Pausa</button></div>
-      ${diff?`<button class="btn" data-a="phfit">Adatta i minuti a ${L.dur}</button>`:''}
+      ${diff&&L.dur?`<button class="btn" data-a="phfit">Adatta i minuti a ${L.dur}</button>`:''}
       ${(U.lessonUndo||[]).length?`<button class="chip" data-a="phundo" style="align-self:flex-start">↶ Annulla l'ultima modifica</button>`:''}
       <p class="small muted">Puoi rinominare le fasi (per esempio "Tecnica" invece di "Fase centrale"), toglierle o aggiungerne. Nelle fasi nuove inserisci gli esercizi dalla seduta con "Modifica".</p></section>
     ${teamGroups().length>1?`<section class="card"><h3>Usala anche per altri gruppi</h3><div class="row" style="gap:6px">${teamGroups().filter(x=>x.id!==g.id).map(x=>`<button class="chip" data-a="lessoncopy" data-k="${x.id}">${esc(x.name)}</button>`).join('')}</div></section>`:''}`;
 }
 function lessonSnap(){ const g=grp(U.lessonEd); if(!g) return; U.lessonUndo=U.lessonUndo||[]; U.lessonUndo.push(JSON.parse(JSON.stringify(ensureLesson(g)))); if(U.lessonUndo.length>30) U.lessonUndo.shift(); }
-function scalePhases(L, newDur){ const tot = L.phases.reduce((t,p)=>t+(+p.m||0),0) || 1; L.phases.forEach(p=>{ p.m = Math.max(p.pause?2:5, Math.round(p.m*newDur/tot)); }); const t2 = L.phases.reduce((t,p)=>t+p.m,0), big = L.phases.filter(p=>!p.pause).sort((a,b)=>b.m-a.m)[0]; if(big) big.m += newDur - t2; L.dur = newDur; }
+function scalePhases(L, newDur){ if(!L.phases.length){ L.dur = newDur; return; } const tot = L.phases.reduce((t,p)=>t+(+p.m||0),0) || 1; L.phases.forEach(p=>{ p.m = Math.max(p.pause?2:5, Math.round(p.m*newDur/tot)); }); const t2 = L.phases.reduce((t,p)=>t+p.m,0), big = L.phases.filter(p=>!p.pause).sort((a,b)=>b.m-a.m)[0]; if(big) big.m += newDur - t2; L.dur = newDur; }
 
 /* ---------- tournaments v2: simple cards, calendar strip, requests ---------- */
 const tKey = x => `${x.y}:${x.n}:${x.i}`;
@@ -2583,7 +2586,7 @@ const ACT = {
   athbulkadd(){ const txt = document.getElementById('f-na-list').value; let gid = document.getElementById('f-na-grp').value; const made = [], newG = [];
     txt.split(/\r?\n/).forEach(raw=>{ let l = raw.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim(); if(!l) return;
       if(/:$/.test(l)){ const gn = l.slice(0,-1).trim(); if(!gn) return; if(/^lezioni private$/i.test(gn)){ gid = PRIV_ID; return; }
-        let g = S.groups.find(x=>x.id!==PRIV_ID && x.name.toLowerCase()===gn.toLowerCase()); if(!g){ g = {id:uid(), name:gn, code:genCode(gn), week:1}; S.groups.push(g); newG.push(gn); } gid = g.id; return; }
+        let g = S.groups.find(x=>x.id!==PRIV_ID && x.name.toLowerCase()===gn.toLowerCase()); if(!g){ g = {id:uid(), name:gn, code:genCode(gn), week:1, lesson:{dur:0, phases:[]}}; S.groups.push(g); newG.push(gn); } gid = g.id; return; }
       if(S.athletes.some(a=>a.groupId===gid && a.name.toLowerCase()===l.toLowerCase())) return;
       const id = uid(); S.athletes.push({id, groupId:gid, name:l, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); made.push(id); });
     if(!made.length && !newG.length){ toast('Nessun nome nuovo da aggiungere'); return; }
@@ -2597,7 +2600,7 @@ const ACT = {
     if(!n){ toast('Incolla almeno un obiettivo'); return; } U.goalPaste=null; save(); toast(n+' obiettivi aggiunti'); },
   athnewtoggle(){ U.athBulk=false; U.newAth=!U.newAth; U.newGrp=false; },
   grpnewtoggle(){ U.newGrp=!U.newGrp; U.newAth=false; },
-  grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
+  grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1, lesson:{dur:0, phases:[]}}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
   pinstoggle(){ U.showPins=!U.showPins; U.confirm=null; },
   grpedit(){ U.grpEdit=!U.grpEdit; U.confirm=null; },
   grpcode(){ const g=grp(U.resGroup); if(C.codes && g.code){ fbDb.doc('codes/'+g.code.toUpperCase()).delete().catch(()=>{}); delete C.codes[g.code.toUpperCase()]; } g.code=genCode(g.name); save(); toast('Nuovo codice: '+g.code); },
@@ -2900,7 +2903,7 @@ function normalize(d){
   d.plan=d.plan||{}; d.provaEdit=d.provaEdit||{};
   return d;
 }
-function emptyState(){ return normalize({example:false, groups:[{id:'g1', name:'Gruppo 1', code:'G1', week:1}], athletes:[]}); }
+function emptyState(){ return normalize({example:false, groups:[{id:'g1', name:'Gruppo 1', code:'G1', week:1, lesson:{dur:0, phases:[]}}], athletes:[]}); }
 
 function cErr(e){
   const c = (e && (e.code||'')) + '';
