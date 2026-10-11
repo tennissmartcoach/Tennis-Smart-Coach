@@ -377,14 +377,23 @@ const KEY = 'smartcoach.v3';
 let S;
 /* save() is defined by the online layer */
 function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return seed();
-  if(d.roster!==4){ const n = seed(); d = Object.assign(n, {coachCode:d.coachCode||'MAESTRO', customEx:d.customEx||[], plan:d.plan||{}, provaEdit:d.provaEdit||{}}); }
+  if(d.roster!==5){ const n = seed(); d = Object.assign(n, {coachCode:d.coachCode||'MAESTRO', customEx:d.customEx||[], plan:d.plan||{}, provaEdit:d.provaEdit||{}}); }
   ['forms','tests','results','matches','customEx'].forEach(k=>d[k]=d[k]||[]); d.profiles=d.profiles||{}; d.priv=d.priv||{}; d.att=d.att||{}; d.notes=d.notes||[]; d.well=d.well||[]; d.notices=d.notices||[]; d.season=d.season||{}; if(!d.season[2026]) d.season[2026]=JSON.parse(JSON.stringify(SEASON2026)); if(!d.groups.some(g=>g.id==='priv')) d.groups.push({id:'priv', name:'Lezioni private', code:'PRIV', week:1}); if(d.roster!==3){ addExample(d); d.roster=3; } if(!d.ex4) addExample4(d); if(!d.ex5) addExample5(d); d.plan=d.plan||{}; d.provaEdit=d.provaEdit||{};
   return d; }
 
 function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const ROSTER = [{"id": "r0", "groupId": "g1", "name": "Sofia L.", "pin": "8411", "ppin": "8629"}, {"id": "r1", "groupId": "g1", "name": "Giulia R.", "pin": "8402", "ppin": "9320"}, {"id": "r2", "groupId": "g1", "name": "Aurora B.", "pin": "4111", "ppin": "4025"}, {"id": "r3", "groupId": "g1", "name": "Emma C.", "pin": "9387", "ppin": "8794"}, {"id": "r4", "groupId": "g1", "name": "Ginevra T.", "pin": "4050", "ppin": "2542"}, {"id": "r5", "groupId": "g1", "name": "Alice N.", "pin": "8316", "ppin": "5970"}, {"id": "r6", "groupId": "g2", "name": "Lorenzo V.", "pin": "3323", "ppin": "2485"}, {"id": "r7", "groupId": "g2", "name": "Edoardo G.", "pin": "9825", "ppin": "1686"}, {"id": "r8", "groupId": "g2", "name": "Pietro C.", "pin": "7490", "ppin": "8421"}, {"id": "r9", "groupId": "g2", "name": "Diego F.", "pin": "3580", "ppin": "1245"}, {"id": "r10", "groupId": "g2", "name": "Samuele P.", "pin": "9656", "ppin": "2034"}, {"id": "r11", "groupId": "g3", "name": "Anna D.", "pin": "1975", "ppin": "1584"}, {"id": "r12", "groupId": "g3", "name": "Marco T.", "pin": "4116", "ppin": "4963"}, {"id": "r13", "groupId": "g3", "name": "Elena S.", "pin": "1492", "ppin": "8601"}, {"id": "r14", "groupId": "g3", "name": "Luca B.", "pin": "6345", "ppin": "8217"}, {"id": "r15", "groupId": "g3", "name": "Noemi R.", "pin": "4200", "ppin": "9505"}, {"id": "r16", "groupId": "g3", "name": "Filippo M.", "pin": "4828", "ppin": "5819"}, {"id": "r17", "groupId": "g4", "name": "Martina Z.", "pin": "9188", "ppin": "1075"}, {"id": "r18", "groupId": "g4", "name": "Nicola P.", "pin": "2392", "ppin": "8492"}, {"id": "r19", "groupId": "g4", "name": "Irene C.", "pin": "5557", "ppin": "7664"}, {"id": "r20", "groupId": "g4", "name": "Tommaso V.", "pin": "2363", "ppin": "5161"}, {"id": "r21", "groupId": "g4", "name": "Beatrice G.", "pin": "6165", "ppin": "4762"}];
 function seed(){
-  return addExample5(addExample4(addExample({ roster:4, example:false, coachCode:'MAESTRO', groups:[{id:'g1', name:'AGO 1', code:'AGO1', week:1},{id:'g2', name:'AGO 2', code:'AGO2', week:1},{id:'g3', name:'Pre-agonistica U12', code:'U12', week:1},{id:'g4', name:'Scuola tennis U10', code:'U10', week:1},{id:'priv', name:'Lezioni private', code:'PRIV', week:1}], profiles:{}, priv:{}, att:{}, notes:[], well:[], notices:[], season:{2026:JSON.parse(JSON.stringify(SEASON2026))}, athletes:JSON.parse(JSON.stringify(ROSTER)), results:[], matches:[], forms:[], tests:[], customEx:[], plan:{}, provaEdit:{}, session:null, live:null, seen:new Date().toISOString() })));
+  return addShort(addExample5(addExample4(addExample({ roster:5, example:false, coachCode:'MAESTRO', groups:[{id:'g1', name:'AGO 1', code:'AGO1', week:1},{id:'g2', name:'AGO 2', code:'AGO2', week:1, freq:4},{id:'g3', name:'Pre-agonistica U12', code:'U12', week:1, freq:3, prog:'own'},{id:'g4', name:'Scuola tennis U10', code:'U10', week:1, freq:2, prog:'own'},{id:'priv', name:'Lezioni private', code:'PRIV', week:1}], profiles:{}, priv:{}, att:{}, notes:[], well:[], notices:[], season:{2026:JSON.parse(JSON.stringify(SEASON2026))}, athletes:JSON.parse(JSON.stringify(ROSTER)), results:[], matches:[], forms:[], tests:[], customEx:[], plan:{}, provaEdit:{}, session:null, live:null, seen:new Date().toISOString() }))));
+}
+
+/* short example programmes: U12 three weeks with 3 sessions, U10 two weeks with 2 sessions */
+function addShort(d){
+  d.customEx = d.customEx || []; const CX = [{"id": "cx_u10a", "custom": true, "ph": "att", "t": "Il semaforo", "chip": "Riscaldamento con la palla", "lines": ["Verde = palleggio libero, giallo = palla alta, rosso = fermi e split.", "Il maestro chiama i colori mentre i bambini palleggiano a coppie nel mini campo."]}, {"id": "cx_u10b", "custom": true, "ph": "pr", "t": "Dritto nel cerchio", "chip": "Mini campo, palla rossa", "lines": ["Cerchi a terra nel campo avversario: 1 punto se la palla rimbalza nel cerchio.", "Il maestro lancia dalla mano; dopo 5 lanci si cambia."]}, {"id": "cx_u10c", "custom": true, "ph": "pr", "t": "Rovescio a due mani: la scopa", "chip": "Palla rossa", "lines": ["Prima il gesto senza palla, come spazzare il pavimento da basso verso alto.", "Poi 10 lanci facili dal maestro, la palla deve superare la rete alta."]}, {"id": "cx_u10d", "custom": true, "ph": "sr", "t": "Servizio dal basso al bersaglio", "chip": "Servizio semplificato", "lines": ["Servizio dal basso o con lancio basso verso un cono nel quadrato.", "3 punti se colpisci il cono, 1 se la palla entra."]}, {"id": "cx_u10e", "custom": true, "ph": "ap", "t": "La sfida dei 10 scambi", "chip": "Gioco a coppie", "lines": ["A coppie nel mini campo: contate gli scambi senza errori.", "Record della coppia: il prossimo allenamento si prova a batterlo."]}, {"id": "cx_u10f", "custom": true, "ph": "ap", "t": "Re del campo", "chip": "Gioco a squadre", "lines": ["Un bambino è il re: chi vince il punto prende il suo posto.", "Il re resta sul campo finché vince; si conta chi è rimasto re più volte."]}, {"id": "cx_u12a", "custom": true, "ph": "att", "t": "Palleggio a zone", "chip": "Riscaldamento a 3/4 campo", "lines": ["Palleggio incrociato, poi lungolinea quando il maestro dice cambio.", "Obiettivo: 20 colpi senza errori per coppia."]}, {"id": "cx_u12b", "custom": true, "ph": "ap", "t": "Punti a obiettivo", "chip": "Gioco a punti", "lines": ["Punto doppio se lo vinci con il colpo della settimana.", "Set a 7 punti, si cambia avversario a ogni set."]}];
+  CX.forEach(e=>{ if(!d.customEx.some(x=>x.id===e.id)) d.customEx.push(e); });
+  d.own = d.own || {}; const OWN = {"g3": {"cur": 1, "weeks": [{"name": "Costruire lo scambio", "days": [{"title": "Diagonale profonda", "note": "Tenere la palla profonda in diagonale prima di cambiare.", "ex": ["cx_u12a", "w1d0pr0", "w1d0sr0", "w1d0ap0"]}, {"title": "Il diritto che comanda", "note": "Girarsi attorno alla palla per usare il diritto.", "ex": ["w1d1att0", "w1d1pr0", "w1d1sr0", "cx_u12b"]}, {"title": "Partita a tema", "note": "Game da 30-30 e tie-break con l'arma dichiarata.", "ex": ["w1d4att0", "w1d4sr0", "w1d1ap0", "w1d0ap0"]}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}]}, {"name": "Difendere e ripartire", "days": [{"title": "La difesa alta", "note": "Palla alta e profonda quando si è in difficoltà.", "ex": ["w2d0att0", "w2d0pr0", "w2d0sr0", "w2d0ap0"]}, {"title": "Il contrattacco", "note": "Riconoscere la palla che perde peso e rientrare nello scambio.", "ex": ["w2d1att0", "w2d3pr0", "w2d1sr0", "w2d1ap0"]}, {"title": "Partita a tema", "note": "Punti che iniziano in svantaggio.", "ex": ["w2d4att0", "w2d4sr0", "w2d0ap0", "cx_u12b"]}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}]}, {"name": "Servizio e risposta", "days": [{"title": "Gli schemi del servizio", "note": "Servizio + primo colpo nello spazio.", "ex": ["w3d0att0", "w3d0pr0", "w3d0sr0", "w3d0ap0"]}, {"title": "La seconda si attacca", "note": "Risposta aggressiva sulla seconda di servizio.", "ex": ["w3d1att0", "w3d1pr0", "w3d1sr0", "w3d1ap0"]}, {"title": "Partita a tema", "note": "Tie-break con intenzione dichiarata.", "ex": ["w3d4att0", "w3d4sr0", "w3d2ap0", "w3d0ap0"]}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}]}]}, "g4": {"cur": 1, "weeks": [{"name": "Palla rossa: controllo", "days": [{"title": "Dritto e coordinazione", "note": "Mini campo, palla rossa, tanti tocchi a testa.", "ex": ["cx_u10a", "cx_u10b", "cx_u10e"]}, {"title": "Rovescio e gioco", "note": "Rovescio a due mani e primo gioco a punti.", "ex": ["cx_u10a", "cx_u10c", "cx_u10f"]}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}]}, {"name": "Palla rossa: servizio e gioco", "days": [{"title": "Il servizio", "note": "Servizio dal basso e primi punti.", "ex": ["cx_u10a", "cx_u10d", "cx_u10e"]}, {"title": "Tutti in partita", "note": "Ripasso di dritto e rovescio, poi re del campo.", "ex": ["cx_u10b", "cx_u10c", "cx_u10f"]}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}, {"title": "", "note": "", "ex": []}]}]}};
+  Object.keys(OWN).forEach(k=>{ if(!d.own[k]) d.own[k] = OWN[k]; });
+  return d;
 }
 
 /* ---------- example data for testing (first two athletes + private lessons) ---------- */
@@ -597,15 +606,21 @@ const ROLE_NAME = {fit:'Preparatore atletico', mind:'Preparatore mentale'};
 const gwk = g => isOwnG(g) ? 'o'+ownOf(g.id).cur : String(g.week);
 const sDone = g => ((g && g.sdone) || {})[gwk(g)] || {};
 const doneDate = (g,di) => sDone(g)[di] || '';
-function curIdx(g){ if(!g || g.id===PRIV_ID) return -1; const m = sDone(g), t = todayISO(); for(let i=4;i>=0;i--) if(m[i]===t) return i; for(let i=0;i<5;i++) if(!m[i]) return i; return -1; }
-function nextFree(g){ const m = sDone(g); for(let i=0;i<5;i++) if(!m[i]) return i; return -1; }
-function todayIdx(g){ if(g){ const i = curIdx(g); return i<0 ? 4 : i; } const d = new Date().getDay(); return d>=1 && d<=5 ? d-1 : 4; }
-function sessDots(g){ const m = sDone(g); return `<span class="sdots" aria-label="${Object.keys(m).length} allenamenti su 5 fatti">${[0,1,2,3,4].map(i=>`<i class="${m[i]?'on':''}">${i+1}</i>`).join('')}</span>`; }
+/* how many sessions a week the group trains: with the 12-week programme fewer sessions keep the first and the last (the comparison of the prova) */
+const PICK12 = {2:[0,4], 3:[0,2,4], 4:[0,1,2,4], 5:[0,1,2,3,4]};
+const nS = g => Math.min(5, Math.max(2, (g && g.freq) || 5));
+const pickOf = g => isOwnG(g) ? [0,1,2,3,4].slice(0, nS(g)) : PICK12[nS(g)];
+const sNo = (g,di) => pickOf(g).indexOf(di) + 1;
+const sLabel = (g,di) => 'Allenamento ' + (sNo(g,di) || di+1);
+function curIdx(g){ if(!g || g.id===PRIV_ID) return -1; const m = sDone(g), t = todayISO(), pk = pickOf(g); for(const i of pk.slice().reverse()) if(m[i]===t) return i; for(const i of pk) if(!m[i]) return i; return -1; }
+function nextFree(g){ const m = sDone(g); for(const i of pickOf(g)) if(!m[i]) return i; return -1; }
+function todayIdx(g){ if(g){ const i = curIdx(g), pk = pickOf(g); return i<0 ? pk[pk.length-1] : i; } const d = new Date().getDay(); return d>=1 && d<=5 ? d-1 : 4; }
+function sessDots(g){ const m = sDone(g), pk = pickOf(g); return `<span class="sdots" aria-label="${pk.filter(i=>m[i]).length} allenamenti su ${pk.length} fatti">${pk.map((i,k)=>`<i class="${m[i]?'on':''}">${k+1}</i>`).join('')}</span>`; }
 function sessBtns(g, di){ if(S.session.role!=='coach' || !g) return '';
-  if(nextFree(g)<0) return `<div class="note"><b>Settimana completata.</b> Tutti e 5 gli allenamenti sono fatti.</div><button class="btn clay" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:Math.min(12,g.week+1)}</button>`;
+  if(nextFree(g)<0) return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.</div><button class="btn clay" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:Math.min(12,g.week+1)}</button>`;
   const dd = doneDate(g,di), nx = nextFree(g);
-  return dd ? `<div class="row"><button class="btn ghost" data-a="sessdone" data-k="${g.id}:${di}" style="flex:1">✓ Fatto ${dd===todayISO()?'oggi':fdate(dd)} · annulla</button>${nx>=0?`<button class="btn ghost" data-a="sessdone" data-k="${g.id}:${nx}" style="flex:1">Oggi anche il ${nx+1} (recupero)</button>`:''}</div>` : `<button class="btn" data-a="sessdone" data-k="${g.id}:${di}">Segna l'allenamento ${di+1} come fatto</button>`; }
-const sessHead = (g, di, title) => nextFree(g)<0 ? 'Settimana completata ✓' : `${DAYS[di]}: ${title}`;
+  return dd ? `<div class="row"><button class="btn ghost" data-a="sessdone" data-k="${g.id}:${di}" style="flex:1">✓ Fatto ${dd===todayISO()?'oggi':fdate(dd)} · annulla</button>${nx>=0?`<button class="btn ghost" data-a="sessdone" data-k="${g.id}:${nx}" style="flex:1">Oggi anche il ${sNo(g,nx)} (recupero)</button>`:''}</div>` : `<button class="btn" data-a="sessdone" data-k="${g.id}:${di}">Segna l'allenamento ${sNo(g,di)} come fatto</button>`; }
+const sessHead = (g, di, title) => nextFree(g)<0 ? 'Settimana completata ✓' : `${sLabel(g,di)}: ${title}`;
 let toastT;
 function toast(msg){ let t = document.querySelector('.toast'); if(!t){ t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); document.body.appendChild(t);} t.textContent=msg; clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),1800); }
 
@@ -782,8 +797,8 @@ function todayView(){
   return `
     <section class="card">
       <div class="row"><div class="wk" style="background:${wcol(w.n)}"><small>SETT</small>${w.n}</div><div class="grow" style="min-width:0"><span class="eyebrow">Settimana ${w.n} di 12</span><h2>${esc(w.name)}</h2></div></div>
-      <div class="seg" role="group" aria-label="Allenamento">${DAYS_S.map((x,i)=>`<button data-a="day" data-k="${i}" aria-pressed="${i===d}">${x}${doneDate(g,i)?' ✓':''}</button>`).join('')}</div>
-      <div><span class="eyebrow">${DAYS[d]}${doneDate(g,d)?' · fatto '+(doneDate(g,d)===todayISO()?'oggi':fdate(doneDate(g,d))):''}</span><h3 style="font-size:24px">${esc(w.days[d])}</h3></div>
+      <div class="seg" role="group" aria-label="Allenamento">${pickOf(g).map((i,k)=>`<button data-a="day" data-k="${i}" aria-pressed="${i===d}">${k+1}${doneDate(g,i)?' ✓':''}</button>`).join('')}</div>
+      <div><span class="eyebrow">${sLabel(g,d)}${doneDate(g,d)?' · fatto '+(doneDate(g,d)===todayISO()?'oggi':fdate(doneDate(g,d))):''}</span><h3 style="font-size:24px">${esc(w.days[d])}</h3></div>
       ${provaBox(w.n, d, true)}
     </section>
     ${pv.k!=='test'?`<section class="card">
@@ -953,13 +968,15 @@ function ownTodayCard(g, light){
 function ownWeekCard(g){
   const o = ownOf(g.id), w = o.weeks[o.cur-1];
   return `<section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${o.cur}</span><h2>${esc(w.name||'Settimana '+o.cur)}</h2></section>
-    ${w.days.map((d,i)=>{ const exs = d.ex.map(exById).filter(Boolean); return `<section class="card"><span class="eyebrow">${DAYS[i]}</span><h3>${esc(d.title||'Seduta da definire')}</h3>${d.note?`<p class="small">${esc(d.note)}</p>`:''}${exs.length?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>`; }).join('')}`;
+    ${w.days.slice(0, nS(g)).map((d,i)=>{ const exs = d.ex.map(exById).filter(Boolean); return `<section class="card"><span class="eyebrow">${DAYS[i]}</span><h3>${esc(d.title||'Seduta da definire')}</h3>${d.note?`<p class="small">${esc(d.note)}</p>`:''}${exs.length?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>`; }).join('')}`;
 }
 function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
     <div class="field"><label>Programma assegnato</label><div class="seg" role="group"><button data-a="setprog" data-k="12w" aria-pressed="${!isOwnG(g)}">Le 12 settimane</button><button data-a="setprog" data-k="own" aria-pressed="${isOwnG(g)}">Programma personale</button></div></div>
-    <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p></section>`;
+    <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p>
+    <div class="field"><label>Allenamenti a settimana</label><div class="seg" role="group">${[2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
+    ${!isOwnG(g) && nS(g)<5 ? `<p class="small muted">Con ${nS(g)} allenamenti a settimana il gruppo fa ${PICK12[nS(g)].map(i=>'il '+(i+1)).join(', ').replace(/, ([^,]*)$/,' e $1')} del programma: il primo e l'ultimo ci sono sempre, per il confronto della prova.</p>` : ''}</section>`;
 }
 function ownPlanView(g){
   const o = ownOf(g.id);
@@ -979,11 +996,11 @@ function ownPlanView(g){
       <section class="card"><span class="eyebrow">Settimana ${n}${o.cur===n?' · in corso':''}</span>
         <div class="field"><label for="ow-n">Nome della settimana</label><input id="ow-n" class="input inbig" data-c="owname" value="${esc(w.name)}" placeholder="Es. Costruzione dal fondo"></div>
         ${o.cur===n?'<span class="tag teal" style="align-self:flex-start">Settimana in corso per gli atleti</span>':`<button class="btn" data-a="owcur" style="align-self:flex-start">Imposta come settimana in corso</button>`}</section>
-      <section class="card"><h3>I cinque allenamenti</h3><div class="list">${w.days.map((d,i)=>`<button class="item" data-a="oday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span><br><b style="font-size:17px">${esc(d.title||'Da definire')}</b><br><span class="small muted">${d.ex.length} esercizi</span></span><span class="chev">›</span></button>`).join('')}</div></section>
+      <section class="card"><h3>Gli allenamenti (${nS(g)} a settimana)</h3><div class="list">${w.days.slice(0, nS(g)).map((d,i)=>`<button class="item" data-a="oday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span><br><b style="font-size:17px">${esc(d.title||'Da definire')}</b><br><span class="small muted">${d.ex.length} esercizi</span></span><span class="chev">›</span></button>`).join('')}</div></section>
       <div class="row"><button class="btn ghost" data-a="owcopy">Duplica questa settimana</button>${o.weeks.length>1?(U.confirm==='ow'?`<button class="btn danger" data-a="owdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button>`:`<button class="btn danger" data-a="askdel" data-k="ow">Elimina settimana</button>`):''}</div>`;
   }
   return `<h1>Programma di ${esc(g.name)}</h1>
-    <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="oweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.filter(d=>d.title||d.ex.length).length} di 5 sedute preparate</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
+    <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="oweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.slice(0,nS(g)).filter(d=>d.title||d.ex.length).length} di ${nS(g)} allenamenti preparati</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="owadd">+ Aggiungi settimana</button>`;
 }
 /* coach: programme */
@@ -1286,7 +1303,7 @@ function parentWeek(){
       <p>Questa settimana ${esc(a.name)} lavora sul modo di giocare di chi ${esc(t[2])}</p>
     </section>
     ${typeCard(w.n, false, true)}
-    ${weekDays(w.n, false)}
+    ${weekDays(w.n, false, g)}
     <section class="card" style="background:var(--clay-soft);border-color:transparent">
       <span class="eyebrow">La domanda da fare a casa</span>
       <h1>“Cosa volevi fare?”</h1>
@@ -1421,7 +1438,7 @@ function dayView(w, d){
     <section class="card">
       <span class="eyebrow">Settimana ${w} · ${esc(wk.name)} · ${DAYS[d]}</span>
       <h1>${esc(D.title)}</h1>
-      ${S.session.role==='coach'?S.groups.filter(g=>g.id!==PRIV_ID && !isOwnG(g) && g.week===w).map(g=>`<div class="row" style="gap:8px"><span class="small"><b>${esc(g.name)}</b></span>${doneDate(g,d)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">✓ Fatto ${fdate(doneDate(g,d))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">Segna come fatto</button>`}</div>`).join(''):''}
+      ${S.session.role==='coach'?S.groups.filter(g=>g.id!==PRIV_ID && !isOwnG(g) && g.week===w && pickOf(g).includes(d)).map(g=>`<div class="row" style="gap:8px"><span class="small"><b>${esc(g.name)}</b> · ${sLabel(g,d).toLowerCase()}</span>${doneDate(g,d)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">✓ Fatto ${fdate(doneDate(g,d))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">Segna come fatto</button>`}</div>`).join(''):''}
       ${D.obj?`<p><b>Obiettivo:</b> ${D.obj}</p>`:''}
       ${U.editProva ? provaForm(w,d) : provaBox(w, d) + `<div class="row"><button class="chip" data-a="editprova">Modifica la prova</button>${(S.provaEdit||{})[w+'-'+d]?'<span class="tag teal">prova modificata</span>':''}</div>`}
       ${provaResults(w,d)}
@@ -1552,16 +1569,17 @@ function typeCard(w, full, noHead){
     <div class="list">${rows.map(({lab,r})=>`<div><span class="tag pri">${lab}</span><p class="small" style="margin-top:6px">${r.fa}</p>${full?`<p class="small muted" style="margin-top:4px"><b>Da evitare:</b> ${r.no}</p>`:''}</div>`).join('')}</div>
   </section>`;
 }
-function weekDays(w, full){
-  return `<section class="card"><h3>Giorno per giorno</h3><div class="list">${P.prog[w].map((D,d)=>{
+function weekDays(w, full, g){
+  const pk = g ? pickOf(g) : [0,1,2,3,4];
+  return `<section class="card"><h3>Allenamento per allenamento</h3><div class="list">${P.prog[w].map((D,d)=>{ if(!pk.includes(d)) return '';
     const B = dayBlocks(w,d), seq = d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
     const ex = full ? seq.map(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${PH[ph][0]}:</b> ${e.custom?esc(e.t):e.t}</li>`).join('')).join('') : '';
-    return `<div><span class="eyebrow">${DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}
+    return `<div><span class="eyebrow">${g?sLabel(g,d):DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}
       ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul><p class="small" style="margin-top:6px"><span class="tag">Prova</span> ${esc(PV(w,d).t)}</p>`:''}</div>`; }).join('')}</div></section>`;
 }
 function studentWeek(){
   const a = me(), g = grp(a.groupId), w = W(g.week);
-  return `${typeCard(w.n, true)}${weekDays(w.n, true)}
+  return `${typeCard(w.n, true)}${weekDays(w.n, true, g)}
     <section class="card"><span class="eyebrow">Le scelte dell’allenamento 5</span><div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}</span></div>`).join('')}</div></section>`;
 }
 
@@ -1901,7 +1919,7 @@ function fitProgView(){
       <section class="card"><span class="eyebrow">Preparazione atletica · settimana ${n}${o.cur===n?' · in corso':''}</span>
         <div class="field"><label for="fpw-n">Nome della settimana</label><input id="fpw-n" class="input inbig" data-c="fpwname" value="${esc(w.name)}" placeholder="Es. Forza e rapidità"></div>
         ${o.cur===n?'<span class="tag teal" style="align-self:flex-start">Settimana in corso per gli atleti</span>':`<button class="btn" data-a="fpcur" style="align-self:flex-start">Imposta come settimana in corso</button>`}</section>
-      ${w.days.map((d,i)=>`<section class="card"><span class="eyebrow">${DAYS[i]}</span>
+      ${w.days.map((d,i)=>!pickOf(g).includes(i)?'':`<section class="card"><span class="eyebrow">${sLabel(g,i)}</span>
         <input class="input" style="font-weight:700" data-c="fpdt" data-k="${i}" value="${esc(d.title)}" placeholder="Titolo, es. Rapidità e cambi di direzione" aria-label="Titolo ${DAYS[i]}">
         <textarea class="input" rows="4" data-c="fpdx" data-k="${i}" placeholder="Es. 10' attivazione&#10;4×20 m sprint, rec. 1'&#10;3×10 affondi per gamba&#10;Core 8'" aria-label="Seduta ${DAYS[i]}">${esc(d.text)}</textarea></section>`).join('')}
       <p class="small muted">Si salva da solo. Gli atleti vedono la seduta del giorno nella loro Home quando questa è la settimana in corso.</p>
@@ -2437,6 +2455,7 @@ const ACT = {
   setweek(k){ const g=grp(document.getElementById('f-setweek').value); g.week=+k; save(); toast(g.name+': settimana '+k); },
   resgroup(k){ U.resGroup=k; U.resWeek=grp(k).week; }, resweek(k){ U.resWeek=Math.min(12,Math.max(1,U.resWeek+ +k)); },
   openath(k,d){ U.athleteOpen=k; U.athTab=d&&d.t?d.t:null; U.showInbox=false; S.seen=new Date().toISOString(); save(); window.scrollTo(0,0); },
+  setfreq(k){ const g=grp(U.planGroup); if(!g) return; g.freq=+k; save(); toast(`${k} allenamenti a settimana per ${g.name}`); },
   setprog(k){ const g=grp(U.planGroup); if(!g) return; g.prog=k; if(k==='own') ownOf(g.id); U.oWeek=null; U.oDay=null; save(); toast(k==='own'?'Programma personale per '+g.name:'Le 12 settimane per '+g.name); },
   oweek(k){ U.oWeek = k?+k:null; U.oDay=null; U.confirm=null; window.scrollTo(0,0); },
   oday(k){ U.oDay = k===''?null:+k; window.scrollTo(0,0); },
@@ -2537,7 +2556,7 @@ const ACT = {
   addath(k){ const i=document.getElementById('f-new-'+k); const n=i.value.trim(); if(!n){ toast('Scrivi il nome'); return; } S.athletes.push({id:uid(), groupId:k, name:n, pin:genPin(), ppin:genPin()}); save(); toast(n+' aggiunto al gruppo'); },
   addgroup(){ const n=document.getElementById('f-gname').value.trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } S.groups.push({id:uid(), name:n, code:genCode(n), week:1}); save(); toast('Gruppo creato'); },
   savecc(){ const v=document.getElementById('f-cc').value.trim().toUpperCase(); if(v.length<4){ toast('Almeno 4 caratteri'); return; } S.coachCode=v; save(); toast('Codice maestro salvato'); },
-  reset(k){ const sess=S.session; if(typeof cloudAthRemoved==='function') (S.athletes||[]).forEach(a=>cloudAthRemoved(a.id)); S = k==='empty' ? {roster:4, example:false, coachCode:S.coachCode, season:{2026:{weeks:{}}}, groups:[], athletes:[], results:[], matches:[], forms:[], tests:[], customEx:S.customEx||[], plan:S.plan||{}, session:sess, live:null} : seed(); S.session=sess; U.confirm=null; U.resGroup=null; U.resWeek=null; U.setup=null; save(); toast(k==='empty'?'Tutto cancellato: puoi partire con i tuoi gruppi':'Dati di prova ripristinati'); },
+  reset(k){ const sess=S.session; if(typeof cloudAthRemoved==='function') (S.athletes||[]).forEach(a=>cloudAthRemoved(a.id)); S = k==='empty' ? {roster:5, example:false, coachCode:S.coachCode, season:{2026:{weeks:{}}}, groups:[], athletes:[], results:[], matches:[], forms:[], tests:[], customEx:S.customEx||[], plan:S.plan||{}, session:sess, live:null} : seed(); S.session=sess; U.confirm=null; U.resGroup=null; U.resWeek=null; U.setup=null; save(); toast(k==='empty'?'Tutto cancellato: puoi partire con i tuoi gruppi':'Dati di prova ripristinati'); },
   set(k,d){ const s=U.setup; let v=d.v; if(v==='true') v=true; else if(v==='false') v=false; else if(/^\d+$/.test(v)) v=+v; s[k]=v; },
   addchoice(){ U.setup.choices.push('Nuova scelta'); }, delchoice(k){ U.setup.choices.splice(+k,1); },
   start(){ const s=U.setup; const a=ath(s.a); if(!a){ toast('Scegli chi analizziamo'); return; }
@@ -2582,7 +2601,7 @@ const ACT = {
   homeback(){ U.homeView=null; U.privOpen=null; window.scrollTo(0,0); }, homego(k){ U.homeView=k; window.scrollTo(0,0); },
   homeatt(k){ U.homeView='att'; U.attGroup=k; U.attDate=todayISO(); window.scrollTo(0,0); },
   sessdone(k){ const [gid,di]=k.split(':'), g=grp(gid); if(!g) return; g.sdone=g.sdone||{}; const key=gwk(g), m=g.sdone[key]=g.sdone[key]||{};
-    if(m[di]) delete m[di]; else m[di]=todayISO(); save(); toast(m[di]?`Allenamento ${+di+1} fatto`:'Segno tolto'); },
+    if(m[di]) delete m[di]; else m[di]=todayISO(); save(); toast(m[di]?`${sLabel(g,+di)} fatto`:'Segno tolto'); },
   weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(g.week>=12){ toast('Il programma di 12 settimane è finito'); return; } g.week++; } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d]=k.split(':').map(Number); U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },
   homelib(){ U.tab='plan'; U.planMode='lib'; U.libOpen=null; window.scrollTo(0,0); },
