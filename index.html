@@ -2231,10 +2231,11 @@ function lessonEditor(g){
       <p class="small ${diff?'':'muted'}" style="${diff?'color:var(--ko);font-weight:600':''}">Totale ${tot} minuti${diff?` · ${diff>0?diff+' in più':(-diff)+' in meno'} rispetto a ${L.dur}`:' · torna con la durata'}</p>
       <div class="row"><button class="btn ghost" data-a="phadd" data-k="work" style="flex:1">+ Fase</button><button class="btn ghost" data-a="phadd" data-k="pause" style="flex:1">+ Pausa</button></div>
       ${diff?`<button class="btn" data-a="phfit">Adatta i minuti a ${L.dur}</button>`:''}
-      <button class="chip" data-a="phreset" style="align-self:flex-start">Ripristina le fasi di partenza</button>
+      ${(U.lessonUndo||[]).length?`<button class="chip" data-a="phundo" style="align-self:flex-start">↶ Annulla l'ultima modifica</button>`:''}
       <p class="small muted">Puoi rinominare le fasi (per esempio "Tecnica" invece di "Fase centrale"), toglierle o aggiungerne. Nelle fasi nuove inserisci gli esercizi dalla seduta con "Modifica".</p></section>
     ${teamGroups().length>1?`<section class="card"><h3>Usala anche per altri gruppi</h3><div class="row" style="gap:6px">${teamGroups().filter(x=>x.id!==g.id).map(x=>`<button class="chip" data-a="lessoncopy" data-k="${x.id}">${esc(x.name)}</button>`).join('')}</div></section>`:''}`;
 }
+function lessonSnap(){ const g=grp(U.lessonEd); if(!g) return; U.lessonUndo=U.lessonUndo||[]; U.lessonUndo.push(JSON.parse(JSON.stringify(ensureLesson(g)))); if(U.lessonUndo.length>30) U.lessonUndo.shift(); }
 function scalePhases(L, newDur){ const tot = L.phases.reduce((t,p)=>t+(+p.m||0),0) || 1; L.phases.forEach(p=>{ p.m = Math.max(p.pause?2:5, Math.round(p.m*newDur/tot)); }); const t2 = L.phases.reduce((t,p)=>t+p.m,0), big = L.phases.filter(p=>!p.pause).sort((a,b)=>b.m-a.m)[0]; if(big) big.m += newDur - t2; L.dur = newDur; }
 
 /* ---------- tournaments v2: simple cards, calendar strip, requests ---------- */
@@ -2505,14 +2506,14 @@ const ACT = {
   setweek(k){ const g=grp(document.getElementById('f-setweek').value); g.week=+k; save(); toast(g.name+': settimana '+k); },
   resgroup(k){ U.resGroup=k; U.resWeek=grp(k).week; }, resweek(k){ U.resWeek=Math.min(12,Math.max(1,U.resWeek+ +k)); },
   openath(k,d){ U.athleteOpen=k; U.athTab=d&&d.t?d.t:null; U.showInbox=false; S.seen=new Date().toISOString(); save(); window.scrollTo(0,0); },
-  lessonopen(k){ U.lessonEd=k; U.planGroup=k; U.tab='plan'; window.scrollTo(0,0); },
-  lessonclose(){ U.lessonEd=null; },
-  lessondur(k){ const g=grp(U.lessonEd); if(!g) return; scalePhases(ensureLesson(g), +k); save(); },
-  phup(k){ const L=ensureLesson(grp(U.lessonEd)), i=+k; [L.phases[i-1],L.phases[i]]=[L.phases[i],L.phases[i-1]]; save(); },
-  phdel(k){ const L=ensureLesson(grp(U.lessonEd)); if(L.phases.filter(p=>!p.pause).length<=1 && !L.phases[+k].pause){ toast('Serve almeno una fase'); return; } L.phases.splice(+k,1); save(); },
-  phadd(k){ const L=ensureLesson(grp(U.lessonEd)); L.phases.push(k==='pause'?{k:'p'+uid().slice(0,4), n:'Pausa', m:3, pause:true}:{k:'x'+uid().slice(0,5), n:'Nuova fase', m:10}); save(); },
-  phfit(){ const L=ensureLesson(grp(U.lessonEd)); scalePhases(L, L.dur); save(); },
-  phreset(){ const g=grp(U.lessonEd), L=ensureLesson(g); L.phases=DEF_PHASES(); scalePhases(L, L.dur); save(); toast('Fasi di partenza ripristinate'); },
+  lessonopen(k){ U.lessonUndo=[]; U.lessonEd=k; U.planGroup=k; U.tab='plan'; window.scrollTo(0,0); },
+  lessonclose(){ U.lessonEd=null; U.lessonUndo=[]; },
+  phundo(){ const g=grp(U.lessonEd), st=U.lessonUndo||[]; if(!g || !st.length) return; g.lesson=st.pop(); save(); toast('Modifica annullata'); },
+  lessondur(k){ lessonSnap(); const g=grp(U.lessonEd); if(!g) return; scalePhases(ensureLesson(g), +k); save(); },
+  phup(k){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)), i=+k; [L.phases[i-1],L.phases[i]]=[L.phases[i],L.phases[i-1]]; save(); },
+  phdel(k){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); if(L.phases.filter(p=>!p.pause).length<=1 && !L.phases[+k].pause){ toast('Serve almeno una fase'); return; } L.phases.splice(+k,1); save(); },
+  phadd(k){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases.push(k==='pause'?{k:'p'+uid().slice(0,4), n:'Pausa', m:3, pause:true}:{k:'x'+uid().slice(0,5), n:'Nuova fase', m:10}); save(); },
+  phfit(){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); scalePhases(L, L.dur); save(); },
   lessoncopy(k){ const from=ensureLesson(grp(U.lessonEd)), to=grp(k); to.lesson=JSON.parse(JSON.stringify(from)); save(); toast('Struttura copiata su '+to.name); },
   setfreq(k){ const g=grp(U.planGroup); if(!g) return; g.freq=+k; save(); toast(`${k} allenamenti a settimana per ${g.name}`); },
   setprog(k){ const g=grp(U.planGroup); if(!g) return; g.prog=k; if(k==='own') ownOf(g.id); U.oWeek=null; U.oDay=null; save(); toast(k==='own'?'Programma personale per '+g.name:'Le 12 settimane per '+g.name); },
@@ -2816,8 +2817,8 @@ document.addEventListener('change', e=>{
   if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
   if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; cloudMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
-  if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ scalePhases(ensureLesson(g), n); save(); render(); } return; }
-  if(c==='phmin'){ const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
+  if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
+  if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
   if(c==='attdate'){ U.attDate=t.value||todayISO(); render(); return; }
   if(c==='tour' && t.type==='date'){ render(); return; }
@@ -2827,6 +2828,7 @@ document.addEventListener('change', e=>{
   if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; render(); }
   if(c==='mb'){ s.b=t.value; render(); }
 });
+document.addEventListener('focusin', e=>{ if(e.target && e.target.dataset && e.target.dataset.c==='phname') lessonSnap(); });
 document.addEventListener('input', e=>{
   if(e.target && e.target.dataset && e.target.dataset.c==='phname'){ const L=ensureLesson(grp(U.lessonEd)); L.phases[+e.target.dataset.k].n=e.target.value; save(); return; }
   const t = e.target, c = t.dataset?.c;
