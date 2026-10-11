@@ -341,15 +341,17 @@ textarea.input{font-family:var(--f-body);font-size:16px;line-height:1.4}
 .orb-lines circle,.orb-lines path{fill:none;stroke:var(--line);stroke-width:.6}
 .orb-lines circle{stroke-dasharray:2 2}
 .orb-sat,.orb-core{position:absolute;transform:translate(-50%,-50%);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;cursor:pointer;font-family:var(--f-body)}
-.orb-sat{width:27%;aspect-ratio:1;background:var(--surface);border:1.5px solid var(--line);color:var(--ink);padding:6px}
-.orb-sat svg{width:34%;height:auto;color:var(--muted)}
-.orb-sat span{font-size:11px;font-weight:600;line-height:1.1}
+.orb-sat{width:36%;background:none;border:0;color:var(--ink);padding:0;border-radius:0;gap:6px}
+.orb-sat i{width:58%;aspect-ratio:1;border-radius:50%;background:var(--surface);border:3px solid var(--rc);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.orb-sat i svg{width:46%;height:auto;color:var(--rc)}
+.orb-sat span{font-size:14px;font-weight:700;line-height:1.15;text-shadow:0 1px 2px rgba(0,0,0,.5)}
 .orb-core{left:50%;top:50%;width:38%;aspect-ratio:1;background:var(--clay-bg,var(--clay));color:var(--on-clay,#fff);border:0;box-shadow:0 0 0 8px color-mix(in srgb,var(--clay-bg,var(--clay)) 18%,transparent)}
 .orb-core svg{width:36%;height:auto}
 .orb-core b{font-family:var(--f-disp);font-size:20px;line-height:1}
 .orb-core small{font-size:11px;font-weight:600;opacity:.75}
-.orb-sat.on{border-color:var(--clay);box-shadow:0 0 0 3px color-mix(in srgb,var(--clay) 35%,transparent)}
-.orb-sat.on svg{color:var(--clay)}
+.orb-sat.on i{background:var(--rc);box-shadow:0 0 0 4px color-mix(in srgb,var(--rc) 30%,transparent)}
+.orb-sat.on i svg{color:#0F1620}
+.orb-sat.on span{color:var(--rc)}
 .orb-core.on{box-shadow:0 0 0 8px color-mix(in srgb,var(--clay-bg,var(--clay)) 40%,transparent)}
 .ckrow{display:flex;gap:12px;align-items:flex-start;font-size:15px}
 .ckrow input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--clay)}
@@ -2282,10 +2284,11 @@ const ORB_IC = {
   fit:'<path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/>',
   mind:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>'
 };
+const ORB_COL = {coach:'#4C8DFF', parent:'#2FBF9B', mind:'#A77BF0', fit:'#F2994A'};
 const ORB_LAB = {student:'Atleta', parent:'Genitore', coach:'Maestro', fit:'Preparatore atletico', mind:'Preparatore mentale'};
 function orbitHTML(action, sel){
   const ic = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ORB_IC[k]}</svg>`;
-  const sat = (k, x, y) => `<button class="orb-sat${sel===k?' on':''}" style="left:${x}%;top:${y}%" data-a="${action}" data-k="${k}" aria-pressed="${sel===k}">${ic(k)}<span>${ORB_LAB[k]}</span></button>`;
+  const sat = (k, x, y) => `<button class="orb-sat${sel===k?' on':''}" style="left:${x}%;top:${y}%;--rc:${ORB_COL[k]}" data-a="${action}" data-k="${k}" aria-pressed="${sel===k}"><i>${ic(k)}</i><span>${ORB_LAB[k]}</span></button>`;
   return `<div class="orbit" role="group" aria-label="Chi sei?">
     <svg class="orb-lines" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="37" /><path d="M50 50 L23 23 M50 50 L77 23 M50 50 L77 77 M50 50 L23 77"/></svg>
     ${sat('coach',23,23)}${sat('parent',77,23)}${sat('mind',23,77)}${sat('fit',77,77)}
