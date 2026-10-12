@@ -696,7 +696,7 @@ function renderInner(){
     case 'meet': body = U.form ? formView() : meetView(); break;
     case 'pmatch': body = summaryView(S.matches.find(m=>m.id===U.matchOpen)); break;
     case 'plan': body = planView(); break;
-    case 'ath': body = U.athleteOpen ? athleteView(U.athleteOpen) : (U.athPriv && ath(U.athPriv)) ? privDetail(U.athPriv) : athList(); break;
+    case 'ath': body = (U.athleteOpen && ath(U.athleteOpen)) ? athleteView(U.athleteOpen) + athManage(ath(U.athleteOpen)) : (U.athPriv && ath(U.athPriv)) ? privDetail(U.athPriv) + athManage(ath(U.athPriv)) : athList(); break;
     case 'priv': body = U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) : privList(); break;
     case 'week': body = isOwnG(grp(me().groupId)) ? ownWeekCard(grp(me().groupId)) : studentWeek(); break;
     case 'home': body = coachHome(); break;
@@ -2296,6 +2296,17 @@ function orbitHTML(action, sel){
   </div>`;
 }
 
+/* coach: rename, move or remove an athlete from the athlete's own page */
+function athManage(a){
+  if(!a || S.session.role!=='coach') return '';
+  return `<section class="card"><h3>Gestisci ${esc(a.name)}</h3>
+    <div class="field"><label for="f-amn">Nome</label><input id="f-amn" class="input" data-c="athname" data-k="${a.id}" value="${esc(a.name)}"></div>
+    <div class="field"><label for="f-amg">Gruppo</label><select id="f-amg" class="input" data-c="athmove" data-k="${a.id}">${S.groups.map(x=>`<option value="${x.id}" ${x.id===a.groupId?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
+    ${U.confirm==='ath:'+a.id ? `<div class="confirm"><span>Togliere ${esc(a.name)}? Si cancellano anche i suoi dati (prove, schede, partite) e il suo accesso.</span><div class="row"><button class="btn danger" data-a="del" data-k="ath:${a.id}">Sì, togli</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`
+      : `<button class="btn danger" data-a="askdel" data-k="ath:${a.id}" style="align-self:flex-start">Togli l'atleta</button>`}
+  </section>`;
+}
+
 /* ---------- tournaments v2: simple cards, calendar strip, requests ---------- */
 const tKey = x => `${x.y}:${x.n}:${x.i}`;
 const tByKey = k => { const [y,n,i] = k.split(':').map(Number); const w = (seasonOf(y).weeks||{})[n]; const t = w && w.t[i]; if(!t) return null; const [st,en] = tSpan(t,y,n); return {y,n,i,t,date:st,end:en}; };
@@ -2669,7 +2680,7 @@ const ACT = {
   newpin(k){ ath(k).pin=genPin(); save(); toast('Nuovo PIN atleta'); }, newppin(k){ ath(k).ppin=genPin(); save(); toast('Nuovo PIN genitore'); },
   askdel(k){ U.confirm=k; }, nodel(){ U.confirm=null; },
   del(k){ const [t,id]=k.split(':');
-    if(t==='ath'){ cloudAthRemoved(id); S.athletes=S.athletes.filter(a=>a.id!==id); S.results=S.results.filter(r=>r.athleteId!==id); S.matches=S.matches.filter(m=>m.a.id!==id); S.forms=S.forms.filter(f=>f.athleteId!==id); S.tests=S.tests.filter(t=>t.athleteId!==id); toast('Tolto dal gruppo'); }
+    if(t==='ath'){ cloudAthRemoved(id); S.athletes=S.athletes.filter(a=>a.id!==id); S.results=S.results.filter(r=>r.athleteId!==id); S.matches=S.matches.filter(m=>m.a.id!==id); S.forms=S.forms.filter(f=>f.athleteId!==id); S.tests=S.tests.filter(t=>t.athleteId!==id); toast('Tolto dal gruppo'); if(U.athleteOpen===id) U.athleteOpen=null; if(U.athPriv===id) U.athPriv=null; }
     if(t==='m'){ S.matches=S.matches.filter(m=>m.id!==id); U.matchOpen=null; toast('Partita eliminata'); }
     U.confirm=null; save(); },
   addath(k){ const i=document.getElementById('f-new-'+k); const n=i.value.trim(); if(!n){ toast('Scrivi il nome'); return; } S.athletes.push({id:uid(), groupId:k, name:n, pin:genPin(), ppin:genPin()}); save(); toast(n+' aggiunto al gruppo'); },
@@ -2875,6 +2886,7 @@ document.addEventListener('change', e=>{
   if(c==='snshare'){ U.snShare=t.checked; return; }
   if(c==='cleantour'){ U.clean.sel[t.dataset.k]=t.checked; return; }
   if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
+  if(c==='athname'){ const a=ath(t.dataset.k), v=t.value.trim(); if(a && v){ a.name=v; save(); toast('Nome aggiornato'); render(); } return; }
   if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; cloudMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
