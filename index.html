@@ -384,6 +384,7 @@ const WK_T = [['t1','Una cosa che mi è riuscita questa settimana'],['t2','Una s
 const PARENT_Q = ['Quali aspettative avete per vostro figlio/a in questa stagione, oltre ai risultati?','Quale cambiamento vorreste vedere in autonomia, atteggiamento o maturità sportiva?','Quando torna da allenamento o da una partita, cosa racconta di più?','Come reagisce a casa dopo una sconfitta, un allenamento difficile o una decisione che non condivide?','Avete notato situazioni in cui il tennis crea troppa pressione o, al contrario, poca responsabilità?','Quanto è autonomo/a nel preparare borsa, orari, materiale, riscaldamento e torneo?','Qual è il suo principale punto di forza caratteriale nello sport?','Su quale aspetto mentale o di comportamento pensate debba crescere di più?','Ci sono informazioni familiari, scolastiche o organizzative utili per seguirlo/a meglio?','Davanti a una difficoltà, preferite che provi prima a parlarne da solo/a con lo staff o pensate serva subito la famiglia?','Quale sarebbe per voi un segnale concreto che la stagione va nella direzione giusta?','C’è qualcosa che ritenete importante farci sapere e che non avete ancora avuto modo di dirci?'];
 const TESTS = [{k:'fondo',l:'Palleggi oltre i 3/4',u:'in 1 minuto'},{k:'palleggi',l:'Palleggi totali',u:'in 1 minuto, dove cade non conta'},{k:'salita',l:'Colpi in fase ascendente',u:'in 1 minuto, palla presa mentre sale'},{k:'volee',l:'Volée oltre i 3/4',u:'su 12 palle'},{k:'servizio',l:'Servizio',u:'prime nei bersagli su 10'},{k:'sprint',l:'Sprint 5 m',u:'secondi',sec:true},{k:'cod',l:'Cambio di direzione',u:'secondi, 5 m andata e ritorno',sec:true},{k:'reaz',l:'Partenza su segnale',u:'secondi',sec:true}];
 const TEST_WEEKS = [1,6,12];
+const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const FORM_NAMES = {pre:'Prima della partita', post:'Dopo la partita', tipo:'Che tennista sono?', arma:'La mia arma', sett:'La mia settimana', gen:'Traccia per l’incontro'};
 const W = n => WEEKS[n-1];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -705,10 +706,24 @@ function renderInner(){
     case 'groups': body = groupsView(); break;
     case 'match': body = matchTab(); break;
   }
+  if(U.tdEd) body = tdefView();
   root.innerHTML = `
     <header class="top"><svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x="1.5" y="1.5" width="117" height="117" rx="27" fill="#18222F" stroke="#2A374B" stroke-width="3"/><rect x="24" y="68" width="18" height="28" rx="5" fill="#FFFFFF" fill-opacity=".45"/><rect x="50" y="52" width="18" height="44" rx="5" fill="#FFFFFF" fill-opacity=".7"/><rect x="76" y="44" width="18" height="52" rx="5" fill="#FFFFFF"/><circle cx="85" cy="25" r="13" fill="#D7E84A"/></svg><div class="t"><small>TENNIS</small><b>Smart Coach</b><span>${who}</span></div><button data-a="logout">Esci</button></header>
     <main>${exampleNote()}${body}</main>
     <div class="tabs"><nav>${tabs.map(([k,l,i])=>`<button data-a="tab" data-k="${k}" ${U.tab===k?'aria-current="page"':''} style="position:relative">${i}<span>${l}</span>${k==='ath'&&newForms()?`<b class="dot" aria-label="${newForms()} schede nuove">${newForms()}</b>`:''}</button>`).join('')}</nav></div>`;
+}
+function tdefView(){
+  const E = U.tdEd, custom = (S.ftests||[]).some(t=>t.tdef);
+  return `<button class="btn ghost" data-a="tdclose" style="align-self:flex-start">‹ Indietro</button>
+    <h1>Prove dei test</h1><p class="small muted">Le prove che gli atleti fanno nelle settimane ${TEST_WEEKS.join(', ')}. I risultati già salvati restano: se togli una prova, i suoi vecchi risultati non si vedono più nella tabella.</p>
+    ${E.map((t,i)=>`<section class="card"><div class="row between"><span class="eyebrow">Prova ${i+1}</span><span class="row" style="gap:6px">${i>0?`<button class="chip" data-a="tdup" data-k="${i}" aria-label="Sposta su">↑</button>`:''}<button class="chip" data-a="tddel" data-k="${i}">Togli</button></span></div>
+      <div class="field"><label for="td-l-${i}">Nome</label><input id="td-l-${i}" class="input" data-c="tdl" data-k="${i}" value="${esc(t.l)}" placeholder="Es. Sprint 10 m"></div>
+      <div class="field"><label for="td-u-${i}">Come si misura</label><input id="td-u-${i}" class="input" data-c="tdu" data-k="${i}" value="${esc(t.u)}" placeholder="Es. secondi, 2 prove, vale la migliore"></div>
+      <div class="seg" role="group"><button data-a="tdsec" data-k="${i}" data-v="0" aria-pressed="${!t.sec}">Più è alto, meglio è</button><button data-a="tdsec" data-k="${i}" data-v="1" aria-pressed="${!!t.sec}">Più è basso, meglio è</button></div></section>`).join('')}
+    <button class="btn ghost block" data-a="tdadd">+ Aggiungi prova</button>
+    <button class="btn clay block" data-a="tdsave">Salva le prove</button>
+    <button class="btn ghost block" data-a="tdclose">Annulla</button>
+    ${custom ? (U.confirm==='tdreset' ? `<section class="card"><p>Tornare alle prove originali dell'app?</p><div class="row"><button class="btn danger" data-a="tdreset">Sì, torna all'originale</button><button class="btn ghost" data-a="nodel">No</button></div></section>` : `<button class="chip" data-a="tdresetask" style="align-self:center">Torna alle prove originali</button>`) : ''}`;
 }
 function newForms(){ const s = S.seen || ''; return S.forms.filter(f=>f.date>s).length; }
 function exampleNote(){
@@ -836,8 +851,9 @@ function testEntry(id){
   const val = k => t && t.v[k]!==undefined && t.v[k]!==null ? t.v[k] : '';
   return `<section class="card"><h3>Test</h3>
     <div class="seg" role="group">${TEST_WEEKS.map(n=>`<button data-a="testweek" data-k="${n}" aria-pressed="${n===wk}">Sett. ${n}${S.tests.some(x=>x.athleteId===id&&x.week===n)?' ✓':''}</button>`).join('')}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${TESTS.map(x=>`<div class="field"><label for="t-${id}-${x.k}">${x.l}<br><span style="font-weight:400">${x.u}</span></label><input id="t-${id}-${x.k}" class="input" inputmode="decimal" value="${val(x.k)}" placeholder="–"></div>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${testsDef().map(x=>`<div class="field"><label for="t-${id}-${x.k}">${esc(x.l)}<br><span style="font-weight:400">${esc(x.u)}</span></label><input id="t-${id}-${x.k}" class="input" inputmode="decimal" value="${val(x.k)}" placeholder="–"></div>`).join('')}</div>
     <button class="btn clay block" data-a="savetest" data-k="${id}">Salva i test della settimana ${wk}</button>
+    <button class="chip" data-a="tdopen" style="align-self:flex-start">Modifica le prove dei test</button>
     <h3 style="margin-top:6px">Confronto settimane 1 · 6 · 12</h3>${testTable(id)}</section>`;
 }
 function athleteView(id, self){
@@ -1380,8 +1396,9 @@ function testsView(){
     return `<button class="btn ghost" data-a="testback" style="align-self:flex-start">‹ Tutti gli atleti</button>
       <section class="card"><span class="eyebrow">${esc(g.name)} · Test</span><h1>${esc(a.name)}</h1>
         <div class="seg" role="group">${TEST_WEEKS.map(n=>`<button data-a="testweek" data-k="${n}" aria-pressed="${n===wk}">Settimana ${n}${S.tests.some(x=>x.athleteId===a.id&&x.week===n)?' ✓':''}</button>`).join('')}</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${TESTS.map(x=>`<div class="field"><label for="t-${a.id}-${x.k}">${x.l}<br><span style="font-weight:400">${x.u}</span></label><input id="t-${a.id}-${x.k}" class="input" inputmode="decimal" value="${val(x.k)}" placeholder="–"></div>`).join('')}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${testsDef().map(x=>`<div class="field"><label for="t-${a.id}-${x.k}">${esc(x.l)}<br><span style="font-weight:400">${esc(x.u)}</span></label><input id="t-${a.id}-${x.k}" class="input" inputmode="decimal" value="${val(x.k)}" placeholder="–"></div>`).join('')}</div>
         <button class="btn clay block" data-a="savetest" data-k="${a.id}">Salva i test della settimana ${wk}</button>
+        <button class="chip" data-a="tdopen" style="align-self:flex-start">Modifica le prove dei test</button>
       </section>
       <section class="card"><h3>Confronto settimane 1 · 6 · 12</h3>${testTable(a.id)}</section>`;
   }
@@ -1393,7 +1410,7 @@ function testsView(){
 function testTable(id){
   const ts = TEST_WEEKS.map(n=>S.tests.find(t=>t.athleteId===id && t.week===n));
   if(!ts.some(Boolean)) return '<p class="muted">Ancora nessun test.</p>';
-  return `<div class="scroll-x"><table class="grid"><thead><tr><th>Prova</th>${TEST_WEEKS.map(n=>`<th>Sett. ${n}</th>`).join('')}</tr></thead><tbody>${TESTS.map(t=>`<tr><td>${t.l}<br><span class="muted small">${t.u}</span></td>${ts.map(x=>`<td>${x&&x.v[t.k]!==undefined&&x.v[t.k]!==''?esc(x.v[t.k]):'<span class="pc e">–</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="scroll-x"><table class="grid"><thead><tr><th>Prova</th>${TEST_WEEKS.map(n=>`<th>Sett. ${n}</th>`).join('')}</tr></thead><tbody>${testsDef().map(t=>`<tr><td>${esc(t.l)}<br><span class="muted small">${esc(t.u)}</span></td>${ts.map(x=>`<td>${x&&x.v[t.k]!==undefined&&x.v[t.k]!==''?esc(x.v[t.k]):'<span class="pc e">–</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function athleteExtra(id){
   const role = S.session.role;
@@ -1965,6 +1982,7 @@ function fitHome(){
   const pains = (S.well||[]).filter(w=>w.pain && w.date>=lim7), tired = (S.well||[]).filter(w=>w.fat>=5 && w.date>=lim7);
   const tours = nextTourPlayers(21);
   return `${homeHero('Buon lavoro')}
+    <button class="btn ghost block" data-a="tab" data-k="mschede">Schede e questionari</button>
     ${(pains.length||tired.length)?`<section class="card" style="border-color:var(--ko)"><h3>Da guardare</h3><div class="list">
       ${pains.map(w=>`<button class="item" data-a="staffath" data-k="${w.athleteId}"><span class="grow"><b style="color:var(--ko)">${esc(ath(w.athleteId)?.name)}</b> segnala dolore${w.where?': '+esc(w.where):''}<br><span class="small muted">${dLabel(w.date)}</span></span><span class="chev">›</span></button>`).join('')}
       ${tired.map(w=>`<button class="item" data-a="staffath" data-k="${w.athleteId}"><span class="grow"><b>${esc(ath(w.athleteId)?.name)}</b>: fatica 5 su 5<br><span class="small muted">${dLabel(w.date)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:'<section class="card"><p class="small muted">Nessun dolore o fatica alta segnalati negli ultimi 7 giorni.</p></section>'}
@@ -2028,7 +2046,7 @@ function fitTestsView(){
       ${U.confirm==='ft'?`<div class="confirm"><span>Eliminare il test e tutti i suoi risultati?</span><div class="row"><button class="btn danger" data-a="ftdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askdel" data-k="ft" style="align-self:flex-start">Elimina test</button>`}`;
   }
   return `<button class="btn clay block" data-a="ftnew">+ Nuovo test atletico</button>
-    ${S.ftests.length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
+    ${S.ftests.filter(t=>!t.tdef).length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.filter(t=>!t.tdef).map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
 }
 function fitTestsCard(id){
   const ts = (S.ftests||[]).filter(t=>ftRes(t.id,id).length); if(!ts.length) return '';
@@ -2103,7 +2121,7 @@ function athAnswers(a){
   ].sort((x,y)=>(x.done===y.done ? (x.date<y.date?1:-1) : (x.done?1:-1)));
   return `<button class="btn ghost" data-a="mrathclose" style="align-self:flex-start">‹ ${esc(g?gName(g):'Atleti')}</button>
     <section class="card"><span class="eyebrow">${esc(g?gName(g):'')}</span><h1>${esc(a.name)}</h1><p class="small muted">${items.filter(x=>x.done).length} schede compilate. Tocca una scheda per leggere le risposte.</p>
-      <button class="btn ghost" data-a="staffath" data-k="${a.id}" style="align-self:flex-start">Apri la pagina dell'atleta</button></section>
+      <button class="btn ghost" data-a="answath" data-k="${a.id}" style="align-self:flex-start">Apri la pagina dell'atleta</button></section>
     ${items.length?`<section class="card" style="padding:4px 16px"><div class="list">${items.map(it=>{ const open = U.maOpen===it.id;
       return `<div><button class="item" ${it.done?`data-a="maopen" data-k="${it.id}"`:''} style="width:100%"><span class="grow"><b>${esc(it.title)}</b>${it.fam?' <span class="tag teal">famiglia</span>':''}${it.mine?' <span class="tag pri">tua</span>':''}<br><span class="small">${it.done?`<span class="muted">${fdate(it.date)}</span>`:`<span class="tstat wait">Da compilare</span> <span class="muted">assegnata il ${fdate(it.date)}</span>`}</span></span>${it.done?`<span class="chev">${open?'⌃':'⌄'}</span>`:''}</button>
         ${open?`<div style="padding:4px 0 12px;display:flex;flex-direction:column;gap:6px">${it.html()}</div>`:''}</div>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Ancora nessuna scheda.</p></section>'}`;
@@ -2291,7 +2309,7 @@ function coachHome(){
       <button class="hbtn" data-a="homego" data-k="priv"><b>Lezioni private</b><span>${S.athletes.filter(a=>a.groupId==='priv').length} allievi</span></button>
       <button class="hbtn" data-a="homelib"><b>Libreria esercizi</b><span>${P.ex.length+(S.customEx||[]).length} esercizi</span></button>
       
-      <button class="hbtn" data-a="staffopen"><b>Staff e accessi</b><span>colleghi e preparatori</span></button><button class="hbtn" data-a="homego" data-k="backup"><b>Copia di sicurezza</b><span>salva o ripristina i dati</span></button><button class="hbtn" data-a="cleanopen"><b>Togli i dati di prova</b><span>tornei, schede e profili</span></button>
+      <button class="hbtn" data-a="tab" data-k="mschede"><b>Schede e questionari</b><span>modifica, crea e assegna</span></button><button class="hbtn" data-a="staffopen"><b>Staff e accessi</b><span>colleghi e preparatori</span></button><button class="hbtn" data-a="homego" data-k="backup"><b>Copia di sicurezza</b><span>salva o ripristina i dati</span></button><button class="hbtn" data-a="cleanopen"><b>Togli i dati di prova</b><span>tornei, schede e profili</span></button>
     </div>`;
 }
 function backupView(){
@@ -2738,6 +2756,17 @@ const ACT = {
   biva(k){ const v=fvisOf(U.biOpen); const i=v.aths.indexOf(k); if(i>=0) v.aths.splice(i,1); else v.aths.push(k); setFvis(U.biOpen, v); },
   mrathopen(k){ U.mrAth=k; U.maOpen=null; window.scrollTo(0,0); },
   mrathclose(){ U.mrAth=''; U.maOpen=null; window.scrollTo(0,0); },
+  tdopen(){ U.tdEd=JSON.parse(JSON.stringify(testsDef())); U.confirm=null; window.scrollTo(0,0); },
+  tdclose(){ U.tdEd=null; U.confirm=null; window.scrollTo(0,0); },
+  tdadd(){ U.tdEd.push({k:'x'+uid(), l:'', u:''}); },
+  tddel(k){ U.tdEd.splice(+k,1); },
+  tdup(k){ const q=U.tdEd, i=+k; [q[i-1],q[i]]=[q[i],q[i-1]]; },
+  tdsec(k,d){ U.tdEd[+k].sec = d.v==='1'; },
+  tdresetask(){ U.confirm='tdreset'; },
+  tdreset(){ S.ftests=(S.ftests||[]).filter(t=>!t.tdef); save(); U.tdEd=null; U.confirm=null; toast('Prove tornate all’originale'); },
+  tdsave(){ const T=U.tdEd.map(t=>({k:t.k, l:t.l.trim(), u:(t.u||'').trim(), ...(t.sec?{sec:true}:{})})).filter(t=>t.l); if(!T.length){ toast('Serve almeno una prova'); return; }
+    S.ftests=(S.ftests||[]).filter(t=>!t.tdef).concat({id:'tdef', tdef:T}); save(); U.tdEd=null; U.confirm=null; toast('Prove dei test salvate'); window.scrollTo(0,0); },
+  answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
   biopen(k){ U.biEd=tplNow(k); U.confirm=null; window.scrollTo(0,0); },
   biclose(){ U.biEd=null; U.confirm=null; window.scrollTo(0,0); },
   biqadd(){ U.biEd.qs.push({k:'x'+uid(), t:'area', l:''}); },
@@ -2999,13 +3028,13 @@ const ACT = {
   testweek(k){ U.testWeek=+k; },
   testath(k){ U.tab='ath'; U.athleteOpen=k; U.athTab='allen'; U.testWeek=1; window.scrollTo(0,0); }, testback(){ U.testAth=null; },
   savetest(k){ const wk=U.testWeek, v={}; let any=false;
-    TESTS.forEach(t=>{ const x=document.getElementById(`t-${k}-${t.k}`).value.trim().replace(',','.'); if(x!==''){ const num=+x; v[t.k]=isNaN(num)?x:num; any=true; } });
+    testsDef().forEach(t=>{ const x=document.getElementById(`t-${k}-${t.k}`).value.trim().replace(',','.'); if(x!==''){ const num=+x; v[t.k]=isNaN(num)?x:num; any=true; } });
     const ex=S.tests.find(t=>t.athleteId===k && t.week===wk);
     if(ex){ ex.v=v; ex.date=new Date().toISOString(); } else if(any) S.tests.push({id:uid(), athleteId:k, week:wk, date:new Date().toISOString(), v}); else { toast('Nessun dato da salvare'); return; }
     save(); toast('Test salvati'); },
   savetests(){ const g=grp(U.resGroup), wk=U.testWeek; let n=0;
     S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ const v={}; let any=false;
-      TESTS.forEach(t=>{ const x=document.getElementById(`t-${a.id}-${t.k}`).value.trim().replace(',','.'); if(x!==''){ const num=+x; v[t.k]=isNaN(num)?x:num; any=true; } });
+      testsDef().forEach(t=>{ const x=document.getElementById(`t-${a.id}-${t.k}`).value.trim().replace(',','.'); if(x!==''){ const num=+x; v[t.k]=isNaN(num)?x:num; any=true; } });
       const ex=S.tests.find(t=>t.athleteId===a.id && t.week===wk);
       if(ex){ ex.v=v; ex.date=new Date().toISOString(); n++; } else if(any){ S.tests.push({id:uid(), athleteId:a.id, week:wk, date:new Date().toISOString(), v}); n++; } });
     save(); toast(n?`Test salvati (${n})`:'Nessun dato da salvare'); },
@@ -3067,6 +3096,8 @@ document.addEventListener('input', e=>{
   if(c==='fpwname'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].name=t.value; save(); return; }
   if(c==='fpdt'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].days[+t.dataset.k].title=t.value; save(); return; }
   if(c==='fpdx'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].days[+t.dataset.k].text=t.value; save(); return; }
+  if(c==='tdl' && U.tdEd){ U.tdEd[+t.dataset.k].l=t.value; return; }
+  if(c==='tdu' && U.tdEd){ U.tdEd[+t.dataset.k].u=t.value; return; }
   if(c==='bit' && U.biEd){ U.biEd[t.dataset.k]=t.value; return; }
   if(c==='biq' && U.biEd){ U.biEd.qs[+t.dataset.k].l=t.value; return; }
   if(c==='bio' && U.biEd){ U.biEd.qs[+t.dataset.k].os=t.value; return; }
