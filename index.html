@@ -659,7 +659,8 @@ const IC = {
 };
 
 /* ---------- render ---------- */
-function render(){
+function render(){ const _vk = viewFilterOn(); try{ renderBase(); } finally { viewFilterOff(_vk); } }
+function renderBase(){
   try{ renderInner(); }catch(e){ console.error(e); document.getElementById('app').innerHTML = `<section class="card" style="margin:16px"><h2>Qualcosa non ha funzionato</h2><p class="small">Questa schermata non si è potuta aprire. I dati sono al sicuro.</p><p class="small muted">${String(e&&e.message||e).replace(/</g,'&lt;')}</p><button class="btn clay" onclick="U.tab=null;U.tOpen=null;U.mEdit=null;U.oWeek=null;U.oDay=null;U.athleteOpen=null;render()">Torna alla Home</button></section>`; }
 }
 function renderInner(){
@@ -3066,7 +3067,7 @@ document.addEventListener('change', e=>{
   if(c==='cleantour'){ U.clean.sel[t.dataset.k]=t.checked; return; }
   if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
   if(c==='athname'){ const a=ath(t.dataset.k), v=t.value.trim(); if(a && v){ a.name=v; save(); toast('Nome aggiornato'); render(); } return; }
-  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; cloudMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
+  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(a.groupId===PRIV_ID) a.owner=C.user.uid; cloudMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
@@ -3329,7 +3330,7 @@ function applyRemote(k, part){
 
 async function cloudOpen(club, member){
   C.club = club; C.member = member; C.sh = {}; C.pt = {}; C.partLoaded = {}; C.last = {};
-  try{ const cs = await fbDb.doc('clubs/'+club).get(); C.clubName = cs.exists ? (cs.data().name||'') : ''; }catch(e){}
+  try{ const cs = await fbDb.doc('clubs/'+club).get(); C.clubName = cs.exists ? (cs.data().name||'') : ''; C.ownerUid = cs.exists ? (cs.data().owner||'') : ''; }catch(e){}
   const staff = isStaffRole(member.role);
   let pending = 0, started = false;
   const done = () => {
@@ -3389,6 +3390,7 @@ async function cloudFlush(){
   C.timer = null;
   if(!C.ready || !fbDb) return;
   try{ localStorage.setItem('tsc.seen.'+C.user.uid, S.seen||''); }catch(e){}
+  if(isStaffRole(C.member.role)) stampPrivOwners();
   const staff = isStaffRole(C.member.role), D = decompose(S), writes = [];
   if(staff){
     (S.athletes||[]).forEach(a=>{ if(C.partLoaded[a.id]===undefined) C.watchPart(a.id); });
@@ -3670,6 +3672,8 @@ Object.assign(ACT, {
     const b = fbDb.batch(); b.set(fbDb.doc('invites/'+email), data); b.set(fbDb.doc(`clubs/${C.club}/invites/${email}`), data);
     b.commit().then(()=>{ toast('Invito creato'); cloudLoadStaff(); }).catch(e=>toast(cErr(e))); },
   staffuninvite(k){ const b = fbDb.batch(); b.delete(fbDb.doc('invites/'+k)); b.delete(fbDb.doc(`clubs/${C.club}/invites/${k}`)); b.commit().then(()=>{ toast('Invito annullato'); cloudLoadStaff(); }).catch(e=>toast(cErr(e))); },
+  caccall(k){ S.access = S.access || {}; S.access[k] = {all:true}; save(); },
+  caccg(k){ const [uid, gid] = k.split(':'); S.access = S.access || {}; const cur = S.access[uid]; const sel = new Set(cur && cur.all===false ? (cur.groups||[]) : []); if(sel.has(gid)) sel.delete(gid); else sel.add(gid); S.access[uid] = {all:false, groups:[...sel]}; save(); },
   staffremove(k){ fbDb.doc(`clubs/${C.club}/members/${k}`).delete().then(()=>{ U.confirm=null; toast('Accesso rimosso'); cloudLoadStaff(); }).catch(e=>toast(cErr(e))); },
   staffcopy(){ const t = `Ciao! Ti ho invitato su Tennis Smart Coach. Apri ${location.origin+location.pathname} , tocca "Crea account" e usa questa email.`; try{ navigator.clipboard.writeText(t).then(()=>toast('Messaggio copiato'), ()=>toast(t)); }catch(e){ toast(t); } }
 });
@@ -3681,11 +3685,49 @@ async function cloudLoadStaff(){
   }catch(e){ C.staff = []; C.invites = []; toast(cErr(e)); }
   render();
 }
+/* ---------- who sees which groups (app level) ----------
+   S.access = {uid: {all:true} | {all:false, groups:[gid…]}}  set by the club admin.
+   Private-lesson athletes (group PRIV_ID) are seen only by the coach who teaches them (a.owner; legacy = club owner). */
+const VIEW_ARR = {results:x=>x.athleteId, forms:x=>x.athleteId, well:x=>x.athleteId, tests:x=>x.athleteId, notes:x=>x.athleteId, snotes:x=>x.athleteId, massign:x=>x.athleteId, fres:x=>x.athleteId, matches:m=>m&&m.a&&m.a.id};
+const privOwner = a => a.owner || C.ownerUid;
+function myAccess(){
+  if(!C.ready || !C.member || !C.user || !isStaffRole(C.member.role) || !S || !Array.isArray(S.athletes)) return null;
+  const acc = (S.access||{})[C.user.uid], all = !!C.member.admin || !acc || acc.all!==false;
+  const groups = new Set(all ? [] : (acc.groups||[]));
+  if(!all){ const rg = new Set(((C.sh && C.sh.groups) || []).map(g=>g.id)); (S.groups||[]).forEach(g=>{ if(!rg.has(g.id)) groups.add(g.id); }); }
+  return {all, groups, uid:C.user.uid, coach:C.member.role==='coach'};
+}
+const grpVis = (g, A) => g.id===PRIV_ID ? A.coach : (A.all || A.groups.has(g.id));
+const athVis = (a, A) => a.groupId===PRIV_ID ? (A.coach && privOwner(a)===A.uid) : (A.all || A.groups.has(a.groupId));
+function viewFilterOn(){
+  const A = myAccess(); if(!A) return null;
+  const vis = new Set(S.athletes.filter(a=>athVis(a,A)).map(a=>a.id));
+  if(vis.size===S.athletes.length && (S.groups||[]).every(g=>grpVis(g,A))) return null;
+  const keep = {athletes:S.athletes, groups:S.groups};
+  S.athletes = S.athletes.filter(a=>vis.has(a.id)); S.groups = (S.groups||[]).filter(g=>grpVis(g,A));
+  Object.entries(VIEW_ARR).forEach(([k,f])=>{ if(Array.isArray(S[k])){ keep[k] = S[k]; S[k] = S[k].filter(x=>vis.has(f(x))); } });
+  return keep;
+}
+function viewFilterOff(keep){ if(keep) Object.assign(S, keep); }
+function stampPrivOwners(){
+  const acc = (S.access||{})[C.user.uid];
+  if(acc && acc.all===false && !C.member.admin){ const rg = new Set(((C.sh && C.sh.groups) || []).map(g=>g.id)), mine = new Set(acc.groups||[]);
+    (S.groups||[]).forEach(g=>{ if(g.id!==PRIV_ID && !rg.has(g.id) && !mine.has(g.id)){ mine.add(g.id); } }); acc.groups = [...mine]; }
+  const remote = new Set(((C.sh && C.sh.athletes) || []).map(a=>a.id));
+  (S.athletes||[]).forEach(a=>{ if(a.groupId===PRIV_ID && !a.owner) a.owner = remote.has(a.id) ? (C.ownerUid || C.user.uid) : C.user.uid; });
+}
+function accessCard(m){
+  const acc = (S.access||{})[m.uid], all = !acc || acc.all!==false, sel = new Set(all ? [] : (acc.groups||[]));
+  const gs = (S.groups||[]).filter(g=>g.id!==PRIV_ID);
+  return `<div style="display:flex;flex-direction:column;gap:6px;padding:8px 0 4px"><span class="small muted">Gruppi che vede</span>
+    <div class="chips"><button class="chip" data-a="caccall" data-k="${m.uid}" aria-pressed="${all}">Tutti i gruppi</button>${gs.map(g=>`<button class="chip" data-a="caccg" data-k="${m.uid}:${g.id}" aria-pressed="${!all && sel.has(g.id)}">${esc(g.name)}</button>`).join('')}</div>
+    ${!all && !sel.size ? '<span class="small" style="color:var(--ko)">Nessun gruppo: non vede nessun atleta.</span>' : ''}</div>`;
+}
 function staffView(){
   const admin = C.member && C.member.admin;
   return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>
     <h1>Staff e accessi</h1>
-    <section class="card"><h3>Chi è nel circolo</h3>${!C.staff?'<p class="muted small">Caricamento…</p>':`<div class="list">${C.staff.map(m=>`<div class="row between" style="flex-wrap:nowrap"><span><b>${esc(m.name||m.email)}</b><br><span class="small muted">${esc(ROLE_LABEL[m.role]||m.role)}${m.admin?' · responsabile':''} · ${esc(m.email||'')}</span></span>${admin && m.uid!==C.user.uid ? (U.confirm==='sm:'+m.uid?`<span class="row"><button class="btn danger" data-a="staffremove" data-k="${m.uid}">Rimuovi</button><button class="btn ghost" data-a="nodel">No</button></span>`:`<button class="chip" data-a="askdel" data-k="sm:${m.uid}">Rimuovi</button>`) : ''}</div>`).join('')}</div>`}</section>
+    <section class="card"><h3>Chi è nel circolo</h3>${!C.staff?'<p class="muted small">Caricamento…</p>':`<div class="list">${C.staff.map(m=>`<div class="row between" style="flex-wrap:nowrap"><span><b>${esc(m.name||m.email)}</b><br><span class="small muted">${esc(ROLE_LABEL[m.role]||m.role)}${m.admin?' · responsabile':''} · ${esc(m.email||'')}</span></span>${admin && m.uid!==C.user.uid ? (U.confirm==='sm:'+m.uid?`<span class="row"><button class="btn danger" data-a="staffremove" data-k="${m.uid}">Rimuovi</button><button class="btn ghost" data-a="nodel">No</button></span>`:`<button class="chip" data-a="askdel" data-k="sm:${m.uid}">Rimuovi</button>`) : ''}</div>${admin && !m.admin ? accessCard(m) : ''}`).join('<hr style="border:0;border-top:1px solid var(--line);margin:4px 0">')}</div><p class="small muted">${admin?'Scegli quali gruppi vede ogni collega. ':''}Le lezioni private le vede solo il maestro che le fa.</p>`}</section>
     ${admin?`<section class="card"><h3>Invita un collega</h3>
       <div class="field"><label for="st-email">Email del collega</label><input id="st-email" class="input" type="email" inputmode="email" placeholder="collega@esempio.it"></div>
       <div class="field"><label for="st-role">Ruolo</label><select id="st-role" class="input"><option value="coach">Maestro</option><option value="fit">Preparatore atletico</option><option value="mind">Preparatore mentale</option></select></div>
