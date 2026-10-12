@@ -1289,12 +1289,14 @@ function formsList(){
     return `<section class="card"><div class="row between"><h2>${esc(fname(kind))}</h2><span class="tag teal">${when}</span></div><p class="muted small">${desc}</p>${res}
       ${fs.length?`<p class="small muted">Compilata ${fs.length} ${fs.length===1?'volta':'volte'} · ultima il ${fdate(last.date)} (sett. ${last.week})</p>`:''}
       <button class="btn block" data-a="openform" data-k="${kind}">Compila</button></section>`; };
+  const mine = ['pre','post','sett','tipo','arma'].filter(k=>formFor(k, a));
+  if(!mine.length) return `<h1>Le mie schede</h1><section class="card"><p class="muted">Per ora non ci sono schede da compilare.</p></section>`;
   return `<h1>Le mie schede</h1>
-    ${card('pre','Ogni partita','Prima di entrare in campo: come ti senti, il piano A e il piano B, la tua arma.')}
-    ${card('post','Ogni partita','Dopo la partita: cosa ha funzionato, cosa no, cosa allenare.')}
-    ${card('sett','Ogni settimana, dopo l’allenamento 5','Cinque minuti dopo il confronto finale: come è andata la settimana.')}
-    ${card('tipo','Sett. 1 · 6 · 12',tplNow('tipo').tq.length+' situazioni di gioco. Rispondi con quello che fai davvero, non con quello che vorresti fare.')}
-    ${card('arma','Sett. 1 · 6 · 12','Quanto ti fidi di ogni colpo e quanto lo usi nei punti importanti.')}`;
+    ${!mine.includes('pre')?'':card('pre','Ogni partita','Prima di entrare in campo: come ti senti, il piano A e il piano B, la tua arma.')}
+    ${!mine.includes('post')?'':card('post','Ogni partita','Dopo la partita: cosa ha funzionato, cosa no, cosa allenare.')}
+    ${!mine.includes('sett')?'':card('sett','Ogni settimana, dopo l’allenamento 5','Cinque minuti dopo il confronto finale: come è andata la settimana.')}
+    ${!mine.includes('tipo')?'':card('tipo','Sett. 1 · 6 · 12',tplNow('tipo').tq.length+' situazioni di gioco. Rispondi con quello che fai davvero, non con quello che vorresti fare.')}
+    ${!mine.includes('arma')?'':card('arma','Sett. 1 · 6 · 12','Quanto ti fidi di ogni colpo e quanto lo usi nei punti importanti.')}`;
 }
 function formView(){
   const F = U.form, a = me(), g = grp(a.groupId), w = W(g.week||1), A = F.ans, T = F.tpl || (F.tpl = tplNow(F.kind));
@@ -1362,7 +1364,7 @@ function meetView(){
   return `<h1>Incontro con il maestro</h1>
     <section class="card"><p>Gli incontri individuali si fanno ogni 3–4 mesi, o quando serve. Prima dell'incontro potete rispondere ad alcune domande: aiutano il maestro a conoscere meglio ${esc(a.name)}.</p>
       ${last?`<p class="small muted">Ultimo invio il ${fdate(last.date)} · ${Object.values(last.ans).filter(v=>String(v).trim()).length} risposte</p>`:''}
-      <button class="btn clay block" data-a="openform" data-k="gen">${last?'Compila di nuovo':'Rispondi alle domande'}</button></section>
+      ${formFor('gen', a)?`<button class="btn clay block" data-a="openform" data-k="gen">${last?'Compila di nuovo':'Rispondi alle domande'}</button>`:''}</section>
     <div class="note"><b>Una regola sola:</b> le questioni tecniche non si discutono nelle chat né davanti ad altri genitori. Per qualsiasi dubbio, chiedete un incontro.</div>`;
 }
 
@@ -2040,32 +2042,81 @@ function fitTodayCard(g){
 /* ---------- mental coach: custom forms ---------- */
 const mAssignOf = id => (S.massign||[]).filter(x=>x.athleteId===id);
 const mFormById = id => (S.mforms||[]).find(f=>f.id===id);
+/* who fills which form: built-in visibility (S.mforms entry {fvis}) + shared picker */
+const fvisAll = () => ((S.mforms||[]).find(f=>f.fvis)||{}).fvis || {};
+const fvisOf = k => { const v = fvisAll()[k]; return v ? {all:!!v.all, groups:v.groups||[], aths:v.aths||[]} : {all:true, groups:[], aths:[]}; };
+const formFor = (k, a) => { const v = fvisOf(k); return v.all || v.groups.includes(a.groupId) || v.aths.includes(a.id); };
+function setFvis(k, v){ S.mforms = S.mforms||[]; let e = S.mforms.find(f=>f.fvis); if(!e){ e = {id:'fvis', fvis:{}}; S.mforms.push(e); } e.fvis[k] = v; save(); }
+const gName = g => g.id===PRIV_ID ? 'Lezioni private' : g.name;
+const sortedGroups = () => S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID));
+function whoPicker(sel, actG, actA){
+  return sortedGroups().map(g=>{ const as = S.athletes.filter(a=>a.groupId===g.id); if(!as.length) return ''; const on = sel.groups.includes(g.id);
+    return `<div style="display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--line)"><button class="chip" data-a="${actG}" data-k="${g.id}" aria-pressed="${on}" style="align-self:flex-start"><b>${esc(gName(g))}</b> · tutto il gruppo</button>
+      ${on?`<p class="small muted">Tutti i ${as.length} atleti del gruppo, anche quelli che aggiungerai.</p>`:`<div class="chips">${as.map(a=>`<button class="chip" data-a="${actA}" data-k="${a.id}" aria-pressed="${sel.aths.includes(a.id)}">${esc(a.name)}</button>`).join('')}</div>`}</div>`; }).join('');
+}
+function whoSummary(v){
+  if(v.all) return 'Tutti';
+  const gs = v.groups.map(id=>grp(id)).filter(Boolean).map(gName), as = v.aths.map(id=>ath(id)).filter(Boolean).map(a=>a.name);
+  return [...gs, ...as].join(', ') || 'Nessuno';
+}
 function mindSchede(){
   if(U.biEd) return biEditView();
   if(U.mEd) return mEditView();
+  if(U.biOpen) return biDetail(U.biOpen);
   if(U.mfOpen && mFormById(U.mfOpen)) return mFormDetail(mFormById(U.mfOpen));
   const mode = U.msMode || 'mine';
-  const top = `<h1>Schede</h1><div class="seg" role="group"><button data-a="msmode" data-k="mine" aria-pressed="${mode==='mine'}">Modifica e crea</button><button data-a="msmode" data-k="resp" aria-pressed="${mode==='resp'}">Risposte</button></div>`;
+  const top = `<h1>Schede</h1><div class="seg" role="group"><button data-a="msmode" data-k="mine" aria-pressed="${mode==='mine'}">Modifica e assegna</button><button data-a="msmode" data-k="resp" aria-pressed="${mode==='resp'}">Risposte</button></div>`;
   if(mode==='mine'){
-    const fs = (S.mforms || []).filter(f=>!f.builtin);
-    const biCount = k => { const T=tplNow(k); return k==='tipo' ? T.tq.length+' situazioni' : k==='arma' ? (T.shots||[]).length+' colpi · '+T.qs.length+' domande' : T.qs.length+' domande'; };
-    return top + `<section class="card" style="padding:4px 16px 12px"><h3 style="margin-top:12px">Schede dell'app</h3><p class="small muted">Le compilano atleti e genitori. Tocca per cambiare titolo, domande e risposte.</p><div class="list">${BUILTIN.map(k=>`<button class="item" data-a="biopen" data-k="${k}"><span class="grow"><b style="font-size:17px">${esc(fname(k))}</b>${tplCustom(k)?' <span class="tag pri">modificata</span>':''}<br><span class="small muted">${BI_WHO[k]} · ${biCount(k)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>
-      <h2>Le mie schede</h2><p class="small muted">Schede nuove, create da te, da assegnare agli atleti che vuoi.</p>
+    const fs = (S.mforms || []).filter(f=>!f.builtin && !f.fvis);
+    return top + `<section class="card" style="padding:4px 16px 12px"><h3 style="margin-top:12px">Schede dell'app</h3><p class="small muted">Tocca una scheda per cambiare le domande e scegliere chi la compila.</p><div class="list">${BUILTIN.map(k=>`<button class="item" data-a="bidopen" data-k="${k}"><span class="grow"><b style="font-size:17px">${esc(fname(k))}</b>${tplCustom(k)?' <span class="tag pri">modificata</span>':''}<br><span class="small muted">${BI_WHO[k]}</span><br><span class="small">${k==='gen'?'Famiglie':'La compilano'}: <b>${esc(whoSummary(fvisOf(k)))}</b></span></span><span class="chev">›</span></button>`).join('')}</div></section>
+      <h2>Le mie schede</h2><p class="small muted">Schede nuove, create da te, da assegnare a gruppi o ad atleti singoli.</p>
       <button class="btn clay block" data-a="mednew">+ Nuova scheda</button>
       ${fs.length?`<section class="card" style="padding:4px 16px"><div class="list">${fs.map(f=>{ const as = (S.massign||[]).filter(x=>x.formId===f.id), dn = as.filter(x=>x.done).length; return `<button class="item" data-a="mfopen" data-k="${f.id}"><span class="grow"><b style="font-size:17px">${esc(f.title)}</b><br><span class="small muted">${f.qs.length} domande · assegnata a ${as.length}${as.length?`, ${dn} compilate`:''}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessuna scheda creata. Crea la prima e assegnala agli atleti.</p></section>'}`;
   }
-  const gs = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID));
+  // ---- answers: group -> names -> everything that athlete filled in
+  const gs = sortedGroups();
   if(!U.mrGroup || !grp(U.mrGroup)) U.mrGroup = gs[0]?.id;
-  const as = S.athletes.filter(a=>a.groupId===U.mrGroup); if(U.mrAth && !as.some(a=>a.id===U.mrAth)) U.mrAth = '';
-  const ids = U.mrAth ? [U.mrAth] : as.map(a=>a.id);
-  const asg = (S.massign||[]).filter(x=>ids.includes(x.athleteId)).sort((a,b)=>(b.doneDate||b.date)<(a.doneDate||a.date)?-1:1);
-  const std = S.forms.filter(f=>ids.includes(f.athleteId) && f.kind!=='gen').sort((a,b)=>a.date<b.date?1:-1).slice(0,30);
-  return top + `<section class="card"><div class="row"><div class="field" style="flex:1;min-width:140px"><label for="f-mrgrp">Gruppo</label><select id="f-mrgrp" class="input" data-c="mrgrp">${gs.map(x=>`<option value="${x.id}" ${x.id===U.mrGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
-      <div class="field" style="flex:1;min-width:140px"><label for="f-mrath">Atleta</label><select id="f-mrath" class="input" data-c="mrath"><option value="">Tutti gli atleti</option>${as.map(a=>`<option value="${a.id}" ${a.id===U.mrAth?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div></div></section>
-    <section class="card"><h3>Le tue schede assegnate</h3>${asg.length?`<div class="list">${asg.map(x=>{ const f = mFormById(x.formId); if(!f) return ''; const open = U.maOpen===x.id;
-      return `<div><button class="item" data-a="maopen" data-k="${x.id}" style="width:100%"><span class="grow"><b>${esc(ath(x.athleteId)?.name)}</b> · ${esc(f.title)}<br><span class="small ${x.done?'':'muted'}">${x.done?`<span class="tstat ok">Compilata</span> ${fdate(x.doneDate)}`:`<span class="tstat wait">Da compilare</span> assegnata il ${fdate(x.date)}`}</span></span>${x.done?`<span class="chev">${open?'⌃':'⌄'}</span>`:''}</button>
-        ${open&&x.done?`<div class="list small" style="padding:4px 0 10px">${f.qs.map((q,i)=>`<div><p class="muted">${esc(q.t)}</p><p><b>${q.type==='scale'?(x.answers[i]?x.answers[i]+' su 5':'–'):esc(x.answers[i]||'–')}</b></p></div>`).join('')}</div>`:''}</div>`; }).join('')}</div>`:'<p class="small muted">Nessuna scheda assegnata qui. Creale in "Le mie schede".</p>'}</section>
-    <section class="card"><h3>Schede dell'app</h3><p class="small muted">Prima e dopo la partita, tipologia, la mia arma, la settimana.</p>${std.length?`<div class="list">${std.map(f=>`<button class="item" data-a="staffath" data-k="${f.athleteId}" data-t="${TAB_OF[f.kind]||'prof'}"><span class="grow"><b>${esc(ath(f.athleteId)?.name)}</b> · ${esc(fname(f.kind))}${f.by==='parent'?' <span class="tag teal">famiglia</span>':''}<br><span class="small muted">${fdate(f.date)}</span></span><span class="chev">›</span></button>`).join('')}</div>`:'<p class="small muted">Nessuna scheda.</p>'}</section>`;
+  if(U.mrAth && ath(U.mrAth)) return top + athAnswers(ath(U.mrAth));
+  const as = S.athletes.filter(a=>a.groupId===U.mrGroup);
+  return top + `<div class="field"><label for="f-mrgrp">Gruppo</label><select id="f-mrgrp" class="input" data-c="mrgrp">${gs.map(x=>`<option value="${x.id}" ${x.id===U.mrGroup?'selected':''}>${esc(gName(x))}</option>`).join('')}</select></div>
+    ${as.length?`<section class="card" style="padding:4px 16px"><div class="list">${as.map(a=>{ const fs = S.forms.filter(f=>f.athleteId===a.id), ms = (S.massign||[]).filter(x=>x.athleteId===a.id && mFormById(x.formId)), done = fs.length + ms.filter(x=>x.done).length, todo = ms.filter(x=>!x.done).length;
+      const last = [...fs.map(f=>f.date), ...ms.filter(x=>x.done).map(x=>x.doneDate)].sort().pop();
+      return `<button class="item" data-a="mrathopen" data-k="${a.id}"><span class="grow"><b style="font-size:17px">${esc(a.name)}</b><br><span class="small muted">${done?`${done} ${done===1?'scheda':'schede'} · ultima il ${fdate(last)}`:'Nessuna scheda compilata'}</span>${todo?` <span class="tstat wait">${todo} da compilare</span>`:''}</span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun atleta in questo gruppo.</p></section>'}`;
+}
+function formAnsHtml(f){
+  if(f.kind==='tipo'){ const r = tipoOf(f); return `<p class="small">Tipologia più vicina: <b style="color:${tcol(r.first)}">${tname(r.first)}</b>, poi ${tname(r.second)}</p>${tipoBars(f.ans, tplOf(f).tq)}`; }
+  let h = '';
+  if(f.kind==='arma'){ const rows = (tplOf(f).shots||[]).map(sh=>({x:esc(sh.n), f:f.ans['f'+sh.k], u:f.ans['u'+sh.k]})).filter(r=>r.f||r.u);
+    if(rows.length) h += `<div class="scroll-x"><table class="grid"><thead><tr><th>Colpo</th><th>Fiducia</th><th>Uso nei punti importanti</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.x}${r.f&&r.u&&Math.abs(r.f-r.u)>=2?' <span class="tag">da parlarne</span>':''}</td><td>${r.f||'–'}</td><td>${r.u||'–'}</td></tr>`).join('')}</tbody></table></div>`; }
+  h += ansLines(tplOf(f), f.ans);
+  if(f.kind==='sett'){ const w = W(f.week||1), ch = i => esc(w?.choices?.[i]?.label || '');
+    if(f.ans.used!==undefined) h += `<p class="small"><span class="muted">La scelta usata di più:</span> ${ch(f.ans.used)}</p>`;
+    if(f.ans.best!==undefined) h += `<p class="small"><span class="muted">Quella che ha fatto vincere più punti:</span> ${ch(f.ans.best)}</p>`; }
+  return h || '<p class="small muted">Nessuna risposta.</p>';
+}
+function athAnswers(a){
+  const g = grp(a.groupId);
+  const items = [
+    ...S.forms.filter(f=>f.athleteId===a.id).map(f=>({id:f.id, date:f.date, title:fname(f.kind), fam:f.by==='parent', done:true, html:()=>formAnsHtml(f)})),
+    ...(S.massign||[]).filter(x=>x.athleteId===a.id && mFormById(x.formId)).map(x=>{ const f = mFormById(x.formId); return {id:x.id, date:x.done?x.doneDate:x.date, title:f.title, mine:true, done:x.done,
+      html:()=>`<div class="list small">${f.qs.map((q,i)=>`<div><p class="muted">${esc(q.t)}</p><p><b>${q.type==='scale'?(x.answers[i]?x.answers[i]+' su 5':'–'):esc(x.answers[i]||'–')}</b></p></div>`).join('')}</div>`}; })
+  ].sort((x,y)=>(x.done===y.done ? (x.date<y.date?1:-1) : (x.done?1:-1)));
+  return `<button class="btn ghost" data-a="mrathclose" style="align-self:flex-start">‹ ${esc(g?gName(g):'Atleti')}</button>
+    <section class="card"><span class="eyebrow">${esc(g?gName(g):'')}</span><h1>${esc(a.name)}</h1><p class="small muted">${items.filter(x=>x.done).length} schede compilate. Tocca una scheda per leggere le risposte.</p>
+      <button class="btn ghost" data-a="staffath" data-k="${a.id}" style="align-self:flex-start">Apri la pagina dell'atleta</button></section>
+    ${items.length?`<section class="card" style="padding:4px 16px"><div class="list">${items.map(it=>{ const open = U.maOpen===it.id;
+      return `<div><button class="item" ${it.done?`data-a="maopen" data-k="${it.id}"`:''} style="width:100%"><span class="grow"><b>${esc(it.title)}</b>${it.fam?' <span class="tag teal">famiglia</span>':''}${it.mine?' <span class="tag pri">tua</span>':''}<br><span class="small">${it.done?`<span class="muted">${fdate(it.date)}</span>`:`<span class="tstat wait">Da compilare</span> <span class="muted">assegnata il ${fdate(it.date)}</span>`}</span></span>${it.done?`<span class="chev">${open?'⌃':'⌄'}</span>`:''}</button>
+        ${open?`<div style="padding:4px 0 12px;display:flex;flex-direction:column;gap:6px">${it.html()}</div>`:''}</div>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Ancora nessuna scheda.</p></section>'}`;
+}
+function biDetail(k){
+  const T = tplNow(k), v = fvisOf(k), fam = k==='gen';
+  const n = k==='tipo' ? T.tq.length+' situazioni' : k==='arma' ? (T.shots||[]).length+' colpi e '+T.qs.length+' domande' : T.qs.length+' domande';
+  return `<button class="btn ghost" data-a="bidclose" style="align-self:flex-start">‹ Schede</button>
+    <section class="card"><span class="eyebrow">${BI_WHO[k]}</span><h1>${esc(T.title)}</h1>${tplCustom(k)?'<span class="tag pri" style="align-self:flex-start">modificata</span>':''}<p class="small muted">${n}</p>
+      <button class="btn ghost" data-a="biopen" data-k="${k}" style="align-self:flex-start">Modifica le domande</button></section>
+    <section class="card"><h3>${fam?'Quali famiglie la compilano':'Chi la compila'}</h3>
+      <div class="seg" role="group"><button data-a="bivmode" data-k="all" aria-pressed="${v.all}">${fam?'Tutte le famiglie':'Tutti gli atleti'}</button><button data-a="bivmode" data-k="sel" aria-pressed="${!v.all}">Solo alcuni</button></div>
+      ${v.all?`<p class="small muted">La trovano tutti tra le loro schede.</p>`:`<p class="small muted">Scegli gruppi interi o atleti singoli. Chi non è scelto non la vede.</p>${whoPicker(v,'bivg','biva')}<p class="small">Adesso: <b>${esc(whoSummary(v))}</b></p>`}</section>`;
 }
 const QT_LAB = [['text','Breve'],['area','Lunga'],['rate','Da 1 a 5'],['seg','Scelta']];
 function biEditView(){
@@ -2111,20 +2162,18 @@ function mEditView(){
     <button class="btn clay block" data-a="medsave">Salva la scheda</button>`;
 }
 function mFormDetail(f){
-  const gs = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID));
-  if(!U.mfGroup || !grp(U.mfGroup)) U.mfGroup = gs[0]?.id;
-  const as = S.athletes.filter(a=>a.groupId===U.mfGroup), sel = U.mfSel || [];
+  const sel = U.mfSel = (U.mfSel && !Array.isArray(U.mfSel)) ? U.mfSel : {groups:[], aths:[]};
+  const ids = [...new Set([...S.athletes.filter(a=>sel.groups.includes(a.groupId)).map(a=>a.id), ...sel.aths])];
   const asg = (S.massign||[]).filter(x=>x.formId===f.id);
   return `<button class="btn ghost" data-a="mfclose" style="align-self:flex-start">‹ Le mie schede</button>
     <section class="card"><span class="eyebrow">Scheda · ${f.qs.length} domande</span><h1>${esc(f.title)}</h1>${f.intro?`<p class="small">${esc(f.intro)}</p>`:''}
       <ol class="small" style="margin:0;padding-left:18px">${f.qs.map(q=>`<li>${esc(q.t)} <span class="muted">(${q.type==='scale'?'1–5':'scritta'})</span></li>`).join('')}</ol>
       <button class="btn ghost" data-a="mededit" data-k="${f.id}" style="align-self:flex-start">Modifica</button></section>
-    <section class="card"><h3>Assegna</h3>
-      <div class="field"><label for="f-mfgrp">Gruppo</label><select id="f-mfgrp" class="input" data-c="mfgrp">${gs.map(x=>`<option value="${x.id}" ${x.id===U.mfGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
-      <div class="chips"><button class="chip" data-a="mfselall">${as.length&&as.every(a=>sel.includes(a.id))?'Togli tutti':'Tutto il gruppo'}</button>${as.map(a=>`<button class="chip" data-a="mfsel" data-k="${a.id}" aria-pressed="${sel.includes(a.id)}">${esc(a.name)}</button>`).join('')}</div>
-      <button class="btn clay block" data-a="mfassign" ${sel.length?'':'disabled'}>Assegna a ${sel.length} ${sel.length===1?'atleta':'atleti'}</button>
+    <section class="card"><h3>Assegna</h3><p class="small muted">Scegli gruppi interi o atleti singoli.</p>
+      ${whoPicker(sel,'mfselg','mfsel')}
+      <button class="btn clay block" data-a="mfassign" ${ids.length?'':'disabled'}>Assegna a ${ids.length} ${ids.length===1?'atleta':'atleti'}</button>
       <p class="small muted">L'atleta la trova nella sua Home in "Schede da compilare".</p></section>
-    ${asg.length?`<section class="card"><h3>Assegnata a</h3><div class="list small">${asg.map(x=>`<div class="row between"><span><b>${esc(ath(x.athleteId)?.name)}</b></span>${x.done?`<span class="tstat ok">Compilata ${fdate(x.doneDate)}</span>`:`<span class="tstat wait">Da compilare</span>`}</div>`).join('')}</div><p class="small muted">Le risposte sono in "Risposte".</p></section>`:''}`;
+    ${asg.length?`<section class="card"><h3>Assegnata a</h3><div class="list small">${asg.map(x=>`<div class="row between"><span><b>${esc(ath(x.athleteId)?.name)}</b></span>${x.done?`<span class="tstat ok">Compilata ${fdate(x.doneDate)}</span>`:`<span class="row" style="gap:6px"><span class="tstat wait">Da compilare</span><button class="chip" data-a="maundo" data-k="${x.id}" aria-label="Togli l'assegnazione a ${esc(ath(x.athleteId)?.name)}">Togli</button></span>`}</div>`).join('')}</div><p class="small muted">Le risposte sono in "Risposte".</p></section>`:''}`;
 }
 function myMindForms(id){
   const xs = mAssignOf(id).filter(x=>mFormById(x.formId)); if(!xs.length) return '';
@@ -2622,7 +2671,7 @@ const ACT = {
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
   logout(){ ACT.clogout(); return; S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
-  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
+  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
   cntmin(){ U.cnt.ok++; U.cnt.tot++; U.cnt.hist=(U.cnt.hist||[]).concat(true); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -2677,11 +2726,18 @@ const ACT = {
   fpcopy(){ const o=fitProgOf(U.fpGroup); o.weeks.push(JSON.parse(JSON.stringify(o.weeks[U.fpWeek-1]))); save(); U.fpWeek=o.weeks.length; toast('Settimana duplicata'); window.scrollTo(0,0); },
   fpdel(){ const o=fitProgOf(U.fpGroup); o.weeks.splice(U.fpWeek-1,1); if(o.cur>o.weeks.length) o.cur=o.weeks.length; U.fpWeek=null; U.confirm=null; save(); toast('Settimana eliminata'); },
   fpcur(){ fitProgOf(U.fpGroup).cur=U.fpWeek; save(); toast('Settimana in corso aggiornata'); },
-  msmode(k){ U.msMode=k; U.maOpen=null; },
+  msmode(k){ U.msMode=k; U.maOpen=null; U.mrAth=''; U.biOpen=null; },
   maopen(k){ U.maOpen = U.maOpen===k ? null : k; },
   mednew(){ U.mEd={title:'', intro:'', qs:[{t:'', type:'text'}]}; window.scrollTo(0,0); },
   mededit(k){ const f=mFormById(k); U.mEd=JSON.parse(JSON.stringify(f)); window.scrollTo(0,0); },
   medclose(){ U.mEd=null; },
+  bidopen(k){ U.biOpen=k; U.confirm=null; window.scrollTo(0,0); },
+  bidclose(){ U.biOpen=null; window.scrollTo(0,0); },
+  bivmode(k){ const v=fvisOf(U.biOpen); v.all = k==='all'; setFvis(U.biOpen, v); },
+  bivg(k){ const v=fvisOf(U.biOpen); const i=v.groups.indexOf(k); if(i>=0) v.groups.splice(i,1); else { v.groups.push(k); v.aths=v.aths.filter(id=>ath(id)?.groupId!==k); } setFvis(U.biOpen, v); },
+  biva(k){ const v=fvisOf(U.biOpen); const i=v.aths.indexOf(k); if(i>=0) v.aths.splice(i,1); else v.aths.push(k); setFvis(U.biOpen, v); },
+  mrathopen(k){ U.mrAth=k; U.maOpen=null; window.scrollTo(0,0); },
+  mrathclose(){ U.mrAth=''; U.maOpen=null; window.scrollTo(0,0); },
   biopen(k){ U.biEd=tplNow(k); U.confirm=null; window.scrollTo(0,0); },
   biclose(){ U.biEd=null; U.confirm=null; window.scrollTo(0,0); },
   biqadd(){ U.biEd.qs.push({k:'x'+uid(), t:'area', l:''}); },
@@ -2716,11 +2772,13 @@ const ACT = {
   medqt(k,d){ U.mEd.qs[+k].type=d.v; },
   medsave(){ const E=U.mEd; if(!E.title.trim()){ toast('Scrivi il titolo'); return; } const qs=E.qs.filter(q=>q.t.trim()); if(!qs.length){ toast('Scrivi almeno una domanda'); return; }
     S.mforms=S.mforms||[]; const f={id:E.id||uid(), title:E.title.trim(), intro:(E.intro||'').trim(), qs, date:E.date||new Date().toISOString()}; const i=S.mforms.findIndex(z=>z.id===f.id); if(i>=0) S.mforms[i]=f; else S.mforms.push(f);
-    save(); U.mEd=null; U.mfOpen=f.id; U.mfSel=[]; toast('Scheda salvata'); window.scrollTo(0,0); },
-  mfopen(k){ U.mfOpen=k; U.mfSel=[]; window.scrollTo(0,0); }, mfclose(){ U.mfOpen=null; U.msMode='mine'; },
-  mfsel(k){ const s=U.mfSel=U.mfSel||[]; const i=s.indexOf(k); if(i>=0) s.splice(i,1); else s.push(k); },
+    save(); U.mEd=null; U.mfOpen=f.id; U.mfSel=null; toast('Scheda salvata'); window.scrollTo(0,0); },
+  mfopen(k){ U.mfOpen=k; U.mfSel=null; window.scrollTo(0,0); }, mfclose(){ U.mfOpen=null; U.msMode='mine'; },
+  mfsel(k){ const s=U.mfSel.aths; const i=s.indexOf(k); if(i>=0) s.splice(i,1); else s.push(k); },
+  mfselg(k){ const s=U.mfSel; const i=s.groups.indexOf(k); if(i>=0) s.groups.splice(i,1); else { s.groups.push(k); s.aths=s.aths.filter(id=>ath(id)?.groupId!==k); } },
+  maundo(k){ S.massign=(S.massign||[]).filter(x=>x.id!==k || x.done); save(); },
   mfselall(){ const as=S.athletes.filter(a=>a.groupId===U.mfGroup).map(a=>a.id), s=U.mfSel||[]; U.mfSel = as.every(a=>s.includes(a)) ? s.filter(x=>!as.includes(x)) : [...new Set([...s,...as])]; },
-  mfassign(){ S.massign=S.massign||[]; const now=new Date().toISOString(); let n=0; (U.mfSel||[]).forEach(aid=>{ if(!S.massign.some(x=>x.formId===U.mfOpen && x.athleteId===aid && !x.done)){ S.massign.push({id:uid(), formId:U.mfOpen, athleteId:aid, date:now, done:false, answers:{}}); n++; } }); U.mfSel=[]; save(); toast(n?`Assegnata a ${n} ${n===1?'atleta':'atleti'}`:'Già assegnata'); },
+  mfassign(){ S.massign=S.massign||[]; const now=new Date().toISOString(); let n=0; const sel=U.mfSel; [...new Set([...S.athletes.filter(a=>sel.groups.includes(a.groupId)).map(a=>a.id), ...sel.aths])].forEach(aid=>{ if(!S.massign.some(x=>x.formId===U.mfOpen && x.athleteId===aid && !x.done)){ S.massign.push({id:uid(), formId:U.mfOpen, athleteId:aid, date:now, done:false, answers:{}}); n++; } }); U.mfSel={groups:[],aths:[]}; save(); toast(n?`Assegnata a ${n} ${n===1?'atleta':'atleti'}`:'Già assegnata'); },
   mfill(k){ U.mfill=k; U.mfDraft=null; window.scrollTo(0,0); }, mfillclose(){ U.mfill=null; U.mfDraft=null; },
   mfscale(k){ const [i,n]=k.split(':').map(Number); U.mfDraft.a[i]=n; },
   mfsend(){ const x=(S.massign||[]).find(z=>z.id===U.mfill), f=mFormById(x.formId), D=U.mfDraft; if(f.qs.some((q,i)=>!D.a[i] && D.a[i]!==0)){ toast('Rispondi a tutte le domande'); return; } x.answers=D.a; x.done=true; x.doneDate=new Date().toISOString(); U.mfill=null; U.mfDraft=null; save(); toast('Scheda inviata'); window.scrollTo(0,0); },
