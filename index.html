@@ -698,8 +698,8 @@ function renderInner(){
     case 'meet': body = U.form ? formView() : meetView(); break;
     case 'pmatch': body = summaryView(S.matches.find(m=>m.id===U.matchOpen)); break;
     case 'plan': body = planView(); break;
-    case 'ath': body = (U.athleteOpen && ath(U.athleteOpen)) ? athleteView(U.athleteOpen) + athManage(ath(U.athleteOpen)) : (U.athPriv && ath(U.athPriv)) ? privDetail(U.athPriv) + athManage(ath(U.athPriv)) : athList(); break;
-    case 'priv': body = U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) : privList(); break;
+    case 'ath': body = (U.athleteOpen && ath(U.athleteOpen)) ? athleteView(U.athleteOpen) + athManage(ath(U.athleteOpen)) : (U.athPriv && ath(U.athPriv)) ? privDetail(U.athPriv) + cloudShareCard(ath(U.athPriv)) + athManage(ath(U.athPriv)) : athList(); break;
+    case 'priv': body = U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) + cloudShareCard(ath(U.privOpen)) : privList(); break;
     case 'week': body = isOwnG(grp(me().groupId)) ? ownWeekCard(grp(me().groupId)) : studentWeek(); break;
     case 'home': body = coachHome(); break;
     case 'tour': body = isCoach() ? toursView() : staffTours(); break;
@@ -2277,7 +2277,7 @@ function parentHome(){
 function coachHome(){
   if(U.homeView==='att') return attView();
   if(U.homeView==='groups') return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + groupsView();
-  if(U.homeView==='priv') return U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) : `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + privList();
+  if(U.homeView==='priv') return U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) + cloudShareCard(ath(U.privOpen)) : `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + privList();
   if(U.homeView==='backup') return backupView();
   if(U.homeView==='staff') return staffView();
   if(U.homeView==='clean') return cleanView();
@@ -3672,6 +3672,7 @@ Object.assign(ACT, {
     const b = fbDb.batch(); b.set(fbDb.doc('invites/'+email), data); b.set(fbDb.doc(`clubs/${C.club}/invites/${email}`), data);
     b.commit().then(()=>{ toast('Invito creato'); cloudLoadStaff(); }).catch(e=>toast(cErr(e))); },
   staffuninvite(k){ const b = fbDb.batch(); b.delete(fbDb.doc('invites/'+k)); b.delete(fbDb.doc(`clubs/${C.club}/invites/${k}`)); b.commit().then(()=>{ toast('Invito annullato'); cloudLoadStaff(); }).catch(e=>toast(cErr(e))); },
+  cshare(k){ const [aid, u] = k.split(':'); const a = ath(aid); if(!a) return; const sh = new Set(a.share||[]); if(sh.has(u)) sh.delete(u); else sh.add(u); a.share = [...sh]; save(); toast(sh.has(u) ? 'Condiviso' : 'Non più condiviso'); },
   caccall(k){ S.access = S.access || {}; S.access[k] = {all:true}; save(); },
   caccg(k){ const [uid, gid] = k.split(':'); S.access = S.access || {}; const cur = S.access[uid]; const sel = new Set(cur && cur.all===false ? (cur.groups||[]) : []); if(sel.has(gid)) sel.delete(gid); else sel.add(gid); S.access[uid] = {all:false, groups:[...sel]}; save(); },
   staffremove(k){ fbDb.doc(`clubs/${C.club}/members/${k}`).delete().then(()=>{ U.confirm=null; toast('Accesso rimosso'); cloudLoadStaff(); }).catch(e=>toast(cErr(e))); },
@@ -3695,10 +3696,11 @@ function myAccess(){
   const acc = (S.access||{})[C.user.uid], all = !!C.member.admin || !acc || acc.all!==false;
   const groups = new Set(all ? [] : (acc.groups||[]));
   if(!all){ const rg = new Set(((C.sh && C.sh.groups) || []).map(g=>g.id)); (S.groups||[]).forEach(g=>{ if(!rg.has(g.id)) groups.add(g.id); }); }
-  return {all, groups, uid:C.user.uid, coach:C.member.role==='coach'};
+  const coach = C.member.role==='coach', uid = C.user.uid;
+  return {all, groups, uid, coach, shared: !coach && S.athletes.some(a=>a.groupId===PRIV_ID && (a.share||[]).includes(uid))};
 }
-const grpVis = (g, A) => g.id===PRIV_ID ? A.coach : (A.all || A.groups.has(g.id));
-const athVis = (a, A) => a.groupId===PRIV_ID ? (A.coach && privOwner(a)===A.uid) : (A.all || A.groups.has(a.groupId));
+const grpVis = (g, A) => g.id===PRIV_ID ? (A.coach || A.shared) : (A.all || A.groups.has(g.id));
+const athVis = (a, A) => a.groupId===PRIV_ID ? (A.coach ? privOwner(a)===A.uid : (a.share||[]).includes(A.uid)) : (A.all || A.groups.has(a.groupId));
 function viewFilterOn(){
   const A = myAccess(); if(!A) return null;
   const vis = new Set(S.athletes.filter(a=>athVis(a,A)).map(a=>a.id));
@@ -3715,6 +3717,13 @@ function stampPrivOwners(){
     (S.groups||[]).forEach(g=>{ if(g.id!==PRIV_ID && !rg.has(g.id) && !mine.has(g.id)){ mine.add(g.id); } }); acc.groups = [...mine]; }
   const remote = new Set(((C.sh && C.sh.athletes) || []).map(a=>a.id));
   (S.athletes||[]).forEach(a=>{ if(a.groupId===PRIV_ID && !a.owner) a.owner = remote.has(a.id) ? (C.ownerUid || C.user.uid) : C.user.uid; });
+}
+function cloudShareCard(a){
+  if(!a || a.groupId!==PRIV_ID || !C.ready || !C.member || C.member.role!=='coach' || privOwner(a)!==C.user.uid) return '';
+  if(!C.staff && !C.staffLoading){ C.staffLoading = true; cloudLoadStaff().finally(()=>{ C.staffLoading = false; }); }
+  const preps = (C.staff||[]).filter(m=>m.role==='fit'||m.role==='mind'), sh = a.share||[];
+  return `<section class="card"><h3>Condividi con un preparatore</h3><p class="small muted">Gli allievi privati li vedi solo tu. Tocca i preparatori che devono seguire anche ${esc(a.name)}: lo troveranno tra i loro atleti.</p>
+    ${!C.staff ? '<p class="small muted">Caricamento…</p>' : preps.length ? `<div class="chips">${preps.map(m=>`<button class="chip" data-a="cshare" data-k="${a.id}:${m.uid}" aria-pressed="${sh.includes(m.uid)}">${esc(m.name||m.email)} · ${m.role==='fit'?'atletico':'mentale'}</button>`).join('')}</div>` : '<p class="small muted">Nel circolo non ci sono ancora preparatori: li invita il responsabile da Staff e accessi.</p>'}</section>`;
 }
 function accessCard(m){
   const acc = (S.access||{})[m.uid], all = !acc || acc.all!==false, sel = new Set(all ? [] : (acc.groups||[]));
