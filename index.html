@@ -692,7 +692,7 @@ function renderInner(){
   const role = S.session.role;
   const isPriv = !isStaff(role) && me()?.groupId===PRIV_ID;
   const tabs = role==='fit' ? [['fhome','Home',IC.home],['fprog','Programma',IC.plan],['sath','Atleti',IC.people],['stest','Test',IC.test],['tour','Tornei',IC.trophy]]
-    : role==='mind' ? [['mhome','Home',IC.home],['sath','Atleti',IC.people],['mschede','Schede',IC.form],['tour','Tornei',IC.trophy]]
+    : role==='mind' ? [['mhome','Home',IC.home],['mprog','Programma',IC.plan],['sath','Atleti',IC.people],['mschede','Schede',IC.form],['tour','Tornei',IC.trophy]]
     : role==='coach'
     ? [['home','Home',IC.home],['plan','Programma',IC.plan],['match','Match Analysis',IC.match],['ath','Gruppi e atleti',IC.people],['tour','Tornei',IC.trophy]]
     : role==='parent'
@@ -709,6 +709,7 @@ function renderInner(){
     case 'sath': body = U.athleteOpen && ath(U.athleteOpen) ? athleteView(U.athleteOpen) : staffAthList(); break;
     case 'stest': body = `<h1>Test</h1><div class="seg" role="group"><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode!=='prog'}">Test atletici</button><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode==='prog'}">Test del programma</button></div>` + (U.ftMode==='prog' ? testsView() : fitTestsView()); break;
     case 'mschede': body = mindSchede(); break;
+    case 'mprog': body = mprogView(); break;
     case 'fprog': body = fitProgView(); break;
     case 'shome': body = U.mfill ? mfillView() : U.form ? formView() : studentHome(); break;
     case 'phome': body = parentHome(); break;
@@ -2166,6 +2167,55 @@ function whoSummary(v){
   const gs = v.groups.map(id=>grp(id)).filter(Boolean).map(gName), as = v.aths.map(id=>ath(id)).filter(Boolean).map(a=>a.name);
   return [...gs, ...as].join(', ') || 'Nessuno';
 }
+/* ---------- mental coach programme: cycles by theme (S.mforms entries {mcycle:true}); private notes in S.mnotes ---------- */
+const mCycles = () => (S.mforms||[]).filter(f=>f.mcycle);
+const mCycle = id => mCycles().find(c=>c.id===id);
+const cycleAths = c => [...new Set([...S.athletes.filter(a=>(c.who?.groups||[]).includes(a.groupId)).map(a=>a.id), ...(c.who?.aths||[]).filter(id=>ath(id))])];
+const cycleFor = (c, a) => (c.who?.groups||[]).includes(a.groupId) || (c.who?.aths||[]).includes(a.id);
+const meetSort = (x,y) => ((x.date||'9')+(x.time||'')) < ((y.date||'9')+(y.time||'')) ? -1 : 1;
+const meetWhen = m => m.date ? `${WD[new Date(m.date+'T12:00').getDay()]} ${fdate(m.date+'T12:00')}${m.time?' · '+m.time:''}` : 'data da fissare';
+function mprogView(){
+  if(U.mcOpen && mCycle(U.mcOpen)) return mCycleView(mCycle(U.mcOpen));
+  const today = todayISO(), cs = mCycles().filter(c=>!S.athletes.length || cycleAths(c).length || !(c.who?.groups||[]).length && !(c.who?.aths||[]).length);
+  return `<h1>Programma mentale</h1><p class="small muted">Cicli per tema, ognuno con i suoi incontri. Atleti e genitori vedono il prossimo incontro e il compito per casa.</p>
+    <button class="btn clay block" data-a="mcnew">+ Nuovo ciclo</button>
+    ${cs.length?`<section class="card" style="padding:4px 16px"><div class="list">${cs.map(c=>{ const ms = (c.meets||[]).slice().sort(meetSort), nx = ms.find(m=>!m.done && (!m.date || m.date>=today)), dn = ms.filter(m=>m.done).length;
+      return `<button class="item" data-a="mcopen" data-k="${c.id}"><span class="grow"><b style="font-size:17px">${esc(c.title||'Ciclo senza titolo')}</b><br><span class="small muted">${esc(whoSummary({all:false, groups:c.who?.groups||[], aths:c.who?.aths||[]}))} · ${ms.length} ${ms.length===1?'incontro':'incontri'}${ms.length?`, ${dn} fatti`:''}</span>${nx?`<br><span class="small">Prossimo: <b>${esc(meetWhen(nx))}</b></span>`:''}</span><span class="chev">›</span></button>`; }).join('')}</div></section>`
+      :'<section class="card"><p class="muted">Nessun ciclo. Crea il primo: per esempio "Gestione dell’errore", 4 incontri con il gruppo AGO 1.</p></section>'}`;
+}
+function mCycleView(c){
+  const ms = (c.meets||[]).slice().sort(meetSort), forms = (S.mforms||[]).filter(f=>!f.builtin && !f.fvis && !f.mcycle), notes = S.mnotes||{};
+  const who = {all:false, groups:c.who?.groups||[], aths:c.who?.aths||[]}, n = cycleAths(c).length;
+  return `<button class="btn ghost" data-a="mcclose" style="align-self:flex-start">‹ Programma mentale</button>
+    <section class="card"><span class="eyebrow">Ciclo</span>
+      <div class="field"><label for="mc-t">Tema</label><input id="mc-t" class="input inbig" data-c="mcf" data-k="title" value="${esc(c.title||'')}" placeholder="Es. Gestione dell’errore"></div>
+      <div class="field"><label for="mc-g">Obiettivo del ciclo</label><textarea id="mc-g" class="input" rows="2" data-c="mcf" data-k="goal" placeholder="Es. Dopo un errore, tornare concentrati entro il punto successivo">${esc(c.goal||'')}</textarea></div></section>
+    <section class="card"><h3>Per chi</h3><p class="small muted">Gruppi interi o atleti singoli.</p>${whoPicker(who,'mcg','mca')}<p class="small">Adesso: <b>${esc(whoSummary(who))}</b>${n?` · ${n} atleti`:''}</p></section>
+    <h2 class="hsec">Incontri</h2>
+    ${ms.map((m,i)=>`<section class="card" ${m.done?'style="opacity:.8"':''}>
+      <div class="row between"><span class="eyebrow">Incontro ${i+1}${m.done?' · fatto ✓':''}</span><span class="row" style="gap:6px"><button class="chip" data-a="mmdone" data-k="${c.id}:${m.id}" aria-pressed="${!!m.done}">${m.done?'Fatto ✓':'Segna fatto'}</button>${U.confirm==='mm:'+m.id?`<button class="btn danger" data-a="mtgdel" data-k="${c.id}:${m.id}" style="min-height:40px;padding:0 12px">Togli</button><button class="chip" data-a="nodel">No</button>`:`<button class="chip" data-a="askdel" data-k="mm:${m.id}" aria-label="Togli incontro">✕</button>`}</span></div>
+      <div class="row"><div class="field" style="flex:1;min-width:140px"><label for="mm-d-${m.id}">Giorno</label><input id="mm-d-${m.id}" class="input" type="date" data-c="mmf" data-k="${c.id}:${m.id}:date" value="${esc(m.date||'')}"></div><div class="field" style="flex:1;min-width:100px"><label for="mm-h-${m.id}">Ora</label><input id="mm-h-${m.id}" class="input" type="time" data-c="mmf" data-k="${c.id}:${m.id}:time" value="${esc(m.time||'')}"></div></div>
+      <div class="field"><label for="mm-t-${m.id}">Titolo</label><input id="mm-t-${m.id}" class="input" data-c="mmf" data-k="${c.id}:${m.id}:title" value="${esc(m.title||'')}" placeholder="Es. Cosa mi dico dopo un errore"></div>
+      <div class="field"><label for="mm-a-${m.id}">Attività</label><textarea id="mm-a-${m.id}" class="input" rows="3" data-c="mmf" data-k="${c.id}:${m.id}:act" placeholder="Es. Discussione di gruppo, poi la routine dei 15 secondi in campo">${esc(m.act||'')}</textarea></div>
+      <div class="field"><label for="mm-h2-${m.id}">Compito per casa <span class="muted">(lo vedono atleti e genitori)</span></label><textarea id="mm-h2-${m.id}" class="input" rows="2" data-c="mmf" data-k="${c.id}:${m.id}:home" placeholder="Es. Scrivi la tua parola chiave e usala in partita">${esc(m.home||'')}</textarea></div>
+      <div class="field"><label for="mm-f-${m.id}">Scheda collegata</label><select id="mm-f-${m.id}" class="input" data-c="mmform" data-k="${c.id}:${m.id}"><option value="">Nessuna</option>${forms.map(f=>`<option value="${f.id}" ${m.formId===f.id?'selected':''}>${esc(f.title)}</option>`).join('')}</select>
+        ${m.formId && mFormById(m.formId) && n ? `<button class="chip" data-a="mmassign" data-k="${c.id}:${m.id}" style="align-self:flex-start">Assegna la scheda ai ${n} atleti del ciclo</button>` : forms.length?'':'<span class="small muted">Le schede si creano in Schede → Modifica e assegna.</span>'}</div>
+      <div class="field"><label for="mm-n-${m.id}">Note riservate <span class="muted">(solo staff)</span></label><textarea id="mm-n-${m.id}" class="input" rows="2" data-c="mmnote" data-k="${m.id}" placeholder="Com’è andata, chi seguire di più">${esc(notes[m.id]||'')}</textarea></div>
+    </section>`).join('')}
+    <button class="btn ghost block" data-a="mtgadd" data-k="${c.id}">+ Aggiungi incontro</button>
+    ${U.confirm==='mc:'+c.id?`<section class="card"><p>Togliere il ciclo "${esc(c.title||'')}" con tutti i suoi incontri?</p><div class="row"><button class="btn danger" data-a="mcdel" data-k="${c.id}">Sì, togli</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:`<button class="chip" data-a="askdel" data-k="mc:${c.id}" style="align-self:center">Togli il ciclo</button>`}`;
+}
+function mindNextCard(id){
+  const a = ath(id); if(!a) return ''; const today = todayISO();
+  const items = mCycles().filter(c=>cycleFor(c,a)).flatMap(c=>(c.meets||[]).map(m=>({c,m})));
+  const next = items.filter(x=>!x.m.done && x.m.date && x.m.date>=today).sort((x,y)=>meetSort(x.m,y.m))[0];
+  const last = items.filter(x=>x.m.done || (x.m.date && x.m.date<today)).sort((x,y)=>meetSort(y.m,x.m))[0];
+  const hw = [next, last].find(x=>x && x.m.home);
+  if(!next && !hw) return '';
+  return `<section class="card" style="border-left:4px solid #A77BF0"><span class="eyebrow" style="color:#A77BF0">Preparazione mentale</span>
+    ${next?`<h3>${esc(next.c.title||'')}${next.m.title?': '+esc(next.m.title):''}</h3><p class="small">Prossimo incontro: <b>${esc(meetWhen(next.m))}</b></p>`:''}
+    ${hw?`<p class="small"><b>Compito per casa${hw===last&&next?' (dall’ultimo incontro)':''}:</b> ${esc(hw.m.home)}</p>`:''}</section>`;
+}
 function mindSchede(){
   if(U.biEd) return biEditView();
   if(U.mEd) return mEditView();
@@ -2174,7 +2224,7 @@ function mindSchede(){
   const mode = U.msMode || 'mine';
   const top = `<h1>Schede</h1><div class="seg" role="group"><button data-a="msmode" data-k="mine" aria-pressed="${mode==='mine'}">Modifica e assegna</button><button data-a="msmode" data-k="resp" aria-pressed="${mode==='resp'}">Risposte</button></div>`;
   if(mode==='mine'){
-    const fs = (S.mforms || []).filter(f=>!f.builtin && !f.fvis);
+    const fs = (S.mforms || []).filter(f=>!f.builtin && !f.fvis && !f.mcycle);
     return top + `<section class="card" style="padding:4px 16px 12px"><h3 style="margin-top:12px">Schede dell'app</h3><p class="small muted">Tocca una scheda per cambiare le domande e scegliere chi la compila.</p><div class="list">${BUILTIN.map(k=>`<button class="item" data-a="bidopen" data-k="${k}"><span class="grow"><b style="font-size:17px">${esc(fname(k))}</b>${tplCustom(k)?' <span class="tag pri">modificata</span>':''}<br><span class="small muted">${BI_WHO[k]}</span><br><span class="small">${k==='gen'?'Famiglie':'La compilano'}: <b>${esc(whoSummary(fvisOf(k)))}</b></span></span><span class="chev">›</span></button>`).join('')}</div></section>
       <h2>Le mie schede</h2><p class="small muted">Schede nuove, create da te, da assegnare a gruppi o ad atleti singoli.</p>
       <button class="btn clay block" data-a="mednew">+ Nuova scheda</button>
@@ -2320,6 +2370,7 @@ function mindHome(){
     <h2 class="hsec">La tua scrivania</h2>
     <section class="card" style="padding:4px 16px"><div class="list">
       ${notifTool()}
+      ${toolRow('tab','mprog',IC.plan,'Programma mentale', (()=>{ const t=todayISO(), nx=mCycles().flatMap(c=>(c.meets||[]).filter(m=>!m.done&&m.date&&m.date>=t).map(m=>({c,m}))).sort((x,y)=>meetSort(x.m,y.m))[0]; return nx?`prossimo: ${esc(nx.c.title||'')} · ${esc(meetWhen(nx.m))}`:'cicli per tema e incontri'; })())}
       ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea, assegna e leggi le risposte')}
       ${toolRow('tab','sath',IC.people,'Atleti','schede, obiettivi e note di ogni atleta')}
       ${toolRow('tab','tour',IC.trophy,'Tornei','chi gioca e quando')}
@@ -2350,6 +2401,7 @@ function studentHome(){
   return `${homeHero('Ciao '+esc((a.name||'').split(' ')[0]))}
     ${noticesFor('student', a.groupId)}
     ${todo.length?`<section class="card" style="border-color:var(--clay)"><h3>Come è andata?</h3><p class="small muted">Inserisci turno e incontri giocati.</p><div class="list">${todo.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b><br><span class="small muted">${dRange(x.date,x.end)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:''}
+    ${mindNextCard(id)}
     ${myMindForms(id).replace('Dal preparatore mentale','Schede da compilare')}
     ${tr?`<section class="card">${tr}</section>`:''}
     ${isPriv ? `<section class="card"><h2>Il tuo programma</h2><p class="small muted">Lezioni, obiettivi e lavoro da fare.</p><button class="btn clay block" data-a="tab" data-k="pprog">Apri il programma</button></section>` : `<h2 style="margin-top:4px">Oggi</h2>` + fitTodayCard(grp(a.groupId)) + (isOwnG(grp(a.groupId)) ? ownTodayCard(grp(a.groupId), false) + wellToday() : todayView())}
@@ -2370,6 +2422,7 @@ function parentHome(){
   return `${homeHero('La settimana di '+esc((a.name||'').split(' ')[0]))}
     ${noticesFor('parent', a.groupId)}
     ${today}
+    ${mindNextCard(id)}
     ${tr?`<section class="card">${tr}</section>`:''}
     ${tourHomeCard(id,true)}
     ${isPriv?'':`<section class="card"><h3>Incontro con il maestro</h3><p class="small muted">La scheda da compilare prima dell'incontro con le famiglie.</p><button class="btn ghost block" data-a="tab" data-k="meet">Apri</button></section>`}
@@ -2845,7 +2898,7 @@ const ACT = {
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
   logout(){ ACT.clogout(); return; S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
-  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
+  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
   cntmin(){ U.cnt.ok++; U.cnt.tot++; U.cnt.hist=(U.cnt.hist||[]).concat(true); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -2924,6 +2977,17 @@ const ACT = {
     S.ftests=(S.ftests||[]).filter(t=>!t.tdef).concat({id:'tdef', tdef:T}); save(); U.tdEd=null; U.confirm=null; toast('Prove dei test salvate'); window.scrollTo(0,0); },
   answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
   homegrp(k){ U.homeGrp=k; },
+  mcnew(){ S.mforms=S.mforms||[]; const c={id:uid(), mcycle:true, title:'', goal:'', who:{groups:[], aths:[]}, meets:[{id:uid(), date:'', time:'', title:'', act:'', home:''}], date:new Date().toISOString()}; S.mforms.push(c); save(); U.mcOpen=c.id; window.scrollTo(0,0); },
+  mcopen(k){ U.mcOpen=k; U.confirm=null; window.scrollTo(0,0); },
+  mcclose(){ U.mcOpen=null; U.confirm=null; window.scrollTo(0,0); },
+  mcdel(k){ const c=mCycle(k); if(c){ const ids=(c.meets||[]).map(m=>m.id); S.mnotes=S.mnotes||{}; ids.forEach(i=>delete S.mnotes[i]); } S.mforms=(S.mforms||[]).filter(f=>f.id!==k); U.mcOpen=null; U.confirm=null; save(); toast('Ciclo tolto'); },
+  mcg(k){ const c=mCycle(U.mcOpen); c.who=c.who||{groups:[],aths:[]}; const g=c.who.groups, i=g.indexOf(k); if(i>=0) g.splice(i,1); else { g.push(k); c.who.aths=(c.who.aths||[]).filter(id=>ath(id)?.groupId!==k); } save(); },
+  mca(k){ const c=mCycle(U.mcOpen); c.who=c.who||{groups:[],aths:[]}; const a=c.who.aths=c.who.aths||[], i=a.indexOf(k); if(i>=0) a.splice(i,1); else a.push(k); save(); },
+  mtgadd(k){ const c=mCycle(k), ms=(c.meets||[]).slice().sort(meetSort), last=ms[ms.length-1]; c.meets=c.meets||[]; c.meets.push({id:uid(), date:last&&last.date?isoAdd(last.date,7):'', time:last?.time||'', title:'', act:'', home:''}); save(); },
+  mtgdel(k){ const [cid,mid]=k.split(':'); const c=mCycle(cid); c.meets=(c.meets||[]).filter(m=>m.id!==mid); if(S.mnotes) delete S.mnotes[mid]; U.confirm=null; save(); },
+  mmdone(k){ const [cid,mid]=k.split(':'); const m=(mCycle(cid).meets||[]).find(x=>x.id===mid); m.done=!m.done; save(); },
+  mmassign(k){ const [cid,mid]=k.split(':'); const c=mCycle(cid), m=(c.meets||[]).find(x=>x.id===mid); if(!m||!m.formId) return; S.massign=S.massign||[]; const now=new Date().toISOString(); let n=0;
+    cycleAths(c).forEach(aid=>{ if(!S.massign.some(x=>x.formId===m.formId && x.athleteId===aid && !x.done)){ S.massign.push({id:uid(), formId:m.formId, athleteId:aid, date:now, done:false, answers:{}}); n++; } }); save(); toast(n?`Scheda assegnata a ${n} atleti`:'Già assegnata a tutti'); },
   mansopen(k){ U.tab='mschede'; U.msMode='resp'; U.mrAth=k; U.maOpen=null; U.homeView=null; window.scrollTo(0,0); },
   plday(k){ U.plDay=k; },
   plweek(k){ U.plWeek=(U.plWeek||0)+(+k); const mon=mondayOf(isoAdd(todayISO(),7*U.plWeek)); U.plDay = U.plWeek===0 ? todayISO() : mon; },
@@ -3239,6 +3303,8 @@ document.addEventListener('change', e=>{
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
+  if(c==='mmf' && (t.type==='date'||t.type==='time')){ const [cid,mid,f]=t.dataset.k.split(':'); const m=(mCycle(cid)?.meets||[]).find(x=>x.id===mid); if(m){ m[f]=t.value; save(); render(); } return; }
+  if(c==='mmform'){ const [cid,mid]=t.dataset.k.split(':'); const m=(mCycle(cid)?.meets||[]).find(x=>x.id===mid); if(m){ m.formId=t.value||undefined; save(); render(); } return; }
   if(c==='bty' && U.biEd){ const [i,j]=t.dataset.k.split(':').map(Number); U.biEd.tq[i].o[j].ty=t.value; return; }
   if(c==='omove'){ const d=ownSync(grp(U.planGroup), ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]); d.exPh[+t.dataset.k]=t.value; save(); render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
@@ -3265,6 +3331,9 @@ document.addEventListener('input', e=>{
   if(c==='fpwname'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].name=t.value; save(); return; }
   if(c==='fpdt'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].days[+t.dataset.k].title=t.value; save(); return; }
   if(c==='fpdx'){ fitProgOf(U.fpGroup).weeks[U.fpWeek-1].days[+t.dataset.k].text=t.value; save(); return; }
+  if(c==='mcf'){ const cy=mCycle(U.mcOpen); if(cy){ cy[t.dataset.k]=t.value; save(); } return; }
+  if(c==='mmf' && t.type!=='date' && t.type!=='time'){ const [cid,mid,f]=t.dataset.k.split(':'); const m=(mCycle(cid)?.meets||[]).find(x=>x.id===mid); if(m){ m[f]=t.value; save(); } return; }
+  if(c==='mmnote'){ S.mnotes=S.mnotes||{}; S.mnotes[t.dataset.k]=t.value; save(); return; }
   if(c==='tdl' && U.tdEd){ U.tdEd[+t.dataset.k].l=t.value; return; }
   if(c==='tdu' && U.tdEd){ U.tdEd[+t.dataset.k].u=t.value; return; }
   if(c==='bit' && U.biEd){ U.biEd[t.dataset.k]=t.value; return; }
