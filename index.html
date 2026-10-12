@@ -905,7 +905,7 @@ function athleteView(id, self){
       <p class="muted small">Ogni prova con i suoi risultati nel tempo: quando una prova torna, si vede se il numero cresce.</p>
       ${Object.keys(groups).length?Object.values(groups).map(gp=>{ const mx = gp.kind==='min' ? Math.max(...gp.rows.map(r=>r.ok),1) : null;
         return `<div class="field"><b>${esc(gp.t)}</b><div class="bars">${gp.rows.map(r=>{ const v = gp.kind==='min' ? r.ok/mx*100 : pct(r.ok,r.tot); return `<div class="bar"><div class="lab"><span>Sett. ${r.week} · ${DAYS_S[r.day]}</span><span>${resVal(r)}${gp.kind==='min'?' in 1 minuto':''}</span></div><div class="track"><div class="fill" style="width:${v}%;background:${wcol(r.week)}"></div></div></div>`; }).join('')}</div></div>`; }).join(''):`<p class="muted">Ancora nessuna prova salvata.</p>`}
-      </section>` + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'') + ((role==='coach'||role==='fit') ? testEntry(id) : `<section class="card"><h3>Test</h3>${testTable(id)}</section>`);
+      </section>` + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'') + ((role==='coach'||role==='fit') ? testEntry(id) : `<section class="card"><h3>Test</h3>${testTable(id)}</section>`);
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -2204,6 +2204,21 @@ function mCycleView(c){
     </section>`).join('')}
     <button class="btn ghost block" data-a="mtgadd" data-k="${c.id}">+ Aggiungi incontro</button>
     ${U.confirm==='mc:'+c.id?`<section class="card"><p>Togliere il ciclo "${esc(c.title||'')}" con tutti i suoi incontri?</p><div class="row"><button class="btn danger" data-a="mcdel" data-k="${c.id}">Sì, togli</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:`<button class="chip" data-a="askdel" data-k="mc:${c.id}" style="align-self:center">Togli il ciclo</button>`}`;
+}
+function staffProgCards(id){
+  const role = S.session.role; if(role!=='coach' && role!=='fit' && role!=='mind') return '';
+  const a = ath(id); if(!a) return ''; const g = grp(a.groupId), today = todayISO(); let out = '';
+  if(g && g.id!==PRIV_ID && role!=='fit'){ const o = fitProgOf(g.id), w = o.weeks[o.cur-1], pk = pickOf(g), m = sDone(g);
+    const days = w ? pk.map((i,k)=>({k, i, d:w.days[i]||{}})).filter(x=>x.d.title||x.d.text) : [];
+    out += `<section class="card" style="border-left:4px solid #F2994A"><span class="eyebrow" style="color:#F2994A">Preparazione atletica · ${esc(g.name)}</span>
+      <h3>Settimana ${o.cur}${w&&w.name?' · '+esc(w.name):''}</h3>
+      ${days.length?`<div class="list small">${days.map(x=>`<div><b>Allenamento ${x.k+1}${m[x.i]?' ✓':''}</b>${x.d.title?': '+esc(x.d.title):''}${x.d.text?`<br><span class="muted" style="white-space:pre-line">${esc(x.d.text)}</span>`:''}</div>`).join('')}</div>`:'<p class="small muted">Il preparatore atletico non ha ancora scritto le sedute di questa settimana.</p>'}</section>`; }
+  if(role!=='mind'){ const cs = mCycles().filter(c=>cycleFor(c,a));
+    if(cs.length) out += `<section class="card" style="border-left:4px solid #A77BF0"><span class="eyebrow" style="color:#A77BF0">Preparazione mentale</span>
+      <div class="list">${cs.map(c=>{ const ms=(c.meets||[]).slice().sort(meetSort), dn=ms.filter(m=>m.done).length, nx=ms.find(m=>!m.done && m.date && m.date>=today), last=ms.filter(m=>m.done).pop();
+        return `<div><b>${esc(c.title||'Ciclo')}</b> <span class="small muted">· ${dn} di ${ms.length} incontri fatti</span>${c.goal?`<br><span class="small">${esc(c.goal)}</span>`:''}
+          ${nx?`<br><span class="small">Prossimo: <b>${esc(meetWhen(nx))}</b>${nx.title?' · '+esc(nx.title):''}</span>`:''}${last&&last.home?`<br><span class="small muted">Compito per casa: ${esc(last.home)}</span>`:''}</div>`; }).join('')}</div></section>`; }
+  return out;
 }
 function mindNextCard(id){
   const a = ath(id); if(!a) return ''; const today = todayISO();
