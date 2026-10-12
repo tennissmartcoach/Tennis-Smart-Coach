@@ -220,13 +220,29 @@ details.pres{background:var(--sunk);border-radius:10px;padding:10px 12px}
 details.pres summary{cursor:pointer}
 details.pres .list{margin-top:8px}
 .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hero.hero-s{padding:14px 18px}.hero.hero-s h1{font-size:26px}
+.hsec{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:10px 2px -4px;font-family:var(--f-body,inherit);font-weight:700}
+.wkstrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.wkstrip button{min-height:58px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:4px 0;font-family:var(--f-body)}
+.wkstrip small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.wkstrip b{font:700 18px var(--f-disp)}.wkstrip i{font-style:normal;color:var(--clay);font-size:14px;line-height:10px;height:10px}
+.wkstrip button.today{border-color:var(--clay)}
+.wkstrip button[aria-pressed="true"]{background:var(--clay);border-color:var(--clay);color:var(--on-clay)}.wkstrip button[aria-pressed="true"] small,.wkstrip button[aria-pressed="true"] i{color:var(--on-clay)}
+.nbadge{min-width:26px;height:26px;padding:0 8px;border-radius:999px;background:var(--clay);color:var(--on-clay);font:700 14px var(--f-body);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ndot{width:10px;height:10px;border-radius:50%;background:var(--clay);flex:none;align-self:center}.ndot.ok{background:var(--ok)}
+.gpick{display:flex;gap:8px;overflow-x:auto;margin:-2px -4px 4px;padding:2px 4px 6px;scrollbar-width:none}.gpick::-webkit-scrollbar{display:none}
+.gpick button{flex:none;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);font:600 14px var(--f-body,inherit);white-space:nowrap}
+.gpick button[aria-pressed="true"]{background:var(--clay);border-color:var(--clay);color:var(--on-clay)}
+.ticon{width:36px;height:36px;border-radius:10px;background:rgba(215,232,74,.13);color:var(--clay);display:flex;align-items:center;justify-content:center;flex:none}.ticon svg{width:20px;height:20px}
 .hbtn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0}
 .hbtn b{font-family:var(--f-disp);font-size:18px}.hbtn span{font-size:13px;color:var(--muted)}
 .notice{border-color:var(--clay);background:var(--clay-soft)}
 .wkrow{align-items:stretch}.wkbar{width:6px;border-radius:3px;flex:none}
-.seg.att{flex:none;width:auto}.seg.att button{padding:8px 8px;font-size:13px;flex:none}
+.seg.att{width:100%}.seg.att button{flex:1;padding:8px 4px;font-size:14px}
+.seg.att button[aria-pressed="true"]{font-weight:700;color:#0F1620}
+.seg.att button[data-v="p"][aria-pressed="true"]{background:#4CC587}.seg.att button[data-v="a"][aria-pressed="true"]{background:#F07A6C}
+.seg.att button[data-v="r"][aria-pressed="true"]{background:#F2B84B}.seg.att button[data-v="w"][aria-pressed="true"]{background:#8DB6FF}
 .attdot{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-.attdot.p{background:var(--ok-soft);color:var(--ok)}.attdot.a{background:var(--ko-soft);color:var(--ko)}.attdot.g{background:var(--sunk);color:var(--muted)}
+.attdot.p{background:var(--ok-soft);color:var(--ok)}.attdot.a{background:var(--ko-soft);color:var(--ko)}.attdot.r{background:rgba(242,184,75,.16);color:#F2B84B}.attdot.w{background:rgba(76,141,255,.16);color:#8DB6FF}
 .tlist{display:flex;flex-direction:column;gap:10px}
 .tmonth{display:flex;flex-direction:column;gap:6px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
@@ -395,10 +411,14 @@ const pct = (a,b) => b ? Math.round(a/b*100) : null;
 const KEY = 'smartcoach.v3';
 let S;
 /* save() is defined by the online layer */
-function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return seed();
+function addPlDemo(d){ if(d.plSeed) return d; d.plSeed=1; d.priv=d.priv||{}; const ps=(d.athletes||[]).filter(a=>a.groupId==='priv'); const t=new Date(), iso=n=>{ const x=new Date(t); x.setDate(x.getDate()+n); return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+  const plan=[[0,'17:00',60],[2,'18:00',60],[0,'18:30',45],[3,'17:30',60],[1,'16:00',90],[4,'19:00',60],[2,'15:30',45]];
+  plan.forEach(([n,tm,m],i)=>{ const a=ps[i%ps.length]; if(!a) return; const pv=d.priv[a.id]=d.priv[a.id]||{prog:{title:'',freq:''},goals:[],lessons:[]}; (pv.sched=pv.sched||[]).push({id:'pl'+i, date:iso(n), time:tm, dur:m}); });
+  return d; }
+function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return addPlDemo(seed());
   if(d.roster!==6){ const n = seed(); d = Object.assign(n, {coachCode:d.coachCode||'MAESTRO', customEx:d.customEx||[], plan:d.plan||{}, provaEdit:d.provaEdit||{}}); }
   ['forms','tests','results','matches','customEx'].forEach(k=>d[k]=d[k]||[]); d.profiles=d.profiles||{}; d.priv=d.priv||{}; d.att=d.att||{}; d.notes=d.notes||[]; d.well=d.well||[]; d.notices=d.notices||[]; d.season=d.season||{}; if(!d.season[2026]) d.season[2026]=JSON.parse(JSON.stringify(SEASON2026)); if(!d.groups.some(g=>g.id==='priv')) d.groups.push({id:'priv', name:'Lezioni private', code:'PRIV', week:1}); if(d.roster!==3){ addExample(d); d.roster=3; } if(!d.ex4) addExample4(d); if(!d.ex5) addExample5(d); d.plan=d.plan||{}; d.provaEdit=d.provaEdit||{};
-  return d; }
+  return addPlDemo(d); }
 
 function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const ROSTER = [{"id": "r0", "groupId": "g1", "name": "Sofia L.", "pin": "8411", "ppin": "8629"}, {"id": "r1", "groupId": "g1", "name": "Giulia R.", "pin": "8402", "ppin": "9320"}, {"id": "r2", "groupId": "g1", "name": "Aurora B.", "pin": "4111", "ppin": "4025"}, {"id": "r3", "groupId": "g1", "name": "Emma C.", "pin": "9387", "ppin": "8794"}, {"id": "r4", "groupId": "g1", "name": "Ginevra T.", "pin": "4050", "ppin": "2542"}, {"id": "r5", "groupId": "g1", "name": "Alice N.", "pin": "8316", "ppin": "5970"}, {"id": "r6", "groupId": "g2", "name": "Lorenzo V.", "pin": "3323", "ppin": "2485"}, {"id": "r7", "groupId": "g2", "name": "Edoardo G.", "pin": "9825", "ppin": "1686"}, {"id": "r8", "groupId": "g2", "name": "Pietro C.", "pin": "7490", "ppin": "8421"}, {"id": "r9", "groupId": "g2", "name": "Diego F.", "pin": "3580", "ppin": "1245"}, {"id": "r10", "groupId": "g2", "name": "Samuele P.", "pin": "9656", "ppin": "2034"}, {"id": "r11", "groupId": "g3", "name": "Anna D.", "pin": "1975", "ppin": "1584"}, {"id": "r12", "groupId": "g3", "name": "Marco T.", "pin": "4116", "ppin": "4963"}, {"id": "r13", "groupId": "g3", "name": "Elena S.", "pin": "1492", "ppin": "8601"}, {"id": "r14", "groupId": "g3", "name": "Luca B.", "pin": "6345", "ppin": "8217"}, {"id": "r15", "groupId": "g3", "name": "Noemi R.", "pin": "4200", "ppin": "9505"}, {"id": "r16", "groupId": "g3", "name": "Filippo M.", "pin": "4828", "ppin": "5819"}, {"id": "r17", "groupId": "g4", "name": "Martina Z.", "pin": "9188", "ppin": "1075"}, {"id": "r18", "groupId": "g4", "name": "Nicola P.", "pin": "2392", "ppin": "8492"}, {"id": "r19", "groupId": "g4", "name": "Irene C.", "pin": "5557", "ppin": "7664"}, {"id": "r20", "groupId": "g4", "name": "Tommaso V.", "pin": "2363", "ppin": "5161"}, {"id": "r21", "groupId": "g4", "name": "Beatrice G.", "pin": "6165", "ppin": "4762"}];
@@ -645,6 +665,7 @@ function toast(msg){ let t = document.querySelector('.toast'); if(!t){ t=documen
 
 /* ---------- icons ---------- */
 const IC = {
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.2 4.2-6.5 8-6.5s7 2.3 8 6.5"/></svg>',
   today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.5 6.5c3 2.5 3 8.5 0 11M18.5 6.5c-3 2.5-3 8.5 0 11"/></svg>',
   match:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M3 12h18"/></svg>',
@@ -1669,6 +1690,54 @@ function profileCard(id){
 const PRIV_ID = 'priv';
 const GOAL_ST = [['todo','Da iniziare'],['doing','In corso'],['done','Raggiunto']];
 const privOf = id => { S.priv = S.priv || {}; return S.priv[id] = S.priv[id] || {prog:{title:'',freq:''}, goals:[], lessons:[]}; };
+/* ---------- private lessons: calendar ---------- */
+const WD = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+const isoAdd = (iso, n) => { const d = new Date(iso+'T12:00'); d.setDate(d.getDate()+n); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const mondayOf = iso => { const d = new Date(iso+'T12:00'), k = (d.getDay()+6)%7; return isoAdd(iso, -k); };
+function plAll(){ return S.athletes.filter(a=>a.groupId===PRIV_ID).flatMap(a=>(privOf(a.id).sched||[]).map(x=>({...x, aid:a.id, name:a.name}))).sort((x,y)=>(x.date+x.time)<(y.date+y.time)?-1:1); }
+const durLab = m => m>=60 ? (m%60 ? `${Math.floor(m/60)} h ${m%60}′` : `${m/60} h`) : `${m}′`;
+function plForm(aid){
+  const as = S.athletes.filter(a=>a.groupId===PRIV_ID);
+  if(!as.length) return '';
+  const day = U.plDay || todayISO();
+  return `<div style="display:flex;flex-direction:column;gap:10px;padding-top:10px;border-top:1px solid var(--line)">
+    ${aid?'':`<div class="field"><label for="pl-a">Allievo</label><select id="pl-a" class="input">${as.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>`}
+    <div class="row"><div class="field" style="flex:1;min-width:130px"><label for="pl-d">Giorno</label><input id="pl-d" class="input" type="date" value="${day}"></div>
+      <div class="field" style="flex:1;min-width:100px"><label for="pl-t">Ora</label><input id="pl-t" class="input" type="time" value="${U.plLastTime||'17:00'}"></div></div>
+    <div class="row"><div class="field" style="flex:1;min-width:120px"><label for="pl-m">Durata</label><select id="pl-m" class="input">${[30,45,60,90,120].map(m=>`<option value="${m}" ${m===(U.plLastDur||60)?'selected':''}>${durLab(m)}</option>`).join('')}</select></div>
+      <div class="field" style="flex:1;min-width:120px"><label for="pl-r">Ripeti</label><select id="pl-r" class="input"><option value="1">Solo questa</option><option value="4">Ogni settimana, per 4</option><option value="8">Ogni settimana, per 8</option><option value="12">Ogni settimana, per 12</option></select></div></div>
+    <div class="row"><button class="btn clay" data-a="pladd" data-k="${aid||''}" style="flex:1">Fissa la lezione</button><button class="btn ghost" data-a="plformclose">Annulla</button></div></div>`;
+}
+function plRow(x, withName){
+  return `<div class="row between" style="flex-wrap:nowrap;gap:10px;padding:8px 0;border-top:1px solid var(--line)">
+    <span style="font:700 18px var(--f-disp);min-width:58px;color:${x.date<todayISO()?'var(--muted)':'var(--clay)'}">${esc(x.time||'')}</span>
+    ${withName?`<button class="item" data-a="plopen" data-k="${x.aid}" style="flex:1;min-width:0;padding:0;border:0"><span class="grow"><b>${esc(x.name)}</b><br><span class="small muted">${durLab(x.dur||60)}</span></span><span class="chev">›</span></button>`:`<span class="grow"><b>${fdate(x.date+'T12:00')}</b> <span class="small muted">· ${WD[new Date(x.date+'T12:00').getDay()]} · ${durLab(x.dur||60)}</span></span>`}
+    ${U.confirm==='pl:'+x.id ? `<span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn danger" data-a="pldel" data-k="${x.aid}:${x.id}" style="min-height:40px;padding:0 12px">Togli</button><button class="chip" data-a="nodel">No</button></span>` : `<button class="chip" data-a="askdel" data-k="pl:${x.id}" aria-label="Togli la lezione">✕</button>`}</div>`;
+}
+function plCard(){
+  const as = S.athletes.filter(a=>a.groupId===PRIV_ID), today = todayISO();
+  if(!as.length) return `<section class="card"><div class="row between"><h3>Lezioni private</h3></div><p class="small muted">Aggiungi i tuoi allievi privati per fissare le lezioni nel calendario.</p><button class="btn ghost" data-a="homego" data-k="priv" style="align-self:flex-start">+ Aggiungi un allievo</button></section>`;
+  const day = U.plDay || today, mon = mondayOf(isoAdd(today, 7*(U.plWeek||0))), all = plAll();
+  const days = [0,1,2,3,4,5,6].map(i=>isoAdd(mon,i)), cnt = d => all.filter(x=>x.date===d).length;
+  const list = all.filter(x=>x.date===day);
+  const dd = new Date(day+'T12:00');
+  return `<section class="card">
+    <div class="row between"><h3>Lezioni private</h3><button class="chip" data-a="homego" data-k="priv">I miei allievi (${as.length})</button></div>
+    <div class="row between" style="flex-wrap:nowrap"><button class="chip" data-a="plweek" data-k="-1" aria-label="Settimana precedente">‹</button><span class="small muted">${fdate(days[0]+'T12:00')} – ${fdate(days[6]+'T12:00')}</span><button class="chip" data-a="plweek" data-k="1" aria-label="Settimana successiva">›</button></div>
+    <div class="wkstrip">${days.map(d=>{ const n = cnt(d), dt = new Date(d+'T12:00'); return `<button data-a="plday" data-k="${d}" aria-pressed="${d===day}" class="${d===today?'today':''}" aria-label="${WD[dt.getDay()]} ${dt.getDate()}${n?`, ${n} lezioni`:''}"><small>${WD[dt.getDay()]}</small><b>${dt.getDate()}</b><i>${n?'•'.repeat(Math.min(n,3)):''}</i></button>`; }).join('')}</div>
+    <span class="eyebrow">${day===today?'Oggi':WD[dd.getDay()]+' '+dd.getDate()+' '+MONTHS[dd.getMonth()]}</span>
+    ${list.length?`<div>${list.map(x=>plRow(x,true)).join('')}</div>`:'<p class="small muted">Nessuna lezione privata in questo giorno.</p>'}
+    ${U.plForm==='home' ? plForm('') : `<button class="btn ghost" data-a="plformopen" data-k="home" style="align-self:flex-start">+ Fissa una lezione</button>`}
+  </section>`;
+}
+function plPupilCard(id){
+  const today = todayISO(), xs = (privOf(id).sched||[]).map(x=>({...x, aid:id})).filter(x=>x.date>=today).sort((x,y)=>(x.date+x.time)<(y.date+y.time)?-1:1);
+  const edit = S.session.role==='coach';
+  if(!edit && !xs.length) return '';
+  return `<section class="card"><h3>${edit?'Lezioni in calendario':'Le prossime lezioni'}</h3>
+    ${xs.length?`<div>${xs.slice(0,8).map(x=>edit?plRow(x,false):`<div class="row" style="gap:10px;padding:6px 0;border-top:1px solid var(--line)"><b style="font:700 18px var(--f-disp);color:var(--clay);min-width:58px">${esc(x.time||'')}</b><span>${WD[new Date(x.date+'T12:00').getDay()]} ${fdate(x.date+'T12:00')} · ${durLab(x.dur||60)}</span></div>`).join('')}</div>`:'<p class="small muted">Nessuna lezione fissata.</p>'}
+    ${edit ? (U.plForm===id ? plForm(id) : `<button class="btn ghost" data-a="plformopen" data-k="${id}" style="align-self:flex-start">+ Fissa una lezione</button>`) : ''}</section>`;
+}
 function privList(){
   const as = S.athletes.filter(a=>a.groupId===PRIV_ID);
   return `<h1>Lezioni private</h1>
@@ -1690,6 +1759,7 @@ function privDetail(id){
     <section class="card"><h3>Obiettivi</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted">Nessun obiettivo. Aggiungine uno qui sotto.</p>'}
       <div class="field"><label>Nuovo obiettivo</label><div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
       <div class="row"><input id="f-goal" class="input" placeholder="Es. Seconda di servizio carica, 7 su 10 dentro" style="flex:1;min-width:0"><button class="btn" data-a="goaladd" data-k="${id}">Aggiungi</button></div>${U.goalPaste===id ? `<div class="field"><label for="f-goals">Incolla gli obiettivi, uno per riga</label><textarea id="f-goals" class="input" rows="6" placeholder="Seconda carica, 7 su 10 dentro&#10;Tattica: aprire il campo con il dritto incrociato&#10;Mentale: routine dopo l'errore"></textarea><p class="small muted">Se una riga inizia con Tecnica:, Tattica:, Mentale: o Fisico: va in quell'area, altrimenti nell'area scelta sopra.</p><div class="row"><button class="btn" data-a="goalpaste" data-k="${id}" style="flex:1">Aggiungi tutti</button><button class="btn ghost" data-a="goalpastetoggle" data-k="${id}">Annulla</button></div></div>` : `<button class="chip" data-a="goalpastetoggle" data-k="${id}" style="align-self:flex-start">Incolla più obiettivi insieme</button>`}</div></section>
+    ${plPupilCard(id)}
     <section class="card"><h3>Diario delle lezioni</h3>
       <div class="field"><label for="f-ldate">Data</label><input id="f-ldate" class="input" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
       <div class="field"><label for="f-lwhat">Cosa abbiamo fatto</label><textarea id="f-lwhat" class="input" rows="3" placeholder="Esercizi, temi, risultati delle prove"></textarea></div>
@@ -1704,6 +1774,7 @@ function privStudentView(){
   const a = me(), pv = privOf(a.id), last = pv.lessons[pv.lessons.length-1];
   return `<section class="card"><span class="eyebrow">Lezioni private</span><h1>Il mio programma</h1>
       ${pv.prog.title?`<p style="font-weight:700">${esc(pv.prog.title)}</p>`:''}${pv.prog.freq?`<p class="small muted">${esc(pv.prog.freq)}</p>`:''}</section>
+    ${plPupilCard(a.id)}
     <section class="card"><h3>I miei obiettivi</h3>${pv.goals.length?goalsHtml(pv,false,a.id):'<p class="muted">Il maestro non ha ancora inserito gli obiettivi.</p>'}</section>
     ${last?`<section class="card"><h3>Ultima lezione · ${new Date(last.date).toLocaleDateString('it-IT',{day:'numeric',month:'long'})}</h3><p>${esc(last.what)}</p>${last.next?`<p class="small"><b>Per la prossima volta:</b> ${esc(last.next)}</p>`:''}</section>`:''}
     ${profileCard(a.id)}`;
@@ -1863,28 +1934,37 @@ function myTournaments(id){
 }
 
 /* ---------- attendance ---------- */
-const attKey = (date,g) => date+'|'+g;
+const attKey = (date,g,kind) => date+'|'+g+(kind?'|'+kind:'');
+const ATT_ST = [['p','Presente'],['a','Assente'],['r','Ritardo'],['w','Pioggia']];
+const ATT_KIND = {'':'Tennis', fit:'Preparazione atletica', mind:'Preparazione mentale'};
+const attKindOf = () => S.session.role==='fit' ? 'fit' : S.session.role==='mind' ? 'mind' : '';
+const attIcon = v => v==='p'?'✓':v==='r'?'R':v==='w'?'☂':'✗';
+const attCls = v => v==='g' ? 'a' : v;
+const attPresent = v => v==='p' || v==='r';
 function attView(){
+  const kind = U.attKind ?? attKindOf();
   const g = grp(U.attGroup) || teamGroups()[0]; const date = U.attDate || todayISO();
-  const rec = (S.att||{})[attKey(date,g.id)] || {};
-  const as = S.athletes.filter(a=>a.groupId===g.id), np = as.filter(a=>rec[a.id]==='p').length;
+  const rec = (S.att||{})[attKey(date,g.id,kind)] || {};
+  const as = S.athletes.filter(a=>a.groupId===g.id), np = as.filter(a=>attPresent(rec[a.id])).length;
   return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>
-    <section class="card"><span class="eyebrow">Presenze · ${esc(g.name)}</span><h1>${np} su ${as.length}</h1>
-      <div class="row"><input id="f-attdate" class="input" type="date" value="${date}" data-c="attdate" style="flex:1;min-width:150px"><button class="btn ghost" data-a="attall">Tutti presenti</button></div></section>
-    <section class="card" style="padding:4px 16px"><div class="list">${as.map(a=>`<div class="row between" style="flex-wrap:nowrap"><b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name)}</b>
-      <div class="seg att" role="group">${[['p','Presente'],['a','Assente'],['g','Giustif.']].map(([k,l])=>`<button data-a="attset" data-k="${a.id}" data-v="${k}" aria-pressed="${rec[a.id]===k}">${l}</button>`).join('')}</div></div>`).join('')}</div></section>
-    <p class="muted small">Si salva da solo a ogni tocco.</p>`;
+    <section class="card"><span class="eyebrow">Presenze · ${esc(ATT_KIND[kind])} · ${esc(g.name)}</span><h1>${np} su ${as.length}</h1>
+      <input id="f-attdate" class="input" type="date" value="${date}" data-c="attdate">
+      <div class="row"><button class="btn ghost" data-a="attall" data-k="p" style="flex:1">Tutti presenti</button><button class="btn ghost" data-a="attall" data-k="w" style="flex:1">Pioggia per tutti</button></div></section>
+    <section class="card" style="padding:4px 16px"><div class="list">${as.map(a=>`<div style="display:flex;flex-direction:column;gap:6px;padding:10px 0"><b>${esc(a.name)}</b>
+      <div class="seg att" role="group" aria-label="Presenza di ${esc(a.name)}">${ATT_ST.map(([k,l])=>`<button data-a="attset" data-k="${a.id}" data-v="${k}" aria-pressed="${attCls(rec[a.id])===k}">${l}</button>`).join('')}</div></div>`).join('')}</div></section>
+    <p class="muted small">Si salva da solo a ogni tocco. Ritardo conta come presente; con la pioggia la seduta non si conta.</p>`;
 }
-function attStats(id){
-  const a = ath(id), m = todayISO().slice(0,7);
-  const rows = Object.entries(S.att||{}).filter(([k])=>k.endsWith('|'+a.groupId)).map(([k,v])=>({date:k.split('|')[0], v:v[id]})).filter(x=>x.v).sort((x,y)=>x.date<y.date?-1:1);
-  const month = rows.filter(x=>x.date.startsWith(m)), p = month.filter(x=>x.v==='p').length;
+function attStats(id, kind=''){
+  const a = ath(id), m = todayISO().slice(0,7), suf = '|'+a.groupId+(kind?'|'+kind:'');
+  const rows = Object.entries(S.att||{}).filter(([k])=>k.endsWith(suf) && k.split('|').length===(kind?3:2)).map(([k,v])=>({date:k.split('|')[0], v:v[id]})).filter(x=>x.v).sort((x,y)=>x.date<y.date?-1:1);
+  const month = rows.filter(x=>x.date.startsWith(m) && x.v!=='w'), p = month.filter(x=>attPresent(x.v)).length;
   return {rows, month, p};
 }
 function attCard(id){
-  const st = attStats(id); if(!st.rows.length) return '';
-  return `<section class="card"><h3>Presenze</h3><p><b>${st.p} su ${st.month.length}</b> sedute questo mese</p>
-    <div class="row">${st.rows.slice(-14).map(x=>`<span class="attdot ${x.v}" title="${dLabel(x.date)}">${x.v==='p'?'✓':x.v==='a'?'✗':'G'}</span>`).join('')}</div><p class="small muted">Ultime sedute: ✓ presente · ✗ assente · G giustificato.</p></section>`;
+  const parts = ['', 'fit', 'mind'].map(k=>({k, st:attStats(id,k)})).filter(x=>x.st.rows.length); if(!parts.length) return '';
+  return `<section class="card"><h3>Presenze</h3>${parts.map(({k,st})=>`<div style="display:flex;flex-direction:column;gap:6px">${parts.length>1||k?`<span class="eyebrow">${ATT_KIND[k]}</span>`:''}<p><b>${st.p} su ${st.month.length}</b> sedute questo mese</p>
+    <div class="row">${st.rows.slice(-14).map(x=>`<span class="attdot ${attCls(x.v)}" title="${dLabel(x.date)}">${attIcon(x.v)}</span>`).join('')}</div></div>`).join('')}
+    <p class="small muted">✓ presente · R ritardo · ✗ assente · ☂ pioggia</p></section>`;
 }
 
 /* ---------- coach notes, wellness, notices ---------- */
@@ -1979,22 +2059,30 @@ const blankFitWeek = () => ({name:'', days:[0,1,2,3,4].map(()=>({title:'', text:
 function fitProgOf(gid){ S.fitProg = S.fitProg || {}; const o = S.fitProg[gid] = S.fitProg[gid] || {cur:1, weeks:[]}; if(!o.weeks.length) o.weeks.push(blankFitWeek()); if(o.cur>o.weeks.length) o.cur=o.weeks.length; return o; }
 function fitDay(g, di){ const o = fitProgOf(g.id), w = o.weeks[o.cur-1]; return w ? w.days[di] : null; }
 function fitHome(){
-  const lim7 = addDays(todayISO(), -7);
-  const pains = (S.well||[]).filter(w=>w.pain && w.date>=lim7), tired = (S.well||[]).filter(w=>w.fat>=5 && w.date>=lim7);
-  const tours = nextTourPlayers(21);
-  return `${homeHero('Buon lavoro')}
-    <button class="btn ghost block" data-a="tab" data-k="mschede">Schede e questionari</button>
-    ${(pains.length||tired.length)?`<section class="card" style="border-color:var(--ko)"><h3>Da guardare</h3><div class="list">
-      ${pains.map(w=>`<button class="item" data-a="staffath" data-k="${w.athleteId}"><span class="grow"><b style="color:var(--ko)">${esc(ath(w.athleteId)?.name)}</b> segnala dolore${w.where?': '+esc(w.where):''}<br><span class="small muted">${dLabel(w.date)}</span></span><span class="chev">›</span></button>`).join('')}
-      ${tired.map(w=>`<button class="item" data-a="staffath" data-k="${w.athleteId}"><span class="grow"><b>${esc(ath(w.athleteId)?.name)}</b>: fatica 5 su 5<br><span class="small muted">${dLabel(w.date)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:'<section class="card"><p class="small muted">Nessun dolore o fatica alta segnalati negli ultimi 7 giorni.</p></section>'}
-    ${teamGroups().map(g=>{ const di = todayIdx(g), wk = curIdx(g)>=0, o = fitProgOf(g.id), fd = fitDay(g,di);
-      return `<section class="card"><div class="row between"><span class="eyebrow">${esc(g.name)} · prep. atletica sett. ${o.cur}</span>${o.weeks[o.cur-1].name?`<span class="tag teal">${esc(o.weeks[o.cur-1].name)}</span>`:''}</div>
-        ${sessDots(g)}
-        <h2>${esc(sessHead(g, di, fd.title||'Seduta da scrivere'))}</h2>
-        ${wk&&fd.text?`<p style="white-space:pre-line">${esc(fd.text)}</p>`:''}
-        ${wk?`<p class="small muted">Seduta tecnica del maestro: ${esc(gDayTitle(g,di))}</p>`:''}
-        <button class="btn ghost" data-a="fpopen" data-k="${g.id}:${o.cur}" style="align-self:flex-start">Apri la settimana nel programma</button></section>`; }).join('')}
-    <section class="card"><h3>Tornei in arrivo</h3>${tours.length?`<div class="list">${tours.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b> · ${dRange(x.date,x.end)}<br><span class="small muted">${x.t.players.map(pid=>esc(ath(pid)?.name)).join(', ')}</span></span><span class="chev">›</span></button>`).join('')}</div><p class="small muted">Utile per scaricare i carichi prima delle gare.</p>`:'<p class="small muted">Nessun torneo con iscritti nelle prossime 3 settimane.</p>'}</section>`;
+  if(U.homeView==='notif') return notifView();
+  if(U.homeView==='att') return attView();
+  const gs = teamGroups(), today = todayISO();
+  if(!U.homeGrp || !gs.some(g=>g.id===U.homeGrp)) U.homeGrp = gs[0]?.id;
+  const g = gs.find(x=>x.id===U.homeGrp);
+  let card = '<section class="card"><p class="muted">Nessun gruppo da seguire.</p></section>';
+  if(g){ const di = todayIdx(g), wk = curIdx(g)>=0, o = fitProgOf(g.id), fd = fitDay(g,di);
+    card = `<section class="card">${gpickHTML(gs, g.id)}
+      <div class="row between"><span class="eyebrow">${esc(g.name)} · prep. atletica sett. ${o.cur}</span>${o.weeks[o.cur-1].name?`<span class="tag teal">${esc(o.weeks[o.cur-1].name)}</span>`:''}</div>
+      ${sessDots(g)}
+      <h2>${esc(sessHead(g, di, fd.title||'Seduta da scrivere'))}</h2>
+      ${wk&&fd.text?`<p style="white-space:pre-line">${esc(fd.text)}</p>`:''}
+      ${wk?`<p class="small muted">Seduta tecnica del maestro: ${esc(gDayTitle(g,di))}</p>`:''}
+      <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">${attBtnLab(g,'fit')}</button><button class="btn ghost" data-a="fpopen" data-k="${g.id}:${o.cur}" style="flex:1">Apri la settimana</button></div></section>`; }
+  return `${homeHead()}
+    <h2 class="hsec">Oggi in campo</h2>
+    ${card}
+    <h2 class="hsec">La tua scrivania</h2>
+    <section class="card" style="padding:4px 16px"><div class="list">
+      ${notifTool()}
+      ${toolRow('tab','fprog',IC.plan,'Programma atletico','settimane e sedute dei gruppi')}
+      ${toolRow('tab','stest',IC.test,'Test','test atletici e test del programma')}
+      ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
+    </div></section>`;
 }
 function fitProgView(){
   const tg = teamGroups(); if(!U.fpGroup || !grp(U.fpGroup) || U.fpGroup===PRIV_ID) U.fpGroup = tg[0]?.id; const g = grp(U.fpGroup);
@@ -2215,14 +2303,27 @@ function mindForms(){
     ${fs.length?`<section class="card" style="padding:4px 16px"><div class="list">${fs.map(f=>`<button class="item" data-a="staffath" data-k="${f.athleteId}" data-t="${TAB_OF[f.kind]||'prof'}"><span class="grow"><b>${esc(ath(f.athleteId)?.name)}</b> · ${esc(fname(f.kind))}${f.by==='parent'?' <span class="tag teal">famiglia</span>':''}<br><span class="small muted">${fdate(f.date)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:'<section class="card"><p class="muted">Nessuna scheda.</p></section>'}`;
 }
 function mindHome(){
-  const lim14 = new Date(Date.now()-14*864e5).toISOString();
-  const fs = S.forms.filter(f=>f.date>=lim14 && (f.kind==='pre'||f.kind==='post')).sort((a,b)=>a.date<b.date?1:-1).slice(0,8);
-  const tours = nextTourPlayers(21);
-  const goals = S.athletes.map(a=>({a, g:privOf(a.id).goals.filter(x=>x.area==='men' && x.st!=='done')})).filter(o=>o.g.length);
-  return `${homeHero('Buon lavoro')}
-    <section class="card"><h3>Tornei in arrivo</h3>${tours.length?`<div class="list">${tours.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b> · ${dRange(x.date,x.end)}<br><span class="small muted">${x.t.players.map(pid=>esc(ath(pid)?.name)).join(', ')}</span></span><span class="chev">›</span></button>`).join('')}</div><p class="small muted">Chi gioca nelle prossime 3 settimane: il momento giusto per preparare la gara.</p>`:'<p class="small muted">Nessun torneo con iscritti nelle prossime 3 settimane.</p>'}</section>
-    <section class="card"><h3>Schede partita recenti</h3>${fs.length?`<div class="list">${fs.map(f=>`<button class="item" data-a="staffath" data-k="${f.athleteId}" data-t="part"><span class="grow"><b>${esc(ath(f.athleteId)?.name)}</b> · ${esc(fname(f.kind))}<br><span class="small muted">${fdate(f.date)}</span></span><span class="chev">›</span></button>`).join('')}</div>`:'<p class="small muted">Nessuna scheda prima/dopo partita nelle ultime 2 settimane.</p>'}</section>
-    <section class="card"><h3>Obiettivi mentali aperti</h3>${goals.length?`<div class="list">${goals.map(o=>`<button class="item" data-a="staffath" data-k="${o.a.id}"><span class="grow"><b>${esc(o.a.name)}</b><br><span class="small">${o.g.map(x=>esc(x.text)).join(' · ')}</span></span><span class="chev">›</span></button>`).join('')}</div>`:'<p class="small muted">Nessun obiettivo mentale aperto. Si aggiungono dalla scheda dell\'atleta.</p>'}</section>`;
+  if(U.homeView==='notif') return notifView();
+  if(U.homeView==='att') return attView();
+  const gs = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID)).filter(g=>S.athletes.some(a=>a.groupId===g.id));
+  if(!U.homeGrp || !gs.some(g=>g.id===U.homeGrp)) U.homeGrp = gs[0]?.id;
+  const g = gs.find(x=>x.id===U.homeGrp);
+  let card = '<section class="card"><p class="muted">Nessun atleta da seguire.</p></section>';
+  if(g){ const as = S.athletes.filter(a=>a.groupId===g.id);
+    card = `<section class="card">${gpickHTML(gs.map(x=>x.id===PRIV_ID?{...x, name:'Lezioni private'}:x), g.id)}
+      <div class="row between"><span class="eyebrow">${esc(g.id===PRIV_ID?'Lezioni private':g.name)} · obiettivi mentali</span>${g.id!==PRIV_ID?`<button class="btn" data-a="homeatt" data-k="${g.id}" style="min-height:40px">${attBtnLab(g,'mind')}</button>`:''}</div>
+      <div class="list">${as.map(a=>{ const gl = privOf(a.id).goals.filter(x=>x.area==='men' && x.st!=='done'), lf = S.forms.filter(f=>f.athleteId===a.id && (f.kind==='pre'||f.kind==='post')).sort((x,y)=>x.date<y.date?1:-1)[0];
+        return `<button class="item" data-a="staffath" data-k="${a.id}"><span class="grow"><b>${esc(a.name)}</b><br><span class="small ${gl.length?'':'muted'}">${gl.length?gl.map(x=>esc(x.text)).join(' · '):'Nessun obiettivo mentale aperto'}</span>${lf?`<br><span class="small muted">Ultima scheda partita: ${fdate(lf.date)}</span>`:''}</span><span class="chev">›</span></button>`; }).join('')}</div></section>`; }
+  return `${homeHead()}
+    <h2 class="hsec">I tuoi atleti</h2>
+    ${card}
+    <h2 class="hsec">La tua scrivania</h2>
+    <section class="card" style="padding:4px 16px"><div class="list">
+      ${notifTool()}
+      ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea, assegna e leggi le risposte')}
+      ${toolRow('tab','sath',IC.people,'Atleti','schede, obiettivi e note di ogni atleta')}
+      ${toolRow('tab','tour',IC.trophy,'Tornei','chi gioca e quando')}
+    </div></section>`;
 }
 function staffTours(){
   if(U.tOpen && tByKey(U.tOpen)) return tourDetail(tByKey(U.tOpen));
@@ -2274,6 +2375,51 @@ function parentHome(){
     ${isPriv?'':`<section class="card"><h3>Incontro con il maestro</h3><p class="small muted">La scheda da compilare prima dell'incontro con le famiglie.</p><button class="btn ghost block" data-a="tab" data-k="meet">Apri</button></section>`}
     <button class="btn ghost block" data-a="sprog" data-k="prof">Il profilo: progressi e partite ›</button>`;
 }
+function attBtnLab(g, kind){ const rec = (S.att||{})[attKey(todayISO(), g.id, kind)] || {}, n = S.athletes.filter(a=>a.groupId===g.id).length; return 'Presenze' + (Object.keys(rec).length ? ' '+Object.values(rec).filter(attPresent).length+'/'+n : ''); }
+function homeHead(){ const d = new Date(); return `<section class="hero hero-s"><span class="eyebrow" style="color:var(--clay)">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>Buon lavoro</h1></section>`; }
+const toolRow = (a, k, ic, t, sub) => `<button class="item" data-a="${a}" ${k?`data-k="${k}"`:''}><span class="ticon" aria-hidden="true">${ic}</span><span class="grow"><b>${t}</b>${sub?`<br><span class="small muted">${sub}</span>`:''}</span><span class="chev">›</span></button>`;
+function gpickHTML(gs, sel, mark){ return gs.length>1 ? `<div class="gpick" role="group" aria-label="Gruppo">${gs.map(x=>`<button data-a="homegrp" data-k="${x.id}" aria-pressed="${x.id===sel}">${esc(x.name)}${mark&&mark(x)?' ✓':''}</button>`).join('')}</div>` : ''; }
+const NOTIF_LAB = {req:['richiesta torneo','richieste tornei'], forms:['scheda nuova','schede nuove'], pain:['dolore','dolori'], fat:['fatica alta','fatiche alte'], mform:['scheda partita','schede partita'], mdone:['scheda compilata','schede compilate'], dl:['scadenza','scadenze'], tour:['torneo','tornei']};
+function notifItems(){
+  const role = S.session.role, today = todayISO(), lim7 = addDays(today, -7), lim14 = addDays(today, -14), out = [];
+  const nm = id => esc(ath(id)?.name || '');
+  const row = (a, k, body) => `<button class="item" data-a="${a}" data-k="${k}"><span class="ndot" aria-hidden="true"></span><span class="grow">${body}</span><span class="chev">›</span></button>`;
+  const wellRows = act => {
+    (S.well||[]).filter(w=>w.pain && w.date>=lim7).forEach(w=>out.push({k:'pain', n:1, html:row(act, act==='openathT'?w.athleteId+':allen':w.athleteId, `<b style="color:var(--ko)">${nm(w.athleteId)}</b> segnala dolore${w.where?': '+esc(w.where):''} <span class="small muted">· ${dLabel(w.date)}</span>`)}));
+    (S.well||[]).filter(w=>w.fat>=5 && w.date>=lim7).forEach(w=>out.push({k:'fat', n:1, html:row(act, act==='openathT'?w.athleteId+':allen':w.athleteId, `<b>${nm(w.athleteId)}</b>: fatica 5 su 5 <span class="small muted">· ${dLabel(w.date)}</span>`)}));
+  };
+  const tourRows = () => nextTourPlayers(21).forEach(x=>out.push({k:'tour', n:1, html:row('openT', tKey(x), `<b>${esc(x.t.name)}</b> <span class="small muted">· ${dRange(x.date,x.end)}</span><br><span class="small muted">Giocano: ${x.t.players.map(pid=>nm(pid)).filter(Boolean).join(', ')}</span>`)}));
+  if(role==='coach'){
+    const reqs = allTournaments().filter(x=>(x.t.requests||[]).length), nf = newForms(), up = upcoming(30), nextT = up.find(x=>x.date>=today) || up[0];
+    reqs.forEach(x=>out.push({k:'req', n:x.t.requests.length, html:row('openT', tKey(x), `<b style="color:var(--clay)">${x.t.requests.length} ${x.t.requests.length===1?'richiesta':'richieste'} di iscrizione</b> · ${esc(x.t.name)}`)}));
+    if(nf) out.push({k:'forms', n:nf, html:row('tab','ath', `<b>${nf} ${nf===1?'scheda nuova':'schede nuove'}</b> da atleti e famiglie`)});
+    wellRows('openathT');
+    const dl = deadlines(14).filter(x=>!reqs.some(r=>tKey(r)===tKey(x)));
+    dl.forEach(x=>out.push({k:'dl', n:1, html:row('openT', tKey(x), `Iscrizioni entro il <b>${dLabel(x.t.deadline)}</b> · ${esc(x.t.name)}`)}));
+    if(nextT && ![...dl,...reqs].some(x=>tKey(x)===tKey(nextT))) out.push({k:'tour', n:1, html:row('openT', tKey(nextT), `Prossimo torneo: <b>${esc(nextT.t.name)}</b> <span class="small muted">· ${dRange(nextT.date,nextT.end)}</span>`)});
+  } else if(role==='fit'){
+    wellRows('staffath'); tourRows();
+  } else if(role==='mind'){
+    S.forms.filter(f=>(f.kind==='pre'||f.kind==='post') && f.date.slice(0,10)>=lim14).sort((a,b)=>a.date<b.date?1:-1).slice(0,10).forEach(f=>out.push({k:'mform', n:1, html:`<button class="item" data-a="staffath" data-k="${f.athleteId}" data-t="part"><span class="ndot" aria-hidden="true"></span><span class="grow"><b>${nm(f.athleteId)}</b> · ${esc(fname(f.kind))} <span class="small muted">· ${fdate(f.date)}</span></span><span class="chev">›</span></button>`}));
+    (S.massign||[]).filter(x=>x.done && (x.doneDate||'').slice(0,10)>=lim14 && mFormById(x.formId)).forEach(x=>out.push({k:'mdone', n:1, html:row('mansopen', x.athleteId, `<b>${nm(x.athleteId)}</b> ha compilato <b>${esc(mFormById(x.formId).title)}</b> <span class="small muted">· ${fdate(x.doneDate)}</span>`)}));
+    tourRows();
+  }
+  return out;
+}
+function notifSummary(items){
+  const c = {}; items.forEach(x=>c[x.k]=(c[x.k]||0)+x.n);
+  return Object.keys(NOTIF_LAB).filter(k=>c[k]).map(k=>`${c[k]} ${NOTIF_LAB[k][c[k]===1?0:1]}`).join(' · ');
+}
+function notifTool(){
+  const items = notifItems(), n = items.length;
+  return `<button class="item" data-a="homego" data-k="notif"><span class="ticon" aria-hidden="true">${IC.bell}</span><span class="grow"><b>Notifiche</b><br><span class="small muted">${n ? notifSummary(items) : 'niente di nuovo'}</span></span>${n?`<span class="nbadge">${n}</span>`:''}<span class="chev">›</span></button>`;
+}
+function notifView(){
+  const items = notifItems();
+  return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>
+    <h1>Notifiche</h1>
+    <section class="card" style="padding:4px 16px">${items.length?`<div class="list">${items.map(x=>x.html).join('')}</div>`:'<div class="row" style="gap:10px;padding:14px 0"><span class="ndot ok" aria-hidden="true"></span><span class="muted">Niente di nuovo da guardare.</span></div>'}</section>`;
+}
 function coachHome(){
   if(U.homeView==='att') return attView();
   if(U.homeView==='groups') return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + groupsView();
@@ -2281,37 +2427,46 @@ function coachHome(){
   if(U.homeView==='backup') return backupView();
   if(U.homeView==='staff') return staffView();
   if(U.homeView==='clean') return cleanView();
-  const d = new Date();
-  const lim7 = new Date(Date.now()-7*864e5).toISOString().slice(0,10);
-  const pains = (S.well||[]).filter(w=>w.pain && w.date>=lim7), tired = (S.well||[]).filter(w=>w.fat>=5 && w.date>=lim7);
-  const nf = newForms(), up = upcoming(30), dl = deadlines(21);
-  return `<section class="hero"><div class="lines" aria-hidden="true"></div><span class="eyebrow" style="color:var(--clay)">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>Buon lavoro</h1></section>
-    ${teamGroups().map(g=>{ const di = todayIdx(g), wk = curIdx(g)>=0, rec = (S.att||{})[attKey(todayISO(),g.id)] || {}, n = S.athletes.filter(a=>a.groupId===g.id).length, np = Object.values(rec).filter(v=>v==='p').length, pv = PV(g.week, di);
-      return `<section class="card"><div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
-        ${sessDots(g)}
-        <h2>${esc(sessHead(g, di, gDayTitle(g,di)))}</h2>
-        ${wk&&!isOwnG(g)?`<p class="small"><span class="tag">Prova</span> ${esc(pv.t)}</p>`:''}
-        <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">Presenze ${Object.keys(rec).length?np+'/'+n:''}</button>${wk?`<button class="btn ghost" data-a="homeday" data-k="${isOwnG(g)?'o:'+g.id:g.week}:${di}:${g.id}" style="flex:1">Apri l'allenamento</button>`:''}</div>
-        ${sessBtns(g, di)}</section>`; }).join('')}
-    ${(nf||pains.length||tired.length||allTournaments().some(x=>(x.t.requests||[]).length))?`<section class="card"><h3>Da guardare</h3><div class="list">
-      ${allTournaments().filter(x=>(x.t.requests||[]).length).map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b style="color:var(--clay)">${x.t.requests.length} ${x.t.requests.length===1?'richiesta':'richieste'} di iscrizione</b> · ${esc(x.t.name)}</span><span class="chev">›</span></button>`).join('')}
-      ${nf?`<button class="item" data-a="tab" data-k="ath"><span class="grow"><b>${nf} ${nf===1?'scheda nuova':'schede nuove'}</b> da atleti e famiglie</span><span class="chev">›</span></button>`:''}
-      ${pains.map(w=>`<button class="item" data-a="openathT" data-k="${w.athleteId}:allen"><span class="grow"><b style="color:var(--ko)">${esc(ath(w.athleteId)?.name)}</b> segnala dolore${w.where?': '+esc(w.where):''}<br><span class="small muted">${dLabel(w.date)}</span></span><span class="chev">›</span></button>`).join('')}
-      ${tired.map(w=>`<button class="item" data-a="openathT" data-k="${w.athleteId}:allen"><span class="grow"><b>${esc(ath(w.athleteId)?.name)}</b>: fatica 5 su 5<br><span class="small muted">${dLabel(w.date)}</span></span><span class="chev">›</span></button>`).join('')}
-    </div></section>`:''}
-    <section class="card"><h3>Avvisi</h3>
-      <textarea id="f-notice" class="input" rows="2" placeholder="Es. Venerdì allenamento spostato alle 17"></textarea>
+  if(U.homeView==='notice') return noticeView();
+  if(U.homeView==='notif') return notifView();
+  const d = new Date(), today = todayISO();
+  const gs = teamGroups(), doneToday = g => curIdx(g)>=0 && doneDate(g, todayIdx(g))===today;
+  if(!U.homeGrp || !gs.some(g=>g.id===U.homeGrp)) U.homeGrp = (gs.find(g=>!doneToday(g)) || gs[0])?.id;
+  const g = gs.find(x=>x.id===U.homeGrp);
+  let groupCard = '<section class="card"><p class="muted">Nessun gruppo. Crealo da Gruppi e atleti.</p></section>';
+  if(g){ const di = todayIdx(g), wk = curIdx(g)>=0, rec = (S.att||{})[attKey(today,g.id)] || {}, n = S.athletes.filter(a=>a.groupId===g.id).length, np = Object.values(rec).filter(attPresent).length, pv = PV(g.week, di);
+    groupCard = `<section class="card">
+      ${gpickHTML(gs, g.id, doneToday)}
+      <div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
+      ${sessDots(g)}
+      <h2>${esc(sessHead(g, di, gDayTitle(g,di)))}</h2>
+      ${wk&&!isOwnG(g)?`<p class="small"><span class="tag">Prova</span> ${esc(pv.t)}</p>`:''}
+      <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">Presenze ${Object.keys(rec).length?np+'/'+n:''}</button>${wk?`<button class="btn ghost" data-a="homeday" data-k="${isOwnG(g)?'o:'+g.id:g.week}:${di}:${g.id}" style="flex:1">Apri l'allenamento</button>`:''}</div>
+      ${sessBtns(g, di)}</section>`; }
+  const nn = (S.notices||[]).length, np2 = S.athletes.filter(a=>a.groupId===PRIV_ID).length;
+  const tool = (a, k, ic, t, sub) => `<button class="item" data-a="${a}" ${k?`data-k="${k}"`:''}><span class="ticon" aria-hidden="true">${ic}</span><span class="grow"><b>${t}</b>${sub?`<br><span class="small muted">${sub}</span>`:''}</span><span class="chev">›</span></button>`;
+  return `<section class="hero hero-s"><span class="eyebrow" style="color:var(--clay)">${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span><h1>Buon lavoro</h1></section>
+    <h2 class="hsec">Oggi in campo</h2>
+    ${groupCard}
+    ${plCard()}
+    <h2 class="hsec">La tua scrivania</h2>
+    <section class="card" style="padding:4px 16px"><div class="list">
+      ${notifTool()}
+      ${tool('homego','notice',IC.chat,'Avvisi', nn?`${nn} ${nn===1?'pubblicato':'pubblicati'} · scrivi un avviso`:'scrivi un avviso ad atleti e genitori')}
+      ${tool('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
+      ${tool('homelib','',IC.plan,'Libreria esercizi', `${P.ex.length+(S.customEx||[]).length} esercizi`)}
+      <button class="item" data-a="staffopen"><span class="ticon" aria-hidden="true">${IC.people}</span><span class="grow"><b>Staff e accessi</b><br><span class="small muted">colleghi, preparatori e gruppi che vedono</span></span><span class="chev">›</span></button><button class="item" data-a="homego" data-k="backup"><span class="ticon" aria-hidden="true">${IC.home}</span><span class="grow"><b>Copia di sicurezza</b><br><span class="small muted">salva o ripristina i dati</span></span><span class="chev">›</span></button>
+      ${tool('cleanopen','',IC.test,'Togli i dati di prova','tornei, schede e profili')}
+    </div></section>`;
+}
+function noticeView(){
+  return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>
+    <h1>Avvisi</h1>
+    <section class="card"><p class="small muted">Gli avvisi compaiono nella Home di atleti e genitori.</p>
+      <textarea id="f-notice" class="input" rows="3" placeholder="Es. Venerdì allenamento spostato alle 17"></textarea>
       <div class="seg" role="group">${[['all','Tutti'],['student','Atleti'],['parent','Genitori']].map(([k,l])=>`<button data-a="nto" data-k="${k}" aria-pressed="${(U.nto||'all')===k}">${l}</button>`).join('')}</div>
-      <button class="btn clay" data-a="noticeadd">Pubblica l'avviso</button>
-      ${(S.notices||[]).length?`<div class="list small">${(S.notices||[]).slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,5).map(n=>`<div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><span>${esc(n.text)}<br><span class="muted">${fdate(n.date)} · ${n.to==='all'?'tutti':n.to==='student'?'atleti':'genitori'}</span></span><button class="chip" data-a="noticedel" data-k="${n.id}" aria-label="Togli avviso">✕</button></div>`).join('')}</div>`:''}</section>
-    <section class="card"><div class="row between"><h3>Tornei</h3><button class="chip" data-a="tab" data-k="tour">Tutti i tornei</button></div>
-      ${up.length?`<div class="tlist">${up.slice(0,3).map(x=>tCard(x,'coach')).join('')}</div>`:'<p class="muted small">Nessun torneo nei prossimi 30 giorni.</p>'}</section>
-    <div class="hgrid">
-      <button class="hbtn" data-a="homego" data-k="priv"><b>Lezioni private</b><span>${S.athletes.filter(a=>a.groupId==='priv').length} allievi</span></button>
-      <button class="hbtn" data-a="homelib"><b>Libreria esercizi</b><span>${P.ex.length+(S.customEx||[]).length} esercizi</span></button>
-      
-      <button class="hbtn" data-a="tab" data-k="mschede"><b>Schede e questionari</b><span>modifica, crea e assegna</span></button><button class="hbtn" data-a="staffopen"><b>Staff e accessi</b><span>colleghi e preparatori</span></button><button class="hbtn" data-a="homego" data-k="backup"><b>Copia di sicurezza</b><span>salva o ripristina i dati</span></button><button class="hbtn" data-a="cleanopen"><b>Togli i dati di prova</b><span>tornei, schede e profili</span></button>
-    </div>`;
+      <button class="btn clay" data-a="noticeadd">Pubblica l'avviso</button></section>
+    ${(S.notices||[]).length?`<section class="card"><h3>Pubblicati</h3><div class="list small">${(S.notices||[]).slice().sort((a,b)=>a.date<b.date?1:-1).map(n=>`<div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><span>${esc(n.text)}<br><span class="muted">${fdate(n.date)} · ${n.to==='all'?'tutti':n.to==='student'?'atleti':'genitori'}</span></span><button class="chip" data-a="noticedel" data-k="${n.id}" aria-label="Togli avviso">✕</button></div>`).join('')}</div></section>`:''}`;
 }
 function backupView(){
   return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>
@@ -2690,7 +2845,7 @@ const ACT = {
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
   logout(){ ACT.clogout(); return; S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
-  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
+  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
   cntmin(){ U.cnt.ok++; U.cnt.tot++; U.cnt.hist=(U.cnt.hist||[]).concat(true); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -2768,6 +2923,19 @@ const ACT = {
   tdsave(){ const T=U.tdEd.map(t=>({k:t.k, l:t.l.trim(), u:(t.u||'').trim(), ...(t.sec?{sec:true}:{})})).filter(t=>t.l); if(!T.length){ toast('Serve almeno una prova'); return; }
     S.ftests=(S.ftests||[]).filter(t=>!t.tdef).concat({id:'tdef', tdef:T}); save(); U.tdEd=null; U.confirm=null; toast('Prove dei test salvate'); window.scrollTo(0,0); },
   answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
+  homegrp(k){ U.homeGrp=k; },
+  mansopen(k){ U.tab='mschede'; U.msMode='resp'; U.mrAth=k; U.maOpen=null; U.homeView=null; window.scrollTo(0,0); },
+  plday(k){ U.plDay=k; },
+  plweek(k){ U.plWeek=(U.plWeek||0)+(+k); const mon=mondayOf(isoAdd(todayISO(),7*U.plWeek)); U.plDay = U.plWeek===0 ? todayISO() : mon; },
+  plformopen(k){ U.plForm=k; },
+  plformclose(){ U.plForm=null; },
+  plopen(k){ U.homeView='priv'; U.privOpen=k; window.scrollTo(0,0); },
+  pladd(k){ const aid = k || document.getElementById('pl-a')?.value, d = document.getElementById('pl-d').value, t = document.getElementById('pl-t').value, m = +document.getElementById('pl-m').value, r = +document.getElementById('pl-r').value;
+    if(!aid || !ath(aid)){ toast('Scegli l’allievo'); return; } if(!d){ toast('Scegli il giorno'); return; } if(!t){ toast('Scegli l’ora'); return; }
+    const pv = privOf(aid); pv.sched = pv.sched || []; const series = r>1 ? uid() : undefined;
+    for(let i=0;i<r;i++) pv.sched.push({id:uid(), date:isoAdd(d,7*i), time:t, dur:m, ...(series?{series}:{})});
+    U.plLastTime=t; U.plLastDur=m; U.plForm=null; U.plDay=d; save(); toast(r>1?`${r} lezioni fissate`:'Lezione fissata'); },
+  pldel(k){ const [aid,id]=k.split(':'); const pv=privOf(aid); pv.sched=(pv.sched||[]).filter(x=>x.id!==id); U.confirm=null; save(); toast('Lezione tolta'); },
   biopen(k){ U.biEd=tplNow(k); U.confirm=null; window.scrollTo(0,0); },
   biclose(){ U.biEd=null; U.confirm=null; window.scrollTo(0,0); },
   biqadd(){ U.biEd.qs.push({k:'x'+uid(), t:'area', l:''}); },
@@ -2909,14 +3077,14 @@ const ACT = {
   lessondel(k){ const [a,l]=k.split(':'); const pv=privOf(a); pv.lessons=pv.lessons.filter(x=>x.id!==l); save(); },
   fseg(k,d){ U.form.ans[k]=d.v; },
   homeback(){ U.homeView=null; U.privOpen=null; window.scrollTo(0,0); }, homego(k){ U.homeView=k; window.scrollTo(0,0); },
-  homeatt(k){ U.homeView='att'; U.attGroup=k; U.attDate=todayISO(); window.scrollTo(0,0); },
+  homeatt(k){ U.homeView='att'; U.attGroup=k; U.attKind=attKindOf(); U.attDate=todayISO(); window.scrollTo(0,0); },
   sessdone(k){ const [gid,di]=k.split(':'), g=grp(gid); if(!g) return; g.sdone=g.sdone||{}; const key=gwk(g), m=g.sdone[key]=g.sdone[key]||{};
     if(m[di]) delete m[di]; else m[di]=todayISO(); save(); toast(m[di]?`${sLabel(g,+di)} fatto`:'Segno tolto'); },
   weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(g.week>=12){ toast('Il programma di 12 settimane è finito'); return; } g.week++; } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d,gid]=k.split(':'); if(gid) U.planGroup=gid; U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },
   homelib(){ U.tab='plan'; U.planMode='lib'; U.libOpen=null; window.scrollTo(0,0); },
-  attset(k,d){ S.att=S.att||{}; const g=grp(U.attGroup)||teamGroups()[0], key=attKey(U.attDate||todayISO(), g.id); const r=S.att[key]=S.att[key]||{}; if(r[k]===d.v) delete r[k]; else r[k]=d.v; save(); },
-  attall(){ S.att=S.att||{}; const g=grp(U.attGroup)||teamGroups()[0], key=attKey(U.attDate||todayISO(), g.id); const r=S.att[key]=S.att[key]||{}; S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ if(!r[a.id]) r[a.id]='p'; }); save(); },
+  attset(k,d){ S.att=S.att||{}; const g=grp(U.attGroup)||teamGroups()[0], key=attKey(U.attDate||todayISO(), g.id, U.attKind??attKindOf()); const r=S.att[key]=S.att[key]||{}; if(r[k]===d.v) delete r[k]; else r[k]=d.v; save(); },
+  attall(k){ S.att=S.att||{}; const g=grp(U.attGroup)||teamGroups()[0], key=attKey(U.attDate||todayISO(), g.id, U.attKind??attKindOf()); const r=S.att[key]=S.att[key]||{}; S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ if(k==='w' || !r[a.id]) r[a.id]=k||'p'; }); save(); toast(k==='w'?'Segnata la pioggia per tutti':'Tutti presenti'); },
   noteadd(k){ const t=document.getElementById('f-note').value.trim(); if(!t) return; S.notes=S.notes||[]; S.notes.push({id:uid(), athleteId:k, date:new Date().toISOString(), text:t}); save(); toast('Nota salvata'); },
   notedel(k){ S.notes=(S.notes||[]).filter(n=>n.id!==k); save(); },
   wfat(k){ U.wellDraft.fat=+k; }, wpain(k){ U.wellDraft.pain = k==='1'; },
