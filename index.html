@@ -1916,6 +1916,34 @@ function allTournaments(){
   Object.entries(S.season||{}).forEach(([y,s])=>Object.entries(s.weeks).forEach(([n,w])=>(w.t||[]).forEach((t,i)=>{ if(t.name){ const [st,en] = tSpan(t,+y,+n); out.push({y:+y, n:+n, i, t, date:st, end:en}); } })));
   return out.sort((a,b)=>a.date<b.date?-1:1);
 }
+/* ---------- who a tournament is for: t.who = {groups:[], aths:[]} (empty = everyone) ---------- */
+const tWho = t => ({all:false, groups:(t.who&&t.who.groups)||[], aths:(t.who&&t.who.aths)||[]});
+const tForAll = t => !t.who;
+const tForAth = (t, a) => tForAll(t) || tWho(t).groups.includes(a.groupId) || tWho(t).aths.includes(a.id) || (t.players||[]).includes(a.id) || (t.requests||[]).includes(a.id);
+function tVisible(t){
+  const r = S.session && S.session.role;
+  if(r==='student' || r==='parent'){ const a = me(); return a ? tForAth(t, a) : true; }
+  const f = U.tFor || 'all'; if(f==='all') return true;
+  const [k, id] = f.split(':');
+  if(k==='g') return tForAll(t) || tWho(t).groups.includes(id) || [...tWho(t).aths, ...(t.players||[]), ...(t.requests||[])].some(x=>ath(x)?.groupId===id);
+  if(k==='a'){ const a = ath(id); return a ? tForAth(t, a) : true; }
+  return true;
+}
+const tWhoLabel = t => tForAll(t) ? 'per tutti' : 'per ' + whoSummary(tWho(t));
+function tForSelect(){
+  const gs = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID)), f = U.tFor || 'all';
+  return `<div class="field"><label for="t-for">Tornei di</label><select id="t-for" class="input" data-c="tfor">
+    <option value="all" ${f==='all'?'selected':''}>Tutti i gruppi e gli atleti</option>
+    <optgroup label="Gruppi">${gs.map(g=>`<option value="g:${g.id}" ${f==='g:'+g.id?'selected':''}>${esc(g.id===PRIV_ID?'Lezioni private':g.name)}</option>`).join('')}</optgroup>
+    ${gs.map(g=>{ const as = S.athletes.filter(a=>a.groupId===g.id); return as.length ? `<optgroup label="Atleti · ${esc(g.id===PRIV_ID?'Lezioni private':g.name)}">${as.map(a=>`<option value="a:${a.id}" ${f==='a:'+a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</optgroup>` : ''; }).join('')}
+  </select></div>`;
+}
+function tWhoCard(who, actG, actA, actAll, editing, actToggle, all){
+  return `<section class="card"><div class="row between"><h3>Per chi</h3>${actToggle?`<button class="chip" data-a="${actToggle}">${editing?'Fatto':'Modifica'}</button>`:''}</div>
+    ${editing ? `<div class="seg" role="group"><button data-a="${actAll}" data-k="all" aria-pressed="${all}">Per tutti</button><button data-a="${actAll}" data-k="sel" aria-pressed="${!all}">Gruppi o atleti</button></div>
+      ${all ? '<p class="small muted">Lo vedono tutti gli atleti e i genitori.</p>' : `<p class="small muted">Scegli gruppi interi o atleti singoli: solo loro lo vedono e possono chiedere l'iscrizione.</p>${whoPicker(who, actG, actA)}${!who.groups.length&&!who.aths.length?'<p class="small" style="color:var(--ko)">Nessuno scelto: per ora non lo vede nessun atleta.</p>':''}`}`
+    : `<p><b>${esc(all ? 'Tutti gli atleti' : (who.groups.length||who.aths.length ? whoSummary(who) : 'Nessuno scelto'))}</b></p>`}</section>`;
+}
 function upcoming(days){ const now = todayISO(), lim = new Date(Date.now()+days*864e5).toISOString().slice(0,10); return allTournaments().filter(x=>x.date>=weekMonday(weekOf(now).year, weekOf(now).n) && x.date<=lim); }
 function deadlines(days){ const now = todayISO(), lim = new Date(Date.now()+days*864e5).toISOString().slice(0,10); return allTournaments().filter(x=>x.t.deadline && x.t.deadline>=now && x.t.deadline<=lim); }
 function tourItem(x, showWeek){
@@ -2038,7 +2066,7 @@ function provaTrend(id){
   return `<p class="small" style="margin:0">Ultima prova: <b>${esc(t)}</b></p><div class="row" style="align-items:center;gap:10px"><b style="font-size:28px;font-family:var(--fd,inherit)">${resVal(last)}</b>${delta}</div>`;
 }
 function tourHomeCard(id, forParent){
-  const all = allTournaments(), mon = thisMonday();
+  const all = allTournaments().filter(x=>tVisible(x.t)), mon = thisMonday();
   const mineNext = all.filter(x=>x.date>=mon && (x.t.players||[]).includes(id));
   const lastPlayed = all.filter(x=>x.date<mon && (x.t.players||[]).includes(id) && hasRes((x.t.results||{})[id])).pop();
   const open = all.filter(x=>x.date>=mon && !(x.t.players||[]).includes(id) && !(x.t.requests||[]).includes(id) && !(dlState(x.t)&&dlState(x.t)[0]==='closed'));
@@ -2418,9 +2446,9 @@ function mindHome(){
 }
 function staffTours(){
   if(U.tOpen && tByKey(U.tOpen)) return tourDetail(tByKey(U.tOpen));
-  const all = allTournaments(), mon = thisMonday(), next = all.filter(x=>x.date>=mon), past = all.filter(x=>x.date<mon).reverse(), mode = U.sMode || 'next';
+  const all = allTournaments().filter(x=>tVisible(x.t)), mon = thisMonday(), next = all.filter(x=>x.date>=mon), past = all.filter(x=>x.date<mon).reverse(), mode = U.sMode || 'next';
   const body = mode==='cal' ? seasonStrip(true) : mode==='past' ? (past.length?monthList(past,'coach'):'<p class="muted">Nessun torneo giocato.</p>') : (next.length?monthList(next,'coach'):'<section class="card"><p class="muted">Nessun torneo in programma.</p></section>');
-  return `<h1>Tornei</h1><div class="seg" role="group"><button data-a="smode" data-k="next" aria-pressed="${mode==='next'}">Prossimi</button><button data-a="smode" data-k="past" aria-pressed="${mode==='past'}">Giocati</button><button data-a="smode" data-k="cal" aria-pressed="${mode==='cal'}">Stagione</button></div>${body}`;
+  return `<h1>Tornei</h1>${tForSelect()}<div class="seg" role="group"><button data-a="smode" data-k="next" aria-pressed="${mode==='next'}">Prossimi</button><button data-a="smode" data-k="past" aria-pressed="${mode==='past'}">Giocati</button><button data-a="smode" data-k="cal" aria-pressed="${mode==='cal'}">Stagione</button></div>${body}`;
 }
 function staffNotesCard(id){
   const role = S.session.role; S.snotes = S.snotes || [];
@@ -2704,6 +2732,7 @@ function tCard(x, mode){
   if(isAlt(x)) meta.push('alternativa');
   let right = '';
   if(!me_){
+    if(!tForAll(t)) meta.push(esc(tWhoLabel(t)));
     const np = (t.players||[]).length, rq = (t.requests||[]).length;
     if(started){ const nr = (t.players||[]).filter(pid=>hasRes((t.results||{})[pid])).length; meta.push(np ? `${nr}/${np} risultati` : 'nessun iscritto'); }
     else { meta.push(np ? `${np} ${np===1?'iscritto':'iscritti'}` : 'nessun iscritto'); if(rq) meta.push(`<b style="color:var(--clay)">${rq} ${rq===1?'richiesta':'richieste'}</b>`); }
@@ -2756,7 +2785,7 @@ function toursView(){
   if(U.tNew) return tourNewView();
   if(U.tOpen && tByKey(U.tOpen)) return tourDetail(tByKey(U.tOpen));
   const mode = U.tMode || 'next', all = allTournaments(), mon = thisMonday();
-  const next = all.filter(x=>x.date>=mon), past = all.filter(x=>x.date<mon).reverse();
+  const vis = all.filter(x=>tVisible(x.t)), next = vis.filter(x=>x.date>=mon), past = vis.filter(x=>x.date<mon).reverse();
   const reqs = all.filter(x=>(x.t.requests||[]).length).length;
   let body = '';
   if(mode==='next') body = next.length ? monthList(next,'coach') : '<section class="card"><p class="muted">Nessun torneo in programma. Aggiungine uno con "+ Nuovo torneo".</p></section>';
@@ -2764,6 +2793,7 @@ function toursView(){
   else body = seasonStrip();
   return `<div class="row between"><h1>Tornei</h1><button class="btn clay" data-a="tnew">+ Nuovo torneo</button></div>
     ${reqs?`<div class="note"><b>${reqs} ${reqs===1?'torneo con richieste':'tornei con richieste'} di iscrizione</b> da atleti o genitori.</div>`:''}
+    ${tForSelect()}
     ${searchCard()}
     <div class="seg" role="group"><button data-a="tmode" data-k="next" aria-pressed="${mode==='next'}">Prossimi</button><button data-a="tmode" data-k="past" aria-pressed="${mode==='past'}">Giocati</button><button data-a="tmode" data-k="cal" aria-pressed="${mode==='cal'}">Stagione</button></div>
     ${body}`;
@@ -2793,8 +2823,8 @@ function seasonStrip(ro){
   const cell = (t,n,i) => `<button class="wc full" data-a="openT" data-k="${y}:${n}:${i}" style="--kc:${KCOL[t.kind]||'var(--line)'}">${myid&&(t.players||[]).includes(myid)?'<b style="color:var(--ok)">✓</b> ':''}${dd(t,n)}${esc(t.name)}</button>`;
   const empty = (n,alt,ty) => ro ? `<span class="wc none">${alt?'–':(ty?ty[1]:'–')}</span>` : `<button class="wc add" data-a="tnewat" data-k="${y}:${n}:${alt?1:0}" aria-label="Aggiungi ${alt?'alternativa':'torneo'}">${alt?'+':(ty?`<span>${ty[1]}</span> +`:'+')}</button>`;
   const weekRows = n => { const w = s.weeks[n]||{}, ty = w.type?wtype(w.type):null, isCur = y===cur.year&&n===cur.n, T = w.t||[], d0 = new Date(weekMonday(y,n)+'T12:00');
-    const first = T[0]&&T[0].name ? cell(T[0],n,0) : empty(n,false,ty);
-    const alts = T.map((t,i)=>({t,i})).filter(o=>o.i>0 && o.t.name && !o.t.solo), solos = T.map((t,i)=>({t,i})).filter(o=>o.i>0 && o.t.name && o.t.solo);
+    const first = T[0]&&T[0].name&&tVisible(T[0]) ? cell(T[0],n,0) : empty(n,false,ty);
+    const alts = T.map((t,i)=>({t,i})).filter(o=>o.i>0 && o.t.name && !o.t.solo && tVisible(o.t)), solos = T.map((t,i)=>({t,i})).filter(o=>o.i>0 && o.t.name && o.t.solo && tVisible(o.t));
     const alt = alts.length ? alts.map(o=>cell(o.t,n,o.i)).join('') : empty(n,true);
     const sq = `<span class="wd" style="background:${ty?ty[2]:'var(--line)'};color:${ty?'#fff':'var(--muted)'}">${d0.getDate()}</span>`;
     return `<div class="wk3 ${isCur?'cur':''}">${ro?sq:`<button class="wdb" data-a="openweekT" data-k="${y}:${n}" aria-label="Settimana del ${d0.getDate()}: tipo e note">${sq}</button>`}<div class="wcol">${first}</div><div class="wcol">${alt}</div></div>`
@@ -2807,6 +2837,7 @@ function seasonStrip(ro){
 }
 function tourNewView(){
   const N = U.tNew;
+  if(!N.who){ const f = U.tFor || 'all', [k,id] = f.split(':'); N.who = {all:false, sel:f!=='all', groups:k==='g'?[id]:[], aths:k==='a'?[id]:[]}; }
   return `<button class="btn ghost" data-a="tnewclose" style="align-self:flex-start">‹ Tornei</button>
     ${searchCard()}
     <section class="card paste"><h3>Inserimento veloce</h3>
@@ -2820,8 +2851,9 @@ function tourNewView(){
       <div class="field"><label>Priorità</label><div class="seg" role="group"><button data-a="tnewp" data-k="0" aria-pressed="${N.alt!==true}">Prima scelta</button><button data-a="tnewp" data-k="1" aria-pressed="${N.alt===true}">Alternativa</button></div></div>
       <div class="field"><label>Tipo di torneo</label><div class="seg" role="group">${TKIND.map(([k,l])=>`<button data-a="tnewk" data-k="${k}" aria-pressed="${N.kind===k}">${l}</button>`).join('')}</div></div>
       <div class="field"><label for="tn-dl">Scadenza iscrizioni</label><input id="tn-dl" class="input" type="date" data-c="tnew" data-k="deadline" value="${esc(N.deadline)}"></div>
-      <div class="field"><label for="tn-info">Info</label><input id="tn-info" class="input" data-c="tnew" data-k="info" value="${esc(N.info)}" placeholder="Sede, sito, quote, alloggio"></div>
-      <button class="btn clay block" data-a="tnewsave">Aggiungi il torneo</button></section>`;
+      <div class="field"><label for="tn-info">Info</label><input id="tn-info" class="input" data-c="tnew" data-k="info" value="${esc(N.info)}" placeholder="Sede, sito, quote, alloggio"></div></section>
+    ${tWhoCard(N.who, 'tnwg', 'tnwa', 'tnwall', true, '', !N.who.sel)}
+    <button class="btn clay block" data-a="tnewsave">Aggiungi il torneo</button>`;
 }
 function tourDetail(x){
   const t = x.t, role = S.session.role, k = TKIND.find(z=>z[0]===t.kind), dl = dlState(t), past = x.date < thisMonday();
@@ -2854,6 +2886,7 @@ function tourDetail(x){
       <div class="row"><div class="field" style="flex:1;min-width:130px"><label for="tf-st">Dal</label><input id="tf-st" class="input" type="date" data-c="tdates" value="${x.date}"></div><div class="field" style="flex:1;min-width:130px"><label for="tf-en">Al</label><input id="tf-en" class="input" type="date" data-c="tdates" value="${x.end}"></div></div>
       <div class="row"><div class="field" style="flex:1;min-width:140px"><label for="tf-dl">Scadenza iscrizioni</label><input id="tf-dl" class="input" type="date" data-c="tf" data-k="deadline" value="${esc(t.deadline||'')}"></div>
       <div class="field" style="flex:2;min-width:180px"><label for="tf-info">Info</label><input id="tf-info" class="input" data-c="tf" data-k="info" value="${esc(t.info||'')}" placeholder="Sede, sito, quote"></div></div></section>
+    ${tWhoCard(tWho(t), 'twg', 'twa', 'twall', !!U.tEdWho, 'tedwho', tForAll(t))}
     ${rq.length?`<section class="card" style="border-color:var(--clay)"><h3>Richieste di iscrizione</h3><div class="list">${rq.map(id=>`<div class="row between"><b>${esc(ath(id)?.name)}</b><span class="row"><button class="btn" data-a="treqok" data-k="${id}">Conferma</button><button class="btn ghost" data-a="treqno" data-k="${id}">No</button></span></div>`).join('')}</div></section>`:''}
     <section class="card"><div class="row between"><h3>Iscritti (${(t.players||[]).length})</h3><button class="chip" data-a="tedplayers">${U.tEdPlayers?'Fatto':'Modifica'}</button></div>
       ${U.tEdPlayers?`<div class="chips">${S.athletes.map(a=>`<button class="chip" data-a="tfplayer" data-k="${a.id}" aria-pressed="${(t.players||[]).includes(a.id)}">${esc(a.name)}</button>`).join('')}</div>`
@@ -2863,7 +2896,7 @@ function tourDetail(x){
 }
 function athleteTours(){
   if(U.tOpen && tByKey(U.tOpen)) return tourDetail(tByKey(U.tOpen));
-  const id = me().id, all = allTournaments(), mon = thisMonday();
+  const id = me().id, all = allTournaments().filter(x=>tVisible(x.t)), mon = thisMonday();
   const next = all.filter(x=>x.date>=mon), mine = all.filter(x=>x.date<mon && (x.t.players||[]).includes(id)).reverse();
   const todo = S.session.role==='student' ? all.filter(x=>x.date<=todayISO() && (x.t.players||[]).includes(id) && !hasRes((x.t.results||{})[id])) : [];
   const mode = U.sMode || 'next';
@@ -3018,6 +3051,13 @@ const ACT = {
     S.ftests=(S.ftests||[]).filter(t=>!t.tdef).concat({id:'tdef', tdef:T}); save(); U.tdEd=null; U.confirm=null; toast('Prove dei test salvate'); window.scrollTo(0,0); },
   answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
   homegrp(k){ U.homeGrp=k; },
+  tnwall(k){ const w=U.tNew.who; w.sel = k!=='all'; if(!w.sel){ w.groups=[]; w.aths=[]; } },
+  tnwg(k){ const w=U.tNew.who, i=w.groups.indexOf(k); if(i>=0) w.groups.splice(i,1); else { w.groups.push(k); w.aths=w.aths.filter(id=>ath(id)?.groupId!==k); } },
+  tnwa(k){ const w=U.tNew.who, i=w.aths.indexOf(k); if(i>=0) w.aths.splice(i,1); else w.aths.push(k); },
+  tedwho(){ U.tEdWho=!U.tEdWho; },
+  twall(k){ const t=tByKey(U.tOpen).t; if(k==='all') delete t.who; else if(!t.who) t.who={groups:[], aths:[]}; save(); },
+  twg(k){ const t=tByKey(U.tOpen).t, w=t.who=t.who||{groups:[],aths:[]}; w.groups=w.groups||[]; w.aths=w.aths||[]; const i=w.groups.indexOf(k); if(i>=0) w.groups.splice(i,1); else { w.groups.push(k); w.aths=w.aths.filter(id=>ath(id)?.groupId!==k); } save(); },
+  twa(k){ const t=tByKey(U.tOpen).t, w=t.who=t.who||{groups:[],aths:[]}; w.groups=w.groups||[]; w.aths=w.aths||[]; const i=w.aths.indexOf(k); if(i>=0) w.aths.splice(i,1); else w.aths.push(k); save(); },
   mcnew(){ S.mforms=S.mforms||[]; const c={id:uid(), mcycle:true, title:'', goal:'', who:{groups:[], aths:[]}, meets:[{id:uid(), date:'', time:'', title:'', act:'', home:''}], date:new Date().toISOString()}; S.mforms.push(c); save(); U.mcOpen=c.id; window.scrollTo(0,0); },
   mcopen(k){ U.mcOpen=k; U.confirm=null; window.scrollTo(0,0); },
   mcclose(){ U.mcOpen=null; U.confirm=null; window.scrollTo(0,0); },
@@ -3226,12 +3266,12 @@ const ACT = {
   bkcopy(){ const txt=JSON.stringify(Object.assign({}, S, {session:null, live:null})); try{ navigator.clipboard.writeText(txt).then(()=>toast('Dati copiati'), ()=>{ U.restoreText=txt; render(); toast('Seleziona il testo e copialo'); }); }catch(e){ U.restoreText=txt; toast('Seleziona il testo e copialo'); } },
   askrestore(){ if(!(U.restoreText||'').trim()){ toast('Incolla prima i dati'); return; } U.confirm='restore'; },
   bkrestore(){ try{ const d=JSON.parse(U.restoreText); if(!d.athletes||!d.groups) throw 0; const sess=S.session; S=d; S.session=sess; U.restoreText=''; U.confirm=null; save(); toast('Dati ripristinati'); }catch(e){ toast('Questi dati non sono validi'); U.confirm=null; } },
-  openT(k){ if(isStaff(S.session.role)) U.tab='tour'; else { U.tab='stours'; U.form=null; } U.tOpen=k; U.tEdPlayers=false; U.confirm=null; window.scrollTo(0,0); }, closeT(){ U.tOpen=null; U.tEdPlayers=false; },
+  openT(k){ if(isStaff(S.session.role)) U.tab='tour'; else { U.tab='stours'; U.form=null; } U.tOpen=k; U.tEdPlayers=false; U.tEdWho=false; U.confirm=null; window.scrollTo(0,0); }, closeT(){ U.tOpen=null; U.tEdPlayers=false; },
   tmode(k){ U.tMode=k; },
   tnew(){ U.tPaste=''; U.tParsed=''; U.tNew={name:'', date:'', alt:false, kind:'', deadline:'', info:''}; window.scrollTo(0,0); }, tnewclose(){ U.tNew=null; },
   tnewp(k){ U.tNew.alt = k==='1'; }, tnewk(k){ U.tNew.kind = U.tNew.kind===k?'':k; },
   tnewsave(){ const N=U.tNew; if(!N.name.trim()){ toast('Scrivi il nome del torneo'); return; } if(!N.date){ toast('Scegli il primo giorno del torneo'); return; }
-    const wo=weekOf(N.date), w=weekData(wo.year, wo.n); const t={name:N.name.trim(), kind:N.kind, deadline:N.deadline, info:N.info.trim(), players:[], requests:[], results:{}};
+    const wo=weekOf(N.date), w=weekData(wo.year, wo.n); const t={name:N.name.trim(), kind:N.kind, deadline:N.deadline, info:N.info.trim(), players:[], requests:[], results:{}}; if(N.who && N.who.sel) t.who={groups:[...N.who.groups], aths:[...N.who.aths]};
     let i; if(!N.alt){ if(w.t[0]&&w.t[0].name){ w.t.splice(0,0,t); } else { w.t[0]=t; } i=0; if(!w.type) w.type='comp'; } else { if(!w.t[0]) w.t[0]={name:'',kind:'',deadline:'',info:'',players:[],results:{}}; w.t.push(t); i=w.t.length-1; }
     const mon=weekMonday(wo.year,wo.n); if(N.date!==mon || (N.end && N.end!==addDays(mon,6))){ t.start=N.date; if(N.end) t.end = N.end<N.date?N.date:N.end; }
     save(); U.tNew=null; U.tOpen=`${wo.year}:${wo.n}:${i}`; toast('Torneo aggiunto'); window.scrollTo(0,0); },
@@ -3346,6 +3386,7 @@ document.addEventListener('change', e=>{
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
   if(c==='mmf' && (t.type==='date'||t.type==='time')){ const [cid,mid,f]=t.dataset.k.split(':'); const m=(mCycle(cid)?.meets||[]).find(x=>x.id===mid); if(m){ m[f]=t.value; save(); render(); } return; }
   if(c==='mmform'){ const [cid,mid]=t.dataset.k.split(':'); const m=(mCycle(cid)?.meets||[]).find(x=>x.id===mid); if(m){ m.formId=t.value||undefined; save(); render(); } return; }
+  if(c==='tfor'){ U.tFor=t.value; U.tOpen=null; render(); return; }
   if(c==='bty' && U.biEd){ const [i,j]=t.dataset.k.split(':').map(Number); U.biEd.tq[i].o[j].ty=t.value; return; }
   if(c==='omove'){ const d=ownSync(grp(U.planGroup), ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]); d.exPh[+t.dataset.k]=t.value; save(); render(); return; }
   if(c==='plangrp'){ U.planGroup=t.value; U.weekOpen=null; U.dayOpen=null; U.oWeek=null; U.oDay=null; render(); return; }
