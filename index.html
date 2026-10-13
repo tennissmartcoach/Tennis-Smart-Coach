@@ -658,7 +658,9 @@ function mergeStats(list){
 /* ---------- ui state ---------- */
 const U = { step:'role', code:'', group:null, athlete:null, pin:'', err:'', tab:null, weekOpen:null, day:null, cnt:{ok:0,tot:0}, resGroup:null, resWeek:null, athleteOpen:null, matchOpen:null, setup:null, sel:{ch:undefined, ex:null}, confirm:null, newGroup:false };
 const me = () => S.athletes.find(a=>a.id===S.session?.athleteId);
-const grp = id => S.groups.find(g=>g.id===id);
+const grp = id => (typeof id==='string' && id.startsWith('pp_')) ? ppGroup(id.slice(3)) : S.groups.find(g=>g.id===id);
+/* private pupil programme: a pseudo-group kept in priv[aid].pg, weeks in priv[aid].own */
+function ppGroup(aid){ const a = ath(aid); if(!a) return undefined; const pv = privOf(aid); if(!pv.pg) return undefined; pv.pg.name = a.name; return pv.pg; }
 const ath = id => S.athletes.find(a=>a.id===id);
 const isCoach = () => S.session?.role==='coach';
 const isStaff = r => r==='coach' || r==='fit' || r==='mind';
@@ -669,7 +671,7 @@ const sDone = g => ((g && g.sdone) || {})[gwk(g)] || {};
 const doneDate = (g,di) => sDone(g)[di] || '';
 /* how many sessions a week the group trains: with the 12-week programme fewer sessions keep the first and the last (the comparison of the prova) */
 const PICK12 = {2:[0,4], 3:[0,2,4], 4:[0,1,2,4], 5:[0,1,2,3,4]};
-const nS = g => Math.min(5, Math.max(2, (g && g.freq) || 5));
+const nS = g => g && g.pp ? Math.min(5, Math.max(1, g.freq || 1)) : Math.min(5, Math.max(2, (g && g.freq) || 5));
 const pickOf = g => isOwnG(g) ? [0,1,2,3,4].slice(0, nS(g)) : PICK12[nS(g)];
 const sNo = (g,di) => pickOf(g).indexOf(di) + 1;
 const sLabel = (g,di) => 'Allenamento ' + (sNo(g,di) || di+1);
@@ -1027,8 +1029,9 @@ function matchItem(m){
 /* ---------- own programme per group ---------- */
 const isOwnG = g => !!g && g.prog==='own';
 const blankDay = () => ({title:'', note:'', ex:[]});
+const dayLab = (g,i) => g && g.pp ? 'Lezione '+(i+1) : DAYS[i];
 const blankWeek = () => ({name:'', days:[0,1,2,3,4].map(blankDay)});
-function ownOf(gid){ S.own = S.own || {}; const o = S.own[gid] = S.own[gid] || {cur:1, weeks:[]}; if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length) o.cur = o.weeks.length; return o; }
+function ownOf(gid){ let o; if(typeof gid==='string' && gid.startsWith('pp_')){ const pv = privOf(gid.slice(3)); o = pv.own = pv.own || {cur:1, weeks:[]}; } else { S.own = S.own || {}; o = S.own[gid] = S.own[gid] || {cur:1, weeks:[]}; } if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length) o.cur = o.weeks.length; return o; }
 const gWeekNo = g => isOwnG(g) ? ownOf(g.id).cur : g.week;
 const gWeekName = g => { if(!isOwnG(g)) return W(g.week).name; const o = ownOf(g.id), w = o.weeks[o.cur-1]; return w.name || `Settimana ${o.cur}`; };
 const gDayTitle = (g,di) => { if(!isOwnG(g)) return P.prog[g.week][di].title; const o = ownOf(g.id), d = o.weeks[o.cur-1].days[di]; return d.title || 'Seduta da definire'; };
@@ -1064,7 +1067,15 @@ function ownTodayCard(g, light){
 function ownWeekCard(g){
   CUR_LG = g; const o = ownOf(g.id), w = o.weeks[o.cur-1];
   return `<section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${o.cur}</span><h2>${esc(w.name||'Settimana '+o.cur)}</h2></section>
-    ${w.days.slice(0, nS(g)).map((d,i)=>{ const exs = ownItems(g, d).map(x=>x.e); return `<section class="card"><span class="eyebrow">${DAYS[i]}</span><h3>${esc(d.title||'Seduta da definire')}</h3>${d.note?`<p class="small">${esc(d.note)}</p>`:''}${exs.length?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>`; }).join('')}`;
+    ${w.days.slice(0, nS(g)).map((d,i)=>{ const exs = ownItems(g, d).map(x=>x.e); return `<section class="card"><span class="eyebrow">${dayLab(g,i)}</span><h3>${esc(d.title||'Seduta da definire')}</h3>${d.note?`<p class="small">${esc(d.note)}</p>`:''}${exs.length?`<div class="list small">${exs.map(e=>`<div>${e.custom?esc(e.t):e.t}</div>`).join('')}</div>`:''}</section>`; }).join('')}`;
+}
+function ppBar(g){
+  const aid = g.id.slice(3);
+  return `<button class="btn ghost" data-a="ppback" data-k="${aid}" style="align-self:flex-start">‹ ${esc(g.name)}</button>
+    <section class="card"><span class="eyebrow">Lezioni private · ${esc(g.name)}</span>
+      <div class="field"><label>Lezioni a settimana</label><div class="seg" role="group">${[1,2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
+      <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">Imposta</button></div>
+      <p class="small muted">Costruisci settimane e lezioni con gli esercizi della libreria. L'allievo e i genitori vedono la settimana in corso.</p></section>`;
 }
 function planGroupBar(g){
   const tg = teamGroups();
@@ -1080,7 +1091,7 @@ function ownPlanView(g){
   if(U.oWeek && o.weeks[U.oWeek-1] && U.oDay!==null && U.oDay!==undefined){
     CUR_LG = g; const w = o.weeks[U.oWeek-1], d = w.days[U.oDay], exs = d.ex.map(exById);
     return `<button class="btn ghost" data-a="oday" data-k="" style="align-self:flex-start">‹ Settimana ${U.oWeek}</button>
-      <section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${U.oWeek} · ${DAYS[U.oDay]}</span>
+      <section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${U.oWeek} · ${dayLab(g,U.oDay)}</span>
         ${U.oWeek===o.cur && S.session.role==='coach' ? (doneDate(g,U.oDay)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">✓ Fatto ${fdate(doneDate(g,U.oDay))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">Segna come fatto</button>`) : ''}
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
@@ -1095,11 +1106,11 @@ function ownPlanView(g){
       <section class="card"><span class="eyebrow">Settimana ${n}${o.cur===n?' · in corso':''}</span>
         <div class="field"><label for="ow-n">Nome della settimana</label><input id="ow-n" class="input inbig" data-c="owname" value="${esc(w.name)}" placeholder="Es. Costruzione dal fondo"></div>
         ${o.cur===n?'<span class="tag teal" style="align-self:flex-start">Settimana in corso per gli atleti</span>':`<button class="btn" data-a="owcur" style="align-self:flex-start">Imposta come settimana in corso</button>`}</section>
-      <section class="card"><h3>Gli allenamenti (${nS(g)} a settimana)</h3><div class="list">${w.days.slice(0, nS(g)).map((d,i)=>`<button class="item" data-a="oday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span><br><b style="font-size:17px">${esc(d.title||'Da definire')}</b><br><span class="small muted">${d.ex.length} esercizi</span></span><span class="chev">›</span></button>`).join('')}</div></section>
+      <section class="card"><h3>${g.pp?'Le lezioni':'Gli allenamenti'} (${nS(g)} a settimana)</h3><div class="list">${w.days.slice(0, nS(g)).map((d,i)=>`<button class="item" data-a="oday" data-k="${i}"><span class="grow"><span class="eyebrow">${dayLab(g,i)}</span><br><b style="font-size:17px">${esc(d.title||'Da definire')}</b><br><span class="small muted">${d.ex.length} esercizi</span></span><span class="chev">›</span></button>`).join('')}</div></section>
       <div class="row"><button class="btn ghost" data-a="owcopy">Duplica questa settimana</button>${o.weeks.length>1?(U.confirm==='ow'?`<button class="btn danger" data-a="owdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button>`:`<button class="btn danger" data-a="askdel" data-k="ow">Elimina settimana</button>`):''}</div>`;
   }
   return `<h1>Programma di ${esc(g.name)}</h1>
-    <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="oweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.slice(0,nS(g)).filter(d=>d.title||d.ex.length).length} di ${nS(g)} allenamenti preparati</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
+    <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="oweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.slice(0,nS(g)).filter(d=>d.title||d.ex.length).length} di ${nS(g)} ${g.pp?'lezioni':'allenamenti'} preparati</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="owadd">+ Aggiungi settimana</button>`;
 }
 /* coach: programme */
@@ -1110,6 +1121,7 @@ function planView(){
   const tg = teamGroups(); if(!U.planGroup || !grp(U.planGroup) || U.planGroup===PRIV_ID) U.planGroup = tg[0]?.id; const pg = grp(U.planGroup);
   const top = `<div class="seg" role="group" aria-label="Sezione"><button data-a="planmode" data-k="weeks" aria-pressed="${U.planMode!=='lib'}">Programma</button><button data-a="planmode" data-k="lib" aria-pressed="${U.planMode==='lib'}">Libreria esercizi</button></div>`;
   if(U.planMode==='lib') return (U.pick?'':top) + libraryView();
+  if(pg && pg.pp) return (U.oWeek?'':ppBar(pg)) + ownPlanView(pg);
   if(isOwnG(pg)) return (U.oWeek?'':top + planGroupBar(pg)) + ownPlanView(pg);
   if(U.weekOpen && U.dayOpen!==null && U.dayOpen!==undefined) return dayView(U.weekOpen, U.dayOpen);
   if(U.weekOpen){
@@ -1772,13 +1784,23 @@ function goalsHtml(pv, edit, aid){
   return PAREAS.map(([k,l])=>{ const gs = pv.goals.filter(g=>g.area===k); if(!gs.length) return ''; return `<div class="field"><span class="tag pri" style="align-self:flex-start">${l}</span>${gs.map(g=>`<div class="goal ${g.st}"><p>${esc(g.text)}</p>
     ${edit?`<div class="seg" role="group">${GOAL_ST.map(([s,lab])=>`<button data-a="goalst" data-k="${aid}:${g.id}" data-v="${s}" aria-pressed="${g.st===s}">${lab}</button>`).join('')}</div> <button class="chip" data-a="goaldel" data-k="${aid}:${g.id}" style="align-self:flex-start">Togli</button>`:`<span class="tag ${g.st==='done'?'teal':g.st==='doing'?'':'pri'}">${GOAL_ST.find(x=>x[0]===g.st)[1]}</span>`}</div>`).join('')}</div>`; }).join('');
 }
+function ppProgCard(id){
+  const pv = privOf(id), g = ppGroup(id);
+  if(!g) return `<section class="card"><h3>Programma</h3><p class="small muted">Un programma a settimane, come quello dei gruppi: lezioni con titolo, obiettivo ed esercizi della libreria nelle fasi della lezione.</p><button class="btn clay" data-a="ppcreate" data-k="${id}" style="align-self:flex-start">Crea il programma</button></section>`;
+  const o = ownOf(g.id), w = o.weeks[o.cur-1];
+  return `<section class="card"><div class="row between"><h3>Programma</h3><span class="tag pri">${o.weeks.length} ${o.weeks.length===1?'settimana':'settimane'}</span></div>
+    <p class="small">In corso: <b>settimana ${o.cur}${w.name?' · '+esc(w.name):''}</b> · ${nS(g)} ${nS(g)===1?'lezione':'lezioni'} a settimana</p>
+    <div class="list small">${w.days.slice(0, nS(g)).map((d,i)=>`<div>Lezione ${i+1}: <b>${esc(d.title||'da definire')}</b>${d.ex.length?` <span class="muted">· ${d.ex.length} esercizi</span>`:''}</div>`).join('')}</div>
+    <button class="btn" data-a="ppopen" data-k="${id}" style="align-self:flex-start">Apri il programma</button></section>`;
+}
 function privDetail(id){
   const a = ath(id), pv = privOf(id);
   return `<button class="btn ghost" data-a="privclose" style="align-self:flex-start">‹ Lezioni private</button>
     <section class="card"><span class="eyebrow">Lezioni private</span><h1>${esc(a.name)}</h1>
-      <div class="field"><label for="pp-title">Programma</label><input id="pp-title" class="input" data-c="pp" data-k="title" value="${esc(pv.prog.title)}" placeholder="Es. Migliorare il servizio e la transizione a rete"></div>
+      <div class="field"><label for="pp-title">Obiettivo del percorso</label><textarea id="pp-title" class="input" rows="3" data-c="pp" data-k="title" placeholder="Es. Migliorare il servizio e la transizione a rete, per arrivare pronto ai tornei di primavera">${esc(pv.prog.title)}</textarea></div>
       <div class="field"><label for="pp-freq">Frequenza e periodo</label><input id="pp-freq" class="input" data-c="pp" data-k="freq" value="${esc(pv.prog.freq)}" placeholder="Es. 1 ora a settimana, ottobre–dicembre"></div>
-      <button class="btn ghost" data-a="ppsave" data-k="${id}">Salva programma</button></section>
+      <button class="btn ghost" data-a="ppsave" data-k="${id}">Salva</button></section>
+    ${ppProgCard(id)}
     <section class="card"><h3>Obiettivi</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted">Nessun obiettivo. Aggiungine uno qui sotto.</p>'}
       <div class="field"><label>Nuovo obiettivo</label><div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
       <div class="row"><input id="f-goal" class="input" placeholder="Es. Seconda di servizio carica, 7 su 10 dentro" style="flex:1;min-width:0"><button class="btn" data-a="goaladd" data-k="${id}">Aggiungi</button></div>${U.goalPaste===id ? `<div class="field"><label for="f-goals">Incolla gli obiettivi, uno per riga</label><textarea id="f-goals" class="input" rows="6" placeholder="Seconda carica, 7 su 10 dentro&#10;Tattica: aprire il campo con il dritto incrociato&#10;Mentale: routine dopo l'errore"></textarea><p class="small muted">Se una riga inizia con Tecnica:, Tattica:, Mentale: o Fisico: va in quell'area, altrimenti nell'area scelta sopra.</p><div class="row"><button class="btn" data-a="goalpaste" data-k="${id}" style="flex:1">Aggiungi tutti</button><button class="btn ghost" data-a="goalpastetoggle" data-k="${id}">Annulla</button></div></div>` : `<button class="chip" data-a="goalpastetoggle" data-k="${id}" style="align-self:flex-start">Incolla più obiettivi insieme</button>`}</div></section>
@@ -1795,8 +1817,10 @@ function privDetail(id){
 }
 function privStudentView(){
   const a = me(), pv = privOf(a.id), last = pv.lessons[pv.lessons.length-1];
-  return `<section class="card"><span class="eyebrow">Lezioni private</span><h1>Il mio programma</h1>
-      ${pv.prog.title?`<p style="font-weight:700">${esc(pv.prog.title)}</p>`:''}${pv.prog.freq?`<p class="small muted">${esc(pv.prog.freq)}</p>`:''}</section>
+  const ppg = ppGroup(a.id);
+  return `<section class="card"><span class="eyebrow">Lezioni private</span><h1>Il mio percorso</h1>
+      ${pv.prog.title?`<p><span class="muted small">Obiettivo</span><br><b>${esc(pv.prog.title)}</b></p>`:''}${pv.prog.freq?`<p class="small muted">${esc(pv.prog.freq)}</p>`:''}</section>
+    ${ppg ? ownWeekCard(ppg) : ''}
     ${plPupilCard(a.id)}
     <section class="card"><h3>I miei obiettivi</h3>${pv.goals.length?goalsHtml(pv,false,a.id):'<p class="muted">Il maestro non ha ancora inserito gli obiettivi.</p>'}</section>
     ${last?`<section class="card"><h3>Ultima lezione · ${new Date(last.date).toLocaleDateString('it-IT',{day:'numeric',month:'long'})}</h3><p>${esc(last.what)}</p>${last.next?`<p class="small"><b>Per la prossima volta:</b> ${esc(last.next)}</p>`:''}</section>`:''}
@@ -2984,7 +3008,7 @@ const ACT = {
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
   logout(){ ACT.clogout(); return; S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
-  tab(k){ U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
+  tab(k){ if(k==='plan' && String(U.planGroup||'').startsWith('pp_')){ U.planGroup=null; U.oWeek=null; U.oDay=null; } U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
   cntmin(){ U.cnt.ok++; U.cnt.tot++; U.cnt.hist=(U.cnt.hist||[]).concat(true); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -3063,6 +3087,9 @@ const ACT = {
     S.ftests=(S.ftests||[]).filter(t=>!t.tdef).concat({id:'tdef', tdef:T}); save(); U.tdEd=null; U.confirm=null; toast('Prove dei test salvate'); window.scrollTo(0,0); },
   answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
   homegrp(k){ U.homeGrp=k; },
+  ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
+  ppopen(k){ U.tab='plan'; U.planMode='weeks'; U.planGroup='pp_'+k; U.oWeek=null; U.oDay=null; U.pick=null; window.scrollTo(0,0); },
+  ppback(k){ U.planGroup=null; U.oWeek=null; U.oDay=null; if(S.session.role==='coach'){ U.tab='home'; U.homeView='priv'; U.privOpen=k; } window.scrollTo(0,0); },
   tnwall(k){ const w=U.tNew.who; w.sel = k!=='all'; if(!w.sel){ w.groups=[]; w.aths=[]; } },
   tnwg(k){ const w=U.tNew.who, i=w.groups.indexOf(k); if(i>=0) w.groups.splice(i,1); else { w.groups.push(k); w.aths=w.aths.filter(id=>ath(id)?.groupId!==k); } },
   tnwa(k){ const w=U.tNew.who, i=w.aths.indexOf(k); if(i>=0) w.aths.splice(i,1); else w.aths.push(k); },
