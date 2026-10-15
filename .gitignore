@@ -1,0 +1,5 @@
+# File generati da online/build.py: non vanno salvati nel repository
+online/site/
+online/check.js
+online/test.html
+__pycache__/
