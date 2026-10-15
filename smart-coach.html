@@ -1488,6 +1488,7 @@ function courtSVG(els){
     else if(k==='a'||k==='b') s += `<path d="${e[1]}" fill="none" stroke="${k==='a'?NAVY:INK}" stroke-width="2" marker-end="url(#${u}${k})"/>`;
     else if(k==='f') s += `<path d="${e[1]}" fill="none" stroke="#F2C230" stroke-width="1.8" stroke-dasharray="4 3" marker-end="url(#${u}y)"/>`;
     else if(k==='ma') s += `<path d="${e[1]}" fill="none" stroke="${NAVY}" stroke-width="1.7" stroke-dasharray="1.5 2.5" marker-end="url(#${u}n)"/>`;
+    else if(k==='c') s += `<path d="M${e[1]-4} ${e[2]+4}L${e[1]} ${e[2]-5}L${e[1]+4} ${e[2]+4}Z" fill="#F2994A" stroke="#ffffff" stroke-width=".8"/>`;
     else if(k==='n') labels.push(`<circle cx="${e[1]}" cy="${e[2]}" r="5.5" fill="#ffffff"/><text x="${e[1]}" y="${e[2]+3}" text-anchor="middle" font-size="8" font-weight="700" fill="#1F2328" font-family="sans-serif">${e[3]}</text>`);
     else if(k==='A'||k==='B') people.push(`<circle cx="${e[1]}" cy="${e[2]}" r="7" fill="${k==='A'?NAVY:'#ffffff'}" stroke="${k==='A'?'#ffffff':INK}" stroke-width="1.5"/><text x="${e[1]}" y="${e[2]+3}" text-anchor="middle" font-size="9" font-weight="700" fill="${k==='A'?'#ffffff':INK}" font-family="sans-serif">${k}</text>`);
     else if(k==='M') people.push(`<rect x="${e[1]-7}" y="${e[2]-7}" width="14" height="14" rx="2" fill="#F2C230" stroke="#2A2522" stroke-width="1.2"/><text x="${e[1]}" y="${e[2]+3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#2A2522" font-family="sans-serif">M</text>`);
@@ -1756,9 +1757,80 @@ function plPupilCard(id){
     ${xs.length?`<div>${xs.slice(0,8).map(x=>edit?plRow(x,false):`<div class="row" style="gap:10px;padding:6px 0;border-top:1px solid var(--line)"><b style="font:700 18px var(--f-disp);color:var(--clay);min-width:58px">${esc(x.time||'')}</b><span>${WD[new Date(x.date+'T12:00').getDay()]} ${fdate(x.date+'T12:00')} · ${durLab(x.dur||60)}</span></div>`).join('')}</div>`:'<p class="small muted">Nessuna lezione fissata.</p>'}
     ${edit ? (U.plForm===id ? plForm(id) : `<button class="btn ghost" data-a="plformopen" data-k="${id}" style="align-self:flex-start">+ Fissa una lezione</button>`) : ''}</section>`;
 }
+/* ---------- import private pupils from a file prepared in chat ----------
+   {tipo:'tennis-smart-coach', versione:1, allievi:[{nome, obiettivo, frequenza, obiettivi:[{area,testo,stato}],
+     programma:{lezioniSettimana, durata, fasi:[{nome,min}], settimane:[{nome, lezioni:[{titolo, obiettivo, esercizi:[{fase, titolo, etichetta, righe, campo, tipo}]}]}]},
+     diario:[{data, fatto, prossima}], calendario:[{data, ora, durata}]}]}
+   Existing pupils (same name, among the ones this coach sees) are updated: nothing is deleted, goals/diary/calendar are added without duplicates. */
+const impNorm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+function impMine(){ const A = typeof myAccess==='function' ? myAccess() : null; return S.athletes.filter(a=>a.groupId===PRIV_ID && (!A || athVis(a, A))); }
+function impParse(txt){
+  let d; try{ d = JSON.parse(String(txt).trim().replace(/^```(json)?|```$/g,'')); }catch(e){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
+  if(!d || !Array.isArray(d.allievi) || !d.allievi.length) return {err:'Nel file non ci sono allievi da importare.'};
+  const mine = impMine();
+  const rows = d.allievi.filter(x=>x && x.nome).map(x=>{ const ex = mine.find(a=>impNorm(a.name)===impNorm(x.nome)) || mine.find(a=>impNorm(a.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0);
+    const pv = ex ? privOf(ex.id) : null, have = new Set((pv?pv.goals:[]).map(g=>impNorm(g.text)));
+    const P = x.programma || {}, W = P.settimane || [], L = W.reduce((t,w)=>t+(w.lezioni||[]).length,0), E = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).length,0),0);
+    return {x, ex, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
+  return {d, rows};
+}
+function importView(){
+  const R = U.impData;
+  return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ Lezioni private</button>
+    <h1>Importa da file</h1>
+    ${!R ? `<section class="card"><p class="small muted">Scegli il file preparato in chat (finisce con .json). L'app ti mostra cosa contiene prima di inserirlo: allievi, obiettivi, programma con esercizi e campetti, diario e calendario.</p>
+      <div class="row"><label class="btn clay" for="imp-file" style="display:inline-flex;align-items:center;cursor:pointer">Scegli il file</label>
+      <input id="imp-file" type="file" accept=".json,application/json,.txt,text/plain" data-c="impfile" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div>
+      <details class="pres"><summary class="small">Oppure incolla il testo del file</summary><textarea id="imp-txt" class="input" rows="5" placeholder="Incolla qui" style="margin-top:8px"></textarea><button class="btn ghost" data-a="imppaste" style="align-self:flex-start;margin-top:8px">Leggi il testo</button></details>
+      ${U.impErr?`<p class="small" style="color:var(--ko)">${esc(U.impErr)}</p>`:''}</section>`
+    : `<section class="card"><h3>Cosa verrà inserito</h3><div class="list">${R.rows.map(r=>`<div><b style="font-size:17px">${esc(r.x.nome)}</b> ${r.ex?'<span class="tag teal">già nell\'app: aggiorno la scheda</span>':'<span class="tag pri">nuovo allievo</span>'}
+        <ul class="small" style="margin:6px 0 0;padding-left:18px">${[r.x.obiettivo?'obiettivo del percorso':'', r.x.frequenza?'frequenza e periodo':'', r.goals?`${r.goals} obiettivi nuovi`:'', r.weeks?`programma: ${r.weeks} ${r.weeks===1?'settimana':'settimane'}, ${r.lessons} ${r.lessons===1?'lezione':'lezioni'}, ${r.exs} esercizi con campetto`:'', r.diary?`${r.diary} ${r.diary===1?'lezione':'lezioni'} nel diario`:'', r.cal?`${r.cal} ${r.cal===1?'lezione':'lezioni'} in calendario`:''].filter(Boolean).map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('')}</div>
+        <p class="small muted">Non viene cancellato niente: gli obiettivi e le lezioni già presenti restano, quelli uguali non vengono doppiati.</p></section>
+      <button class="btn clay block" data-a="impdo">Conferma e importa</button>
+      <button class="btn ghost block" data-a="impreset">Scegli un altro file</button>`}`;
+}
+function impApply(d){
+  const mine = impMine(), out = [];
+  d.allievi.filter(x=>x && x.nome).forEach(x=>{
+    let a = mine.find(z=>impNorm(z.name)===impNorm(x.nome)) || mine.find(z=>impNorm(z.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0);
+    if(!a){ a = {id:uid(), groupId:PRIV_ID, name:String(x.nome).trim(), pin:genPin(), ppin:genPin()}; S.athletes.push(a); mine.push(a); }
+    const pv = privOf(a.id);
+    if(x.obiettivo) pv.prog.title = String(x.obiettivo).trim();
+    if(x.frequenza) pv.prog.freq = String(x.frequenza).trim();
+    const have = new Set(pv.goals.map(g=>impNorm(g.text))), AR = {tec:'tec',tecnica:'tec',tat:'tat',tattica:'tat',men:'men',mentale:'men',fis:'fis',fisico:'fis',fisica:'fis'}, ST = {todo:'todo','da iniziare':'todo',doing:'doing','in corso':'doing',done:'done',raggiunto:'done'};
+    (x.obiettivi||[]).forEach(g=>{ if(!g || !g.testo || have.has(impNorm(g.testo))) return; have.add(impNorm(g.testo)); pv.goals.push({id:uid(), area:AR[impNorm(g.area)]||'tec', text:String(g.testo).trim(), st:ST[impNorm(g.stato)]||'todo'}); });
+    const P = x.programma;
+    if(P && (P.settimane||[]).length){
+      if(!pv.pg) pv.pg = {id:'pp_'+a.id, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}};
+      const g = pv.pg; g.freq = Math.min(5, Math.max(1, +P.lezioniSettimana || g.freq || 1)); if(P.durata) g.lesson.dur = +P.durata;
+      const phs = g.lesson.phases = g.lesson.phases || [];
+      const keyOf = f => { if(f===undefined || f===null || f==='') return phs.filter(p=>!p.pause)[0]?.k; const def = (P.fasi||[])[+f] || (typeof f==='string' ? {nome:f} : null); if(!def) return phs.filter(p=>!p.pause)[0]?.k;
+        let ph = phs.find(p=>impNorm(p.n)===impNorm(def.nome)); if(!ph){ ph = {k:'i'+uid().slice(0,5), n:String(def.nome), m:+def.min||10}; phs.push(ph); } return ph.k; };
+      (P.fasi||[]).forEach((f,i)=>keyOf(i));
+      const o = ownOf(g.id), blank = o.weeks.length===1 && !o.weeks[0].name && o.weeks[0].days.every(z=>!z.title && !z.note && !z.ex.length);
+      if(blank) o.weeks = [];
+      S.customEx = S.customEx || [];
+      const sig = (n, t) => impNorm(n)+'|'+impNorm(t), seen = new Set(o.weeks.map(w=>sig(w.name, w.days[0]&&w.days[0].title)));
+      P.settimane.forEach(w=>{ if(seen.has(sig(w.nome, (w.lezioni||[])[0]&&w.lezioni[0].titolo))) return; const wk = blankWeek(); wk.name = w.nome || '';
+        (w.lezioni||[]).slice(0,5).forEach((l,i)=>{ const day = wk.days[i]; day.title = l.titolo || ''; day.note = l.obiettivo || ''; day.ex = []; day.exPh = [];
+          (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]};
+            S.customEx.push(ex); day.ex.push(ex.id); day.exPh.push(keyOf(e.fase)); }); });
+        o.weeks.push(wk); });
+      if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length || o.cur<1) o.cur = 1;
+    }
+    const lk = new Set(pv.lessons.map(l=>(l.date||'').slice(0,10)+'|'+impNorm(l.what)));
+    (x.diario||[]).forEach(l=>{ if(!l || !l.data || !l.fatto) return; const k = l.data+'|'+impNorm(l.fatto); if(lk.has(k)) return; lk.add(k); pv.lessons.push({id:uid(), date:new Date(l.data+'T12:00').toISOString(), what:String(l.fatto), next:String(l.prossima||'')}); });
+    pv.lessons.sort((p,q)=>p.date<q.date?-1:1);
+    pv.sched = pv.sched || []; const ck = new Set(pv.sched.map(z=>z.date+'|'+z.time));
+    (x.calendario||[]).forEach(c=>{ if(!c || !c.data || !c.ora || ck.has(c.data+'|'+c.ora)) return; ck.add(c.data+'|'+c.ora); pv.sched.push({id:uid(), date:c.data, time:c.ora, dur:+c.durata||60}); });
+    out.push(a);
+  });
+  return out;
+}
 function privList(){
   const as = S.athletes.filter(a=>a.groupId===PRIV_ID);
-  return `<h1>Lezioni private</h1>
+  if(U.impOpen) return importView();
+  return `<div class="row between"><h1>Lezioni private</h1><button class="btn ghost" data-a="impopen">Importa da file</button></div>
     <section class="card" style="padding:4px 16px"><div class="list">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(g=>g.st==='done').length;
       return `<button class="item" data-a="privopen" data-k="${a.id}"><span class="grow"><b style="font-size:17px">${esc(a.name)}</b><br><span class="small muted">${pv.prog.title?esc(pv.prog.title)+' · ':''}${pv.goals.length} obiettivi${pv.goals.length?`, ${done} raggiunti`:''} · ${pv.lessons.length} lezioni</span></span><span class="chev">›</span></button>`; }).join('') || '<p class="muted" style="padding:12px 0">Nessun allievo privato. Aggiungilo qui sotto.</p>'}</div></section>
     <section class="card"><h3>Nuovo allievo privato</h3><div class="row"><input id="f-privname" class="input" placeholder="Nome e iniziale del cognome" style="flex:1;min-width:0"><button class="btn" data-a="privadd">Aggiungi</button></div></section>`;
@@ -1776,11 +1848,10 @@ function ppProgCard(id){
     <div class="list small">${w.days.slice(0, nS(g)).map((d,i)=>`<div>Lezione ${i+1}: <b>${esc(d.title||'da definire')}</b>${d.ex.length?` <span class="muted">· ${d.ex.length} esercizi</span>`:''}</div>`).join('')}</div>
     <button class="btn" data-a="ppopen" data-k="${id}" style="align-self:flex-start">Apri il programma</button></section>`;
 }
-/* ---------- private lessons: programme PDF ----------
-   The PDF is kept in priv[aid].pdf as a data URL, so athlete and parents see it with the rest of the private data.
-   Online that data is one Firestore document (limit 1 MB), hence PDF_MAX. On upload pdf.js (loaded only then)
-   reads the text and the coach checks the fields it found before they go into the card. */
-const PDF_MAX = 600*1024;
+/* ---------- private lessons: read a programme PDF ----------
+   The PDF is NOT stored: pdf.js (loaded only when needed) reads its text, the coach checks the fields found
+   (objective, frequency, goals by area) and only those go into the card. Keeps the app light. */
+const PDF_MAX = 20*1024*1024;
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const kbLab = n => n>=1048576 ? (n/1048576).toFixed(1).replace('.',',')+' MB' : Math.max(1,Math.round(n/1024))+' KB';
 let pdfjsP = null;
@@ -1821,39 +1892,33 @@ function pdfParse(txt){
 async function pdfLoad(aid, f){
   U.pdfErr = null;
   if(!/pdf$/i.test(f.type||'') && !/\.pdf$/i.test(f.name||'')){ U.pdfErr = {aid, msg:'Il file scelto non è un PDF.'}; render(); return; }
-  if(f.size>PDF_MAX){ U.pdfErr = {aid, msg:`Il PDF è troppo grande (${kbLab(f.size)}): il massimo è ${kbLab(PDF_MAX)}. Salvalo di nuovo in qualità ridotta o con meno immagini.`}; render(); return; }
+  if(f.size>PDF_MAX){ U.pdfErr = {aid, msg:`Il PDF è troppo grande (${kbLab(f.size)}).`}; render(); return; }
   U.pdfBusy = aid; U.pdfDraft = null; render();
   try{
-    const data = await new Promise((ok,ko)=>{ const r = new FileReader(); r.onload = ()=>ok(r.result); r.onerror = ()=>ko(r.error); r.readAsDataURL(f); });
-    privOf(aid).pdf = {name:f.name||'programma.pdf', size:f.size, date:new Date().toISOString(), data:String(data).replace(/^data:[^;,]*;/,'data:application/pdf;')}; save();
     let txt = ''; try{ txt = (await pdfText(await f.arrayBuffer())).trim(); }catch(e){ console.warn(e); }
     const P = txt ? pdfParse(txt) : null, lab = Object.fromEntries(PAREAS);
     U.pdfDraft = !txt ? {aid, fail:true} : {aid, text:txt.slice(0,4000), title:P.title, freq:P.freq, goals:P.goals.map(g=>lab[g.area]+': '+g.text).join('\n'), none:!P.title && !P.freq && !P.goals.length};
-    toast('PDF allegato');
+    if(!txt) toast('Non riesco a leggere il testo del PDF');
   }catch(e){ console.error(e); U.pdfErr = {aid, msg:'Non sono riuscito ad aprire il file. Riprova.'}; }
   U.pdfBusy = null; render();
 }
 function pdfDraftHtml(d){
-  if(d.fail) return `<div class="note">Il PDF è allegato, ma non sono riuscito a leggerne il testo (serve la connessione, e il PDF non deve essere una foto o una scansione). Compila i campi a mano.</div><button class="btn ghost" data-a="pdfskip" style="align-self:flex-start">Ok</button>`;
-  return `<div class="note"><b>Controlla i dati letti dal PDF.</b> ${d.none?'Non ho trovato obiettivo, frequenza od obiettivi per area: puoi scriverli qui o lasciare solo il PDF.':'Correggi quello che serve, poi tocca "Usa questi dati". Gli obiettivi si aggiungono a quelli che ci sono già.'}</div>
+  if(d.fail) return `<div class="note">Non sono riuscito a leggere il testo del PDF: serve la connessione, e il PDF non deve essere una foto o una scansione. Compila i campi a mano, oppure manda il PDF in chat per prepararti il file da importare.</div><button class="btn ghost" data-a="pdfskip" style="align-self:flex-start">Ok</button>`;
+  return `<div class="note"><b>Controlla i dati letti dal PDF.</b> ${d.none?'Non ho trovato obiettivo, frequenza od obiettivi per area: puoi scriverli qui oppure annullare.':'Correggi quello che serve, poi tocca "Usa questi dati". Gli obiettivi si aggiungono a quelli che ci sono già.'}</div>
     <div class="field"><label for="pd-title">Obiettivo del percorso</label><textarea id="pd-title" class="input" rows="3" data-c="pdfd" data-k="title">${esc(d.title)}</textarea></div>
     <div class="field"><label for="pd-freq">Frequenza e periodo</label><input id="pd-freq" class="input" data-c="pdfd" data-k="freq" value="${esc(d.freq)}"></div>
     <div class="field"><label for="pd-goals">Obiettivi, uno per riga</label><textarea id="pd-goals" class="input" rows="6" data-c="pdfd" data-k="goals">${esc(d.goals)}</textarea><p class="small muted">Tecnica:, Tattica:, Mentale: o Fisico: all’inizio della riga indicano l’area.</p></div>
     <details class="pres"><summary class="small">Testo letto dal PDF</summary><p class="small" style="white-space:pre-wrap;margin-top:8px">${esc(d.text)}</p></details>
-    <div class="row"><button class="btn clay" data-a="pdfapply" data-k="${d.aid}" style="flex:1">Usa questi dati</button><button class="btn ghost" data-a="pdfskip">Lascia solo il PDF</button></div>`;
+    <div class="row"><button class="btn clay" data-a="pdfapply" data-k="${d.aid}" style="flex:1">Usa questi dati</button><button class="btn ghost" data-a="pdfskip">Annulla</button></div>`;
 }
-function pdfCard(id, edit){
-  const f = privOf(id).pdf;
-  if(!edit) return f ? `<section class="card"><h3>Il programma delle lezioni</h3><div class="row between" style="flex-wrap:nowrap;gap:10px"><span class="grow" style="min-width:0"><b style="overflow-wrap:anywhere">${esc(f.name)}</b><br><span class="small muted">PDF · ${kbLab(f.size)} · ${fdate(f.date)}</span></span><button class="btn" data-a="pdfopen" data-k="${id}">Apri</button></div></section>` : '';
+function pdfCard(id){
   const busy = U.pdfBusy===id, err = U.pdfErr && U.pdfErr.aid===id ? U.pdfErr.msg : '', d = U.pdfDraft && U.pdfDraft.aid===id ? U.pdfDraft : null;
-  return `<section class="card"><h3>Programma in PDF</h3>
-    ${f ? `<div class="row between" style="flex-wrap:nowrap;gap:10px"><span class="grow" style="min-width:0"><b style="overflow-wrap:anywhere">${esc(f.name)}</b><br><span class="small muted">${kbLab(f.size)} · caricato il ${fdate(f.date)} · lo vedono anche allievo e genitori</span></span><button class="btn" data-a="pdfopen" data-k="${id}">Apri</button></div>`
-      : `<p class="small muted">Carica il PDF con il programma delle lezioni: resta allegato alla scheda, lo vedono anche allievo e genitori, e l’app prova a leggerlo per compilare obiettivo, frequenza e obiettivi. Massimo ${kbLab(PDF_MAX)}.</p>`}
+  return `<section class="card"><h3>Leggi dal PDF</h3>
+    ${d || busy ? '' : `<p class="small muted">Scegli il PDF con il programma: l'app ne legge il testo e ti propone obiettivo, frequenza e obiettivi per area. Il PDF non viene salvato nell'app.</p>`}
     ${err ? `<p class="small" style="color:var(--ko)">${esc(err)}</p>` : ''}
     ${busy ? '<p class="small muted">Sto leggendo il PDF…</p>' : d ? pdfDraftHtml(d) : `<div class="row">
-      <label class="btn ${f?'ghost':'clay'}" for="pp-pdf-${id}" style="display:inline-flex;align-items:center;cursor:pointer">${f?'Sostituisci il PDF':'Carica il PDF del programma'}</label>
-      <input id="pp-pdf-${id}" type="file" accept="application/pdf,.pdf" data-c="pdffile" data-k="${id}" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
-      ${!f ? '' : U.confirm==='pdf:'+id ? `<span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn danger" data-a="pdfdel" data-k="${id}">Sì, togli</button><button class="chip" data-a="nodel">No</button></span>` : `<button class="btn danger" data-a="askdel" data-k="pdf:${id}">Togli il PDF</button>`}</div>`}
+      <label class="btn ghost" for="pp-pdf-${id}" style="display:inline-flex;align-items:center;cursor:pointer">Scegli un PDF da leggere</label>
+      <input id="pp-pdf-${id}" type="file" accept="application/pdf,.pdf" data-c="pdffile" data-k="${id}" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div>`}
   </section>`;
 }
 function privDetail(id){
@@ -1863,7 +1928,7 @@ function privDetail(id){
       <div class="field"><label for="pp-title">Obiettivo del percorso</label><textarea id="pp-title" class="input" rows="3" data-c="pp" data-k="title" placeholder="Es. Migliorare il servizio e la transizione a rete, per arrivare pronto ai tornei di primavera">${esc(pv.prog.title)}</textarea></div>
       <div class="field"><label for="pp-freq">Frequenza e periodo</label><input id="pp-freq" class="input" data-c="pp" data-k="freq" value="${esc(pv.prog.freq)}" placeholder="Es. 1 ora a settimana, ottobre–dicembre"></div>
       <button class="btn ghost" data-a="ppsave" data-k="${id}">Salva</button></section>
-    ${pdfCard(id, true)}
+    ${pdfCard(id)}
     ${ppProgCard(id)}
     <section class="card"><h3>Obiettivi</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted">Nessun obiettivo. Aggiungine uno qui sotto.</p>'}
       <div class="field"><label>Nuovo obiettivo</label><div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
@@ -1884,7 +1949,6 @@ function privStudentView(){
   const ppg = ppGroup(a.id);
   return `<section class="card"><span class="eyebrow">Lezioni private</span><h1>Il mio percorso</h1>
       ${pv.prog.title?`<p><span class="muted small">Obiettivo</span><br><b>${esc(pv.prog.title)}</b></p>`:''}${pv.prog.freq?`<p class="small muted">${esc(pv.prog.freq)}</p>`:''}</section>
-    ${pdfCard(a.id, false)}
     ${ppg ? ownWeekCard(ppg) : ''}
     ${plPupilCard(a.id)}
     <section class="card"><h3>I miei obiettivi</h3>${pv.goals.length?goalsHtml(pv,false,a.id):'<p class="muted">Il maestro non ha ancora inserito gli obiettivi.</p>'}</section>
@@ -3151,6 +3215,11 @@ const ACT = {
     S.ftests=(S.ftests||[]).filter(t=>!t.tdef).concat({id:'tdef', tdef:T}); save(); U.tdEd=null; U.confirm=null; toast('Prove dei test salvate'); window.scrollTo(0,0); },
   answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
   homegrp(k){ U.homeGrp=k; },
+  impopen(){ U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impclose(){ U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impreset(){ U.impData=null; U.impErr=''; },
+  imppaste(){ const r = impParse(document.getElementById('imp-txt').value||''); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
+  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d); save(); U.impOpen=false; U.impData=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
   ppopen(k){ U.tab='plan'; U.planMode='weeks'; U.planGroup='pp_'+k; U.oWeek=null; U.oDay=null; U.pick=null; window.scrollTo(0,0); },
   ppback(k){ U.planGroup=null; U.oWeek=null; U.oDay=null; if(S.session.role==='coach'){ U.tab='home'; U.homeView='priv'; U.privOpen=k; } window.scrollTo(0,0); },
@@ -3474,6 +3543,7 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('change', e=>{
   const t = e.target, c = t.dataset?.c;
+  if(c==='impfile'){ const f = t.files && t.files[0]; if(f){ f.text().then(txt=>{ const r = impParse(txt); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } render(); }); } t.value=''; return; }
   if(c==='pdffile'){ const f = t.files && t.files[0]; if(f) pdfLoad(t.dataset.k, f); t.value=''; return; }
   if(c==='tfres'){ const [pid,f]=t.dataset.k.split(':'); const x=tByKey(U.tOpen); x.t.results=x.t.results||{}; (x.t.results[pid]=x.t.results[pid]||{})[f]=t.value; save(); return; }
   if((c==='tf'||c==='tnew') && t.type==='date'){ render(); return; }
