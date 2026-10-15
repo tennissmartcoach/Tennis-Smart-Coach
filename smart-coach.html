@@ -1699,6 +1699,13 @@ function profileCard(id){
 
 /* ---------- private lessons ---------- */
 const PRIV_ID = 'priv';
+/* goals written one per line; "Tecnica: …" (or Tattica, Mentale, Fisico) at the start sets the area */
+function goalLines(txt, def){
+  const AR = {tecnica:'tec', tecnico:'tec', tattica:'tat', tattico:'tat', mentale:'men', fisico:'fis', fisica:'fis', atletica:'fis', atletico:'fis'};
+  return txt.split(/\r?\n/).map(raw=>{ let l = raw.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim(); if(!l) return null; let area = def;
+    const m = l.match(/^([A-Za-zàèéìòù]+)\s*:\s*(.+)$/); if(m && AR[m[1].toLowerCase()]){ area = AR[m[1].toLowerCase()]; l = m[2].trim(); }
+    return {area, text:l}; }).filter(Boolean);
+}
 const GOAL_ST = [['todo','Da iniziare'],['doing','In corso'],['done','Raggiunto']];
 const privOf = id => { S.priv = S.priv || {}; return S.priv[id] = S.priv[id] || {prog:{title:'',freq:''}, goals:[], lessons:[]}; };
 /* ---------- private lessons: calendar ---------- */
@@ -1769,6 +1776,86 @@ function ppProgCard(id){
     <div class="list small">${w.days.slice(0, nS(g)).map((d,i)=>`<div>Lezione ${i+1}: <b>${esc(d.title||'da definire')}</b>${d.ex.length?` <span class="muted">· ${d.ex.length} esercizi</span>`:''}</div>`).join('')}</div>
     <button class="btn" data-a="ppopen" data-k="${id}" style="align-self:flex-start">Apri il programma</button></section>`;
 }
+/* ---------- private lessons: programme PDF ----------
+   The PDF is kept in priv[aid].pdf as a data URL, so athlete and parents see it with the rest of the private data.
+   Online that data is one Firestore document (limit 1 MB), hence PDF_MAX. On upload pdf.js (loaded only then)
+   reads the text and the coach checks the fields it found before they go into the card. */
+const PDF_MAX = 600*1024;
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const kbLab = n => n>=1048576 ? (n/1048576).toFixed(1).replace('.',',')+' MB' : Math.max(1,Math.round(n/1024))+' KB';
+let pdfjsP = null;
+function loadPdfJs(){
+  return pdfjsP = pdfjsP || new Promise((ok,ko)=>{ const sc = document.createElement('script'); sc.src = PDFJS+'pdf.min.js';
+    sc.onload = ()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS+'pdf.worker.min.js'; ok(window.pdfjsLib); };
+    sc.onerror = ()=>{ pdfjsP = null; ko(new Error('pdf.js non raggiungibile')); }; document.head.appendChild(sc); });
+}
+async function pdfText(buf){
+  const lib = await loadPdfJs(), doc = await lib.getDocument({data:buf}).promise; let out = '';
+  for(let i=1; i<=doc.numPages; i++){ const c = await (await doc.getPage(i)).getTextContent(); let y = null;
+    c.items.forEach(it=>{ const yy = it.transform ? it.transform[5] : y; if(y!==null && Math.abs(yy-y)>2 && !out.endsWith('\n')) out += '\n'; out += it.str; if(it.hasEOL) out += '\n'; y = yy; });
+    out += '\n'; }
+  return out;
+}
+/* finds "Obiettivo del percorso", "Frequenza / Periodo" and the goals under Tecnica, Tattica, Mentale, Fisico (as headings or "Tecnica: ...") */
+const PDF_AREA = {tecnica:'tec', tecnico:'tec', tecnici:'tec', tattica:'tat', tattico:'tat', tattici:'tat', mentale:'men', mentali:'men', testa:'men', fisico:'fis', fisica:'fis', fisici:'fis', atletica:'fis', atletico:'fis', 'preparazione fisica':'fis', 'preparazione atletica':'fis'};
+function pdfParse(txt){
+  const out = {title:'', freq:'', goals:[]}, key = x => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();
+  let sect = null, area = null;
+  txt.split('\n').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean).forEach(raw=>{
+    const bullet = /^(?:[-•*·▪●◦–]|\d+[.)])\s/.test(raw), l = raw.replace(/^(?:[-•*·▪●◦–]|\d+[.)])\s*/,'').trim(); if(!l) return;
+    const m = l.match(/^([^:]{2,40}):\s*(.*)$/), head = key(m ? m[1] : l), rest = m ? m[2].trim() : '';
+    const ar = PDF_AREA[head.replace(/^(obiettivi|obiettivo|area|aspetti|aspetto|lavoro) /,'')];
+    if(/^(obiettivo|obiettivi)( (del percorso|generale|generali|principale|finale))?$|^finalita$/.test(head) && (m || l.length<40)){ sect = 'title'; area = null; if(rest) out.title += (out.title?' ':'')+rest; return; }
+    if(/^(frequenza|periodo|durata|quando)( [a-z]+){0,3}$/.test(head) && (m || l.length<40)){ sect = 'freq'; area = null; if(rest) out.freq += (out.freq?' · ':'')+rest; return; }
+    if(ar && (m || l.length<40)){ sect = 'goals'; area = ar; if(rest) out.goals.push({area, text:rest}); return; }
+    if(/^(settimana|lezione|mese|week|programma|esercizi|note)\b/.test(head) || (m && !rest) || (l.length<40 && l===l.toUpperCase() && /[A-Z]/.test(l))){ sect = null; area = null; return; }
+    const cont = !bullet && /^[a-zà-ù(]/.test(l);
+    if(sect==='title') out.title += (out.title?' ':'')+l;
+    else if(sect==='freq') out.freq += (out.freq?(cont?' ':' · '):'')+l;
+    else if(sect==='goals'){ const g = out.goals[out.goals.length-1]; if(cont && g && g.area===area) g.text += ' '+l; else out.goals.push({area, text:l}); }
+  });
+  const cap = x => x.charAt(0).toUpperCase()+x.slice(1);
+  out.title = cap(out.title); out.freq = cap(out.freq); out.goals.forEach(g=>g.text = cap(g.text));
+  return out;
+}
+async function pdfLoad(aid, f){
+  U.pdfErr = null;
+  if(!/pdf$/i.test(f.type||'') && !/\.pdf$/i.test(f.name||'')){ U.pdfErr = {aid, msg:'Il file scelto non è un PDF.'}; render(); return; }
+  if(f.size>PDF_MAX){ U.pdfErr = {aid, msg:`Il PDF è troppo grande (${kbLab(f.size)}): il massimo è ${kbLab(PDF_MAX)}. Salvalo di nuovo in qualità ridotta o con meno immagini.`}; render(); return; }
+  U.pdfBusy = aid; U.pdfDraft = null; render();
+  try{
+    const data = await new Promise((ok,ko)=>{ const r = new FileReader(); r.onload = ()=>ok(r.result); r.onerror = ()=>ko(r.error); r.readAsDataURL(f); });
+    privOf(aid).pdf = {name:f.name||'programma.pdf', size:f.size, date:new Date().toISOString(), data:String(data).replace(/^data:[^;,]*;/,'data:application/pdf;')}; save();
+    let txt = ''; try{ txt = (await pdfText(await f.arrayBuffer())).trim(); }catch(e){ console.warn(e); }
+    const P = txt ? pdfParse(txt) : null, lab = Object.fromEntries(PAREAS);
+    U.pdfDraft = !txt ? {aid, fail:true} : {aid, text:txt.slice(0,4000), title:P.title, freq:P.freq, goals:P.goals.map(g=>lab[g.area]+': '+g.text).join('\n'), none:!P.title && !P.freq && !P.goals.length};
+    toast('PDF allegato');
+  }catch(e){ console.error(e); U.pdfErr = {aid, msg:'Non sono riuscito ad aprire il file. Riprova.'}; }
+  U.pdfBusy = null; render();
+}
+function pdfDraftHtml(d){
+  if(d.fail) return `<div class="note">Il PDF è allegato, ma non sono riuscito a leggerne il testo (serve la connessione, e il PDF non deve essere una foto o una scansione). Compila i campi a mano.</div><button class="btn ghost" data-a="pdfskip" style="align-self:flex-start">Ok</button>`;
+  return `<div class="note"><b>Controlla i dati letti dal PDF.</b> ${d.none?'Non ho trovato obiettivo, frequenza od obiettivi per area: puoi scriverli qui o lasciare solo il PDF.':'Correggi quello che serve, poi tocca "Usa questi dati". Gli obiettivi si aggiungono a quelli che ci sono già.'}</div>
+    <div class="field"><label for="pd-title">Obiettivo del percorso</label><textarea id="pd-title" class="input" rows="3" data-c="pdfd" data-k="title">${esc(d.title)}</textarea></div>
+    <div class="field"><label for="pd-freq">Frequenza e periodo</label><input id="pd-freq" class="input" data-c="pdfd" data-k="freq" value="${esc(d.freq)}"></div>
+    <div class="field"><label for="pd-goals">Obiettivi, uno per riga</label><textarea id="pd-goals" class="input" rows="6" data-c="pdfd" data-k="goals">${esc(d.goals)}</textarea><p class="small muted">Tecnica:, Tattica:, Mentale: o Fisico: all’inizio della riga indicano l’area.</p></div>
+    <details class="pres"><summary class="small">Testo letto dal PDF</summary><p class="small" style="white-space:pre-wrap;margin-top:8px">${esc(d.text)}</p></details>
+    <div class="row"><button class="btn clay" data-a="pdfapply" data-k="${d.aid}" style="flex:1">Usa questi dati</button><button class="btn ghost" data-a="pdfskip">Lascia solo il PDF</button></div>`;
+}
+function pdfCard(id, edit){
+  const f = privOf(id).pdf;
+  if(!edit) return f ? `<section class="card"><h3>Il programma delle lezioni</h3><div class="row between" style="flex-wrap:nowrap;gap:10px"><span class="grow" style="min-width:0"><b style="overflow-wrap:anywhere">${esc(f.name)}</b><br><span class="small muted">PDF · ${kbLab(f.size)} · ${fdate(f.date)}</span></span><button class="btn" data-a="pdfopen" data-k="${id}">Apri</button></div></section>` : '';
+  const busy = U.pdfBusy===id, err = U.pdfErr && U.pdfErr.aid===id ? U.pdfErr.msg : '', d = U.pdfDraft && U.pdfDraft.aid===id ? U.pdfDraft : null;
+  return `<section class="card"><h3>Programma in PDF</h3>
+    ${f ? `<div class="row between" style="flex-wrap:nowrap;gap:10px"><span class="grow" style="min-width:0"><b style="overflow-wrap:anywhere">${esc(f.name)}</b><br><span class="small muted">${kbLab(f.size)} · caricato il ${fdate(f.date)} · lo vedono anche allievo e genitori</span></span><button class="btn" data-a="pdfopen" data-k="${id}">Apri</button></div>`
+      : `<p class="small muted">Carica il PDF con il programma delle lezioni: resta allegato alla scheda, lo vedono anche allievo e genitori, e l’app prova a leggerlo per compilare obiettivo, frequenza e obiettivi. Massimo ${kbLab(PDF_MAX)}.</p>`}
+    ${err ? `<p class="small" style="color:var(--ko)">${esc(err)}</p>` : ''}
+    ${busy ? '<p class="small muted">Sto leggendo il PDF…</p>' : d ? pdfDraftHtml(d) : `<div class="row">
+      <label class="btn ${f?'ghost':'clay'}" for="pp-pdf-${id}" style="display:inline-flex;align-items:center;cursor:pointer">${f?'Sostituisci il PDF':'Carica il PDF del programma'}</label>
+      <input id="pp-pdf-${id}" type="file" accept="application/pdf,.pdf" data-c="pdffile" data-k="${id}" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+      ${!f ? '' : U.confirm==='pdf:'+id ? `<span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn danger" data-a="pdfdel" data-k="${id}">Sì, togli</button><button class="chip" data-a="nodel">No</button></span>` : `<button class="btn danger" data-a="askdel" data-k="pdf:${id}">Togli il PDF</button>`}</div>`}
+  </section>`;
+}
 function privDetail(id){
   const a = ath(id), pv = privOf(id);
   return `<button class="btn ghost" data-a="privclose" style="align-self:flex-start">‹ Lezioni private</button>
@@ -1776,6 +1863,7 @@ function privDetail(id){
       <div class="field"><label for="pp-title">Obiettivo del percorso</label><textarea id="pp-title" class="input" rows="3" data-c="pp" data-k="title" placeholder="Es. Migliorare il servizio e la transizione a rete, per arrivare pronto ai tornei di primavera">${esc(pv.prog.title)}</textarea></div>
       <div class="field"><label for="pp-freq">Frequenza e periodo</label><input id="pp-freq" class="input" data-c="pp" data-k="freq" value="${esc(pv.prog.freq)}" placeholder="Es. 1 ora a settimana, ottobre–dicembre"></div>
       <button class="btn ghost" data-a="ppsave" data-k="${id}">Salva</button></section>
+    ${pdfCard(id, true)}
     ${ppProgCard(id)}
     <section class="card"><h3>Obiettivi</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted">Nessun obiettivo. Aggiungine uno qui sotto.</p>'}
       <div class="field"><label>Nuovo obiettivo</label><div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
@@ -1796,6 +1884,7 @@ function privStudentView(){
   const ppg = ppGroup(a.id);
   return `<section class="card"><span class="eyebrow">Lezioni private</span><h1>Il mio percorso</h1>
       ${pv.prog.title?`<p><span class="muted small">Obiettivo</span><br><b>${esc(pv.prog.title)}</b></p>`:''}${pv.prog.freq?`<p class="small muted">${esc(pv.prog.freq)}</p>`:''}</section>
+    ${pdfCard(a.id, false)}
     ${ppg ? ownWeekCard(ppg) : ''}
     ${plPupilCard(a.id)}
     <section class="card"><h3>I miei obiettivi</h3>${pv.goals.length?goalsHtml(pv,false,a.id):'<p class="muted">Il maestro non ha ancora inserito gli obiettivi.</p>'}</section>
@@ -3166,12 +3255,21 @@ const ACT = {
     if(!made.length && !newG.length){ toast('Nessun nome nuovo da aggiungere'); return; }
     save(); U.newAth=false; U.athBulk=false; U.resGroup=gid; toast(`${made.length} atleti aggiunti`+(newG.length?` · ${newG.length} gruppi nuovi`:'')); },
   goalpastetoggle(k){ U.goalPaste = U.goalPaste===k ? null : k; },
-  goalpaste(k){ const txt = document.getElementById('f-goals').value, def = U.goalArea||(S.session.role==='mind'?'men':'tec'), pv = privOf(k); let n = 0;
-    const AR = {tecnica:'tec', tecnico:'tec', tattica:'tat', tattico:'tat', mentale:'men', fisico:'fis', fisica:'fis', atletica:'fis', atletico:'fis'};
-    txt.split(/\r?\n/).forEach(raw=>{ let l = raw.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim(); if(!l) return; let area = def;
-      const m = l.match(/^([A-Za-zàèéìòù]+)\s*:\s*(.+)$/); if(m && AR[m[1].toLowerCase()]){ area = AR[m[1].toLowerCase()]; l = m[2].trim(); }
-      pv.goals.push({id:uid(), area, text:l, st:'todo'}); n++; });
-    if(!n){ toast('Incolla almeno un obiettivo'); return; } U.goalPaste=null; save(); toast(n+' obiettivi aggiunti'); },
+  goalpaste(k){ const pv = privOf(k), gs = goalLines(document.getElementById('f-goals').value, U.goalArea||(S.session.role==='mind'?'men':'tec'));
+    gs.forEach(g=>pv.goals.push({id:uid(), area:g.area, text:g.text, st:'todo'}));
+    if(!gs.length){ toast('Incolla almeno un obiettivo'); return; } U.goalPaste=null; save(); toast(gs.length+' obiettivi aggiunti'); },
+  pdfopen(k){ const f = privOf(k).pdf; if(!f) return;
+    const b = atob(f.data.slice(f.data.indexOf(',')+1)), u8 = new Uint8Array(b.length); for(let i=0;i<b.length;i++) u8[i] = b.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([u8], {type:'application/pdf'}));
+    if(!window.open(url, '_blank')){ const l = document.createElement('a'); l.href = url; l.download = f.name; document.body.appendChild(l); l.click(); l.remove(); }
+    setTimeout(()=>URL.revokeObjectURL(url), 60000); },
+  pdfdel(k){ delete privOf(k).pdf; U.confirm=null; U.pdfDraft=null; save(); toast('PDF tolto'); },
+  pdfskip(){ U.pdfDraft=null; },
+  pdfapply(k){ const d = U.pdfDraft; if(!d || d.aid!==k) return; const pv = privOf(k), title = (d.title||'').trim(), freq = (d.freq||'').trim();
+    if(title) pv.prog.title = title; if(freq) pv.prog.freq = freq;
+    const have = new Set(pv.goals.map(g=>g.text.toLowerCase())), gs = goalLines(d.goals||'', 'tec').filter(g=>!have.has(g.text.toLowerCase()));
+    gs.forEach(g=>pv.goals.push({id:uid(), area:g.area, text:g.text, st:'todo'}));
+    U.pdfDraft=null; save(); toast(gs.length ? `Scheda aggiornata · ${gs.length} obiettivi aggiunti` : 'Scheda aggiornata'); },
   athnewtoggle(){ U.athBulk=false; U.newAth=!U.newAth; U.newGrp=false; },
   grpnewtoggle(){ U.newGrp=!U.newGrp; U.newAth=false; },
   grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1, lesson:{dur:0, phases:[]}}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
@@ -3376,6 +3474,7 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('change', e=>{
   const t = e.target, c = t.dataset?.c;
+  if(c==='pdffile'){ const f = t.files && t.files[0]; if(f) pdfLoad(t.dataset.k, f); t.value=''; return; }
   if(c==='tfres'){ const [pid,f]=t.dataset.k.split(':'); const x=tByKey(U.tOpen); x.t.results=x.t.results||{}; (x.t.results[pid]=x.t.results[pid]||{})[f]=t.value; save(); return; }
   if((c==='tf'||c==='tnew') && t.type==='date'){ render(); return; }
   if(c==='tres'){ const [i,pid,f]=t.dataset.k.split(':'); const tt=weekData(U.tWeek.y,U.tWeek.n).t[+i]; tt.results=tt.results||{}; (tt.results[pid]=tt.results[pid]||{})[f]=t.value; save(); return; }
@@ -3418,6 +3517,7 @@ document.addEventListener('input', e=>{
   const t = e.target, c = t.dataset?.c;
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
+  if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
   if(c==='pv' && U.pvDraft){ U.pvDraft[t.dataset.k]=t.value; return; }
   if(c==='pf' && U.profDraft){ U.profDraft[t.dataset.k]=t.value; return; }
   if(c==='fitplan'){ S.fitPlan=S.fitPlan||{}; (S.fitPlan[t.dataset.k]=S.fitPlan[t.dataset.k]||{})[U.fitDate||todayISO()]=t.value; save(); return; }
