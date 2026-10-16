@@ -980,7 +980,7 @@ function athList(){
   if(!g) return head + `<section class="card"><p>Nessun gruppo. Crealo con "+ Nuovo gruppo".</p></section>`;
   const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id)), seen = S.seen || '';
   if(g.id===PRIV_ID){
-    return head + `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Scheda preparata in chat?</b><br><span class="muted">Incolla il testo e la scheda si compila da sola.</span></span><button class="btn clay" data-a="impgo">Importa scheda</button></div></section>` + (as.length ? `<div class="agrid">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(x=>x.st==='done').length;
+    return head + `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Allievo nuovo preparato in chat?</b><br><span class="muted">Incolla il testo e crea l'allievo con la sua scheda. Per un allievo che c'è già, apri il suo nome.</span></span><button class="btn clay" data-a="impgo">Nuovo da chat</button></div></section>` + (as.length ? `<div class="agrid">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(x=>x.st==='done').length;
       return `<button class="acard" data-a="athpriv" data-k="${a.id}"><b style="font-size:18px;font-family:var(--f-disp)">${esc(a.name)}</b>
         ${pv.prog.title?`<span class="small">${esc(pv.prog.title)}</span>`:''}
         <span class="small muted">${pv.goals.length} obiettivi${pv.goals.length?`, ${done} raggiunti`:''} · ${pv.lessons.length} lezioni</span></button>`; }).join('')}</div>` : '<section class="card"><p class="muted">Nessun allievo a lezione privata. Aggiungilo con "+ Nuovo atleta".</p></section>');
@@ -1773,23 +1773,25 @@ function plPupilCard(id){
    Existing pupils (same name, among the ones this coach sees) are updated: nothing is deleted, goals/diary/calendar are added without duplicates. */
 const impNorm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function impMine(){ const A = typeof myAccess==='function' ? myAccess() : null; return S.athletes.filter(a=>a.groupId===PRIV_ID && (!A || athVis(a, A))); }
-function impParse(txt){
+function impParse(txt, forId){
   let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
   const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
   try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
   if(!d || !Array.isArray(d.allievi) || !d.allievi.length) return {err:'Nel file non ci sono allievi da importare.'};
   const mine = impMine();
-  const rows = d.allievi.filter(x=>x && x.nome).map(x=>{ const ex = mine.find(a=>impNorm(a.name)===impNorm(x.nome)) || mine.find(a=>impNorm(a.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0);
+  if(forId && d.allievi.length>1) return {err:'Il testo contiene più allievi: incollalo dall’elenco Lezioni private.'};
+  const rows = d.allievi.filter(x=>x && x.nome).map(x=>{ const ex = forId ? ath(forId) : (mine.find(a=>impNorm(a.name)===impNorm(x.nome)) || mine.find(a=>impNorm(a.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0));
     const pv = ex ? privOf(ex.id) : null, have = new Set((pv?pv.goals:[]).map(g=>impNorm(g.text)));
     const P = x.programma || {}, W = P.settimane || [], L = W.reduce((t,w)=>t+(w.lezioni||[]).length,0), E = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).length,0),0);
     const SH = x.lezioni || [], SE = SH.reduce((t,l)=>t+(l.fasi||[]).reduce((u,f)=>u+(f.esercizi||[]).length,0),0), SC = SH.reduce((t,l)=>t+(l.fasi||[]).reduce((u,f)=>u+(f.esercizi||[]).filter(e=>(e.campo||[]).length).length,0),0);
     return {x, ex, card:!!x.scheda, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, sheets:SH.length, shex:SE, shc:SC, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
-  return {d, rows};
+  return {d, rows, forId:forId||null};
 }
-function importView(){
-  const R = U.impData;
-  return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ Lezioni private</button>
-    <h1>Importa scheda</h1>
+function importView(forId){
+  const R = U.impData, who = forId ? ath(forId) : null;
+  return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ ${who?esc(who.name):'Lezioni private'}</button>
+    <h1>${who?'Incolla scheda o lezione':'Nuovo allievo da chat'}</h1>
+    ${who?`<p class="small muted" style="margin-top:-6px">Quello che incolli va a <b>${esc(who.name)}</b>: una lezione nuova si aggiunge alle altre, gli obiettivi uguali non si doppiano.</p>`:`<p class="small muted" style="margin-top:-6px">Per creare un allievo nuovo. Per aggiungere una lezione a un allievo che c'è già, apri il suo nome e incolla lì.</p>`}
     ${!R ? `<section class="card"><h3>1 · Incolla il testo preparato in chat</h3><p class="small muted">In chat tocca "Copia" sul riquadro con il testo, poi tieni premuto qui sotto e scegli "Incolla". L'app ti mostra cosa contiene prima di inserirlo.</p>
       <textarea id="imp-txt" class="input" rows="6" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
       <button class="btn clay" data-a="imppaste" style="align-self:flex-start">Leggi il testo</button>
@@ -1797,24 +1799,27 @@ function importView(){
       <section class="card"><h3>2 · Oppure scegli il file</h3><p class="small muted">Se hai salvato il file (finisce con .json) nei File del telefono o sul computer.</p>
       <div class="row"><label class="btn ghost" for="imp-file" style="display:inline-flex;align-items:center;cursor:pointer">Scegli il file .json</label>
       <input id="imp-file" type="file" accept=".json,application/json,.txt,text/plain" data-c="impfile" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div></section>`
-    : `<section class="card"><h3>Cosa verrà inserito</h3><div class="list">${R.rows.map(r=>`<div><b style="font-size:17px">${esc(r.x.nome)}</b> ${r.ex?'<span class="tag teal">già nell\'app: aggiorno la scheda</span>':'<span class="tag pri">nuovo allievo</span>'}
+    : `<section class="card"><h3>Cosa verrà inserito</h3><div class="list">${R.rows.map(r=>`<div><b style="font-size:17px">${esc(r.ex?r.ex.name:r.x.nome)}</b> ${r.ex?'<span class="tag teal">aggiorno la sua scheda</span>':'<span class="tag pri">nuovo allievo</span>'}${who && impNorm(r.x.nome)!==impNorm(who.name).split(' ')[0] && impNorm(r.x.nome)!==impNorm(who.name)?`<p class="small" style="color:var(--ko)">Attenzione: il testo è intestato a "${esc(r.x.nome)}".</p>`:''}
         <ul class="small" style="margin:6px 0 0;padding-left:18px">${[r.card?'identikit (livello, categoria, durata, su cosa stiamo lavorando)':'', r.x.obiettivo?'obiettivo del percorso':'', r.x.frequenza?'frequenza e periodo':'', r.goals?`${r.goals} obiettivi nuovi`:'', r.sheets?`${r.sheets} ${r.sheets===1?'lezione svolta':'lezioni svolte'} con ${r.shex} esercizi${r.shc?` (${r.shc} con campetto)`:''}`:'', r.weeks?`programma: ${r.weeks} ${r.weeks===1?'settimana':'settimane'}, ${r.lessons} ${r.lessons===1?'lezione':'lezioni'}, ${r.exs} esercizi con campetto`:'', r.diary?`${r.diary} ${r.diary===1?'lezione':'lezioni'} nel diario`:'', r.cal?`${r.cal} ${r.cal===1?'lezione':'lezioni'} in calendario`:''].filter(Boolean).map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('')}</div>
         <p class="small muted">Non viene cancellato niente: gli obiettivi e le lezioni già presenti restano, quelli uguali non vengono doppiati.</p></section>
-      <button class="btn clay block" data-a="impdo">Conferma e importa</button>
+      <button class="btn clay block" data-a="impdo">Conferma e inserisci</button>
       <button class="btn ghost block" data-a="impreset">Scegli un altro file</button>`}`;
 }
-function impApply(d){
+function impApply(d, forId){
   const mine = impMine(), out = [];
   d.allievi.filter(x=>x && x.nome).forEach(x=>{
-    let a = mine.find(z=>impNorm(z.name)===impNorm(x.nome)) || mine.find(z=>impNorm(z.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0);
+    let a = forId ? ath(forId) : mine.find(z=>impNorm(z.name)===impNorm(x.nome)) || mine.find(z=>impNorm(z.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0);
+    if(!a && forId) return;
     if(!a){ a = {id:uid(), groupId:PRIV_ID, name:String(x.nome).trim(), pin:genPin(), ppin:genPin()}; S.athletes.push(a); mine.push(a); }
     const pv = privOf(a.id);
     if(x.obiettivo) pv.prog.title = String(x.obiettivo).trim();
     if(x.frequenza) pv.prog.freq = String(x.frequenza).trim();
     const have = new Set(pv.goals.map(g=>impNorm(g.text))), AR = {tec:'tec',tecnica:'tec',tat:'tat',tattica:'tat',men:'men',mentale:'men',fis:'fis',fisico:'fis',fisica:'fis'}, ST = {todo:'todo','da iniziare':'todo',doing:'doing','in corso':'doing',done:'done',raggiunto:'done'};
     const refs = {};
-    (x.obiettivi||[]).forEach(g=>{ if(!g || !g.testo) return; let G = pv.goals.find(z=>impNorm(z.text)===impNorm(g.testo) || (g.gruppo && impNorm(z.text)===impNorm(g.gruppo+' '+g.testo)));
-      if(G && g.gruppo && impNorm(G.text)!==impNorm(g.testo)){ G.text = String(g.testo).trim(); }
+    (x.obiettivi||[]).forEach(g=>{ if(!g || !g.testo) return; let G = pv.goals.find(z=>impNorm(z.text)===impNorm(g.testo) || (g.gruppo && impNorm(z.text)===impNorm(g.gruppo+' '+g.testo)) || (z.grp && impNorm(z.grp+' '+z.text)===impNorm(g.testo)));
+      if(G && impNorm(G.text)!==impNorm(g.testo)){ G.text = String(g.testo).trim(); }
+      if(G && !g.gruppo && G.grp && impNorm(g.testo).startsWith(impNorm(G.grp))) delete G.grp;
+      if(G && AR[impNorm(g.area)] && G.area!==AR[impNorm(g.area)]) G.area = AR[impNorm(g.area)];
       if(!G){ G = {id:uid(), area:AR[impNorm(g.area)]||'tec', text:String(g.testo).trim(), st:ST[impNorm(g.stato)]||'todo'}; pv.goals.push(G); have.add(impNorm(g.testo)); }
       if(g.gruppo && !G.grp) G.grp = String(g.gruppo); if(g.breve && !G.short) G.short = String(g.breve);
       if(g.ref) refs[g.ref] = G.id; });
@@ -1862,13 +1867,13 @@ function impApply(d){
 function privList(){
   const as = S.athletes.filter(a=>a.groupId===PRIV_ID);
   if(U.impOpen) return importView();
-  return `<h1>Lezioni private</h1><section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Scheda preparata in chat?</b><br><span class="muted">Incolla il testo e la scheda si compila da sola.</span></span><button class="btn clay" data-a="impgo">Importa scheda</button></div></section>
+  return `<h1>Lezioni private</h1><section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Allievo nuovo preparato in chat?</b><br><span class="muted">Incolla il testo e crea l'allievo con la sua scheda. Per un allievo che c'è già, apri il suo nome.</span></span><button class="btn clay" data-a="impgo">Nuovo da chat</button></div></section>
     <section class="card" style="padding:4px 16px"><div class="list">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(g=>g.st==='done').length;
       return `<button class="item" data-a="privopen" data-k="${a.id}"><span class="grow"><b style="font-size:17px">${esc(a.name)}</b><br><span class="small muted">${pv.prog.title?esc(pv.prog.title)+' · ':''}${pv.goals.length} obiettivi${pv.goals.length?`, ${done} raggiunti`:''} · ${pv.lessons.length} lezioni</span></span><span class="chev">›</span></button>`; }).join('') || '<p class="muted" style="padding:12px 0">Nessun allievo privato. Aggiungilo qui sotto.</p>'}</div></section>
     <section class="card"><h3>Nuovo allievo privato</h3><div class="row"><input id="f-privname" class="input" placeholder="Nome e iniziale del cognome" style="flex:1;min-width:0"><button class="btn" data-a="privadd">Aggiungi</button></div></section>`;
 }
 function goalsHtml(pv, edit, aid){
-  return PAREAS.map(([k,l])=>{ const gs = pv.goals.filter(g=>g.area===k); if(!gs.length) return ''; return `<div class="field"><span class="tag pri" style="align-self:flex-start">${l}</span>${gs.map(g=>`<div class="goal ${g.st}"><p>${esc(g.text)}</p>
+  return PAREAS.map(([k,l])=>{ const gs = pv.goals.filter(g=>g.area===k); if(!gs.length) return ''; return `<div class="field"><span class="tag pri" style="align-self:flex-start">${l}</span>${gs.map(g=>`<div class="goal ${g.st}"><p>${g.grp?`<span class="small muted">${esc(g.grp)} · </span>`:''}${esc(g.text)}</p>
     ${edit?`<div class="seg" role="group">${GOAL_ST.map(([s,lab])=>`<button data-a="goalst" data-k="${aid}:${g.id}" data-v="${s}" aria-pressed="${g.st===s}">${lab}</button>`).join('')}</div> <button class="chip" data-a="goaldel" data-k="${aid}:${g.id}" style="align-self:flex-start">Togli</button>`:`<span class="tag ${g.st==='done'?'teal':g.st==='doing'?'':'pri'}">${GOAL_ST.find(x=>x[0]===g.st)[1]}</span>`}</div>`).join('')}</div>`; }).join('');
 }
 function ppProgCard(id){
@@ -2013,7 +2018,8 @@ function sheetView(id, x, edit){
 function privDetail(id){
   const a = ath(id), pv = privOf(id), tab = U.ppTab || 'scheda';
   if(U.sheetOpen && (pv.sheets||[]).some(x=>x.id===U.sheetOpen)) return sheetView(id, pv.sheets.find(x=>x.id===U.sheetOpen), true);
-  return `<div class="row between" style="gap:8px"><button class="btn ghost" data-a="privclose">‹ Lezioni private</button><button class="btn ghost" data-a="impgo">Importa scheda</button></div>
+  if(U.impFor===id) return importView(id);
+  return `<div class="row between" style="gap:8px"><button class="btn ghost" data-a="privclose">‹ Lezioni private</button><button class="btn clay" data-a="impfor" data-k="${id}">Incolla scheda o lezione</button></div>
     ${ppTabs(tab, [['scheda','Scheda'],['lezioni','Lezioni ('+((pv.sheets||[]).length)+')'],['gest','Modifica e calendario']])}
     ${tab==='scheda' ? idCard(id, true) : tab==='lezioni' ? sheetList(id) : privManage(id)}`;
 }
@@ -3316,12 +3322,13 @@ const ACT = {
   sheetopen(k){ U.sheetOpen=k; window.scrollTo(0,0); },
   sheetclose(){ U.sheetOpen=null; U.ppTab='lezioni'; window.scrollTo(0,0); },
   sheetdel(k){ const [aid,sid]=k.split(':'); const pv=privOf(aid); pv.sheets=(pv.sheets||[]).filter(x=>x.id!==sid); U.sheetOpen=null; U.confirm=null; save(); toast('Lezione tolta'); },
-  impgo(){ U.tab='home'; U.homeView='priv'; U.privOpen=null; U.athPriv=null; U.sheetOpen=null; U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impfor(k){ U.impFor=k; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impgo(){ U.impFor=null; U.tab='home'; U.homeView='priv'; U.privOpen=null; U.athPriv=null; U.sheetOpen=null; U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impopen(){ U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
-  impclose(){ U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impclose(){ U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
-  imppaste(){ const r = impParse(document.getElementById('imp-txt').value||''); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
-  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d); save(); U.impOpen=false; U.impData=null; U.ppTab='scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
+  imppaste(){ const r = impParse(document.getElementById('imp-txt').value||'', U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
+  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
   ppopen(k){ U.tab='plan'; U.planMode='weeks'; U.planGroup='pp_'+k; U.oWeek=null; U.oDay=null; U.pick=null; window.scrollTo(0,0); },
   ppback(k){ U.planGroup=null; U.oWeek=null; U.oDay=null; if(S.session.role==='coach'){ U.tab='home'; U.homeView='priv'; U.privOpen=k; } window.scrollTo(0,0); },
@@ -3645,7 +3652,7 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('change', e=>{
   const t = e.target, c = t.dataset?.c;
-  if(c==='impfile'){ const f = t.files && t.files[0]; if(f){ f.text().then(txt=>{ const r = impParse(txt); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } render(); }); } t.value=''; return; }
+  if(c==='impfile'){ const f = t.files && t.files[0]; if(f){ f.text().then(txt=>{ const r = impParse(txt, U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } render(); }); } t.value=''; return; }
   if(c==='pdffile'){ const f = t.files && t.files[0]; if(f) pdfLoad(t.dataset.k, f); t.value=''; return; }
   if(c==='tfres'){ const [pid,f]=t.dataset.k.split(':'); const x=tByKey(U.tOpen); x.t.results=x.t.results||{}; (x.t.results[pid]=x.t.results[pid]||{})[f]=t.value; save(); return; }
   if((c==='tf'||c==='tnew') && t.type==='date'){ render(); return; }
