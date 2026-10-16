@@ -3,3 +3,6 @@ online/site/
 online/check.js
 online/test.html
 __pycache__/
+tools/verify/node_modules/
+tools/verify/out/
+tools/verify/package-lock.json

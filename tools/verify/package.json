@@ -1,0 +1,8 @@
+{
+  "name": "smart-coach-verify",
+  "private": true,
+  "type": "module",
+  "description": "Prova automatica dell'app con Edge (solo per chi sviluppa, non va sul sito)",
+  "scripts": { "verify": "node verify.mjs" },
+  "dependencies": { "playwright-core": "1.49.1" }
+}

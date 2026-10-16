@@ -9,9 +9,11 @@ Cartella per lavorare sull'app insieme. Puoi passarla così com'è anche al tuo 
 | `smart-coach.html` | **L'app vera e propria.** È un unico file HTML (stile, codice e dati di prova insieme). Se lo apri nel browser funziona da solo: i dati restano nel browser (localStorage) e non tocca niente di online. **Le modifiche si fanno qui.** |
 | `online/cloud.js` | La parte online: accesso di maestri, staff, atleti e genitori, salvataggio su Firebase (Firestore), codici e PIN. |
 | `online/build.py` | Crea la versione online combinando `smart-coach.html` con `online/cloud.js`. Si lancia con `python3 online/build.py`. Il risultato va in `online/site/index.html`. |
+| `online/build.mjs` | Lo stesso build per chi ha Node invece di Python: `node online/build.mjs`. Produce gli stessi file. Se cambi una sostituzione, aggiornala in tutti e due. |
+| `tools/verify/` | Prova automatica: apre l'app in Edge su telefono e desktop, entra con tutti i ruoli e tocca tutte le schede. Prima volta `cd tools/verify && npm i`, poi `node tools/verify/verify.mjs`. |
 | `online/mockfb.js` | Finto Firebase da usare nei test: la versione online si prova senza toccare i dati veri. |
 | `online/firestore.rules` | Regole di sicurezza del database: chi può leggere e scrivere cosa. |
-| `index-online.html` | Copia della versione pubblicata oggi su https://tennissmartcoach.github.io/Tennis-Smart-Coach/. Serve solo come riferimento: **non modificarla a mano**, perché si rigenera da `build.py`. |
+| `index.html` | Copia della versione pubblicata oggi su https://tennissmartcoach.github.io/Tennis-Smart-Coach/. Serve solo come riferimento: **non modificarla a mano**, perché si rigenera da `build.py`. |
 
 ## Come è fatto il codice (per Claude)
 
