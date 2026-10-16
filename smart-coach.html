@@ -1787,16 +1787,79 @@ function impParse(txt, forId){
     return {x, ex, card:!!x.scheda, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, sheets:SH.length, shex:SE, shc:SC, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
   return {d, rows, forId:forId||null};
 }
+const AI_EX = '[["z",176,22,30,20],["t",191,19,"4×1\'"],["A",24,40,"S"],["M",204,76],["f","M198 72Q120 22 31 36"],["a","M30 45Q110 84 186 76"],["c",12,66],["n",70,46,"1"],["ma","M16 82C4 78 6 66 12 72"]]';
+function aiPrompt(forId){
+  const a = forId ? ath(forId) : null, pv = a ? privOf(a.id) : null, notes = (U.aiNotes && U.aiNotes[forId||'_']) || '';
+  const next = pv ? Math.max(0, ...(pv.sheets||[]).map(x=>+x.n||0)) + 1 : 1;
+  const goals = pv ? pv.goals.map(g=>'- "'+g.text+'" ('+({tat:'tattica',tec:'tecnica',men:'mentale',fis:'fisica'}[g.area]||g.area)+(g.grp?', '+g.grp:'')+')').join('\n') : '';
+  return `Sei l'assistente di un maestro di tennis. Trasforma gli appunti del maestro (in fondo) in un testo da incollare nell'app Tennis Smart Coach.
+
+COME RISPONDERE
+- Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Non inventare: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro.
+- Per un minorenne usa solo il nome (o nome e iniziale del cognome), mai altri dati personali.
+- Se gli appunti descrivono solo una lezione, non riscrivere identikit e obiettivi: metti solo "nome", gli obiettivi nuovi (se ce ne sono) e "lezioni".
+
+ALLIEVO
+- Nome: ${a?a.name:'(quello scritto negli appunti)'}
+${a?`- Numero della prossima lezione: ${next}\n`:''}- Data di oggi: ${new Date().toISOString().slice(0,10)}${goals?`
+- Obiettivi già inseriti nell'app (non ripeterli; se la lezione ne lavora qualcuno, in "toccati" scrivi il testo esatto tra virgolette):
+${goals}`:''}
+
+FORMATO
+{"tipo":"tennis-smart-coach","versione":2,"allievi":[{
+ "nome":"…",
+ "obiettivo":"obiettivo del percorso in 1-2 frasi",
+ "frequenza":"es. Lezione individuale da 60'",
+ "scheda":{"livello":"…","categoria":"Adulto/Under 12…","durata":60,"formato":"1:1","focus":[{"titolo":"…","testo":"…"}]},
+ "obiettivi":[{"area":"tat|tec|men|fis","gruppo":"es. Gioco di base, Scelte, Variazioni, Servizio (facoltativo)","testo":"…","ref":"sigla breve","breve":"2-3 parole","stato":"todo|doing|done"}],
+ "lezioni":[{"n":${next},"data":"AAAA-MM-GG","titolo":"…","sottotitolo":"…","durata":60,"formato":"Individuale",
+   "obiettivo":"cosa si allena oggi",
+   "aspetti":{"tat":"…","tec":"…","men":"…","fis":"…"},
+   "fasi":[{"nome":"Attivazione / Parte centrale / …","min":12,"temi":"parole chiave separate da ·",
+     "esercizi":[{"titolo":"…","min":6,"righe":["svolgimento dell'esercizio"],"obiettivo":"…","serie":"…","campo":[…]}]}],
+   "toccati":["ref o testo degli obiettivi lavorati"],"noteDopo":"","daRiprendere":""}]
+}]}
+Regole sulle aree: tecnica = come si esegue il colpo (impugnatura, braccio, gambe, servizio come gesto); tattica = dove e quando mandare la palla (regolarità, precisione, profondità, direzioni, scelte, variazioni); mentale = concentrazione, emozioni, routine; fisica = spostamenti, resistenza, rapidità.
+
+IL CAMPETTO ("campo", facoltativo: mettilo solo se dagli appunti si capisce dove stanno i giocatori e dove va la palla)
+Campo visto dall'alto, largo 220 e alto 110. Rete verticale a x=110. Metà sinistra (x da 10 a 110) = lato dell'allievo; metà destra (x da 110 a 210) = lato del maestro. Linee di fondo a x=10 e x=210; linee laterali del doppio a y=9 e y=101, del singolo a y=20.5 e y=89.5; linee del servizio a x=56 e x=164.
+Elementi (una lista per ogni elemento):
+["A",x,y,"S"] allievo con la sua iniziale · ["B",x,y,"L"] secondo allievo · ["M",x,y] maestro · ["c",x,y] cono · ["z",x,y,larghezza,altezza] zona bersaglio · ["t",x,y,"testo"] scritta breve · ["n",x,y,"1"] numero della sequenza · ["a","M x y Q cx cy x2 y2"] colpo dell'allievo (percorso SVG) · ["b","…"] colpo del secondo allievo · ["f","…"] palla del maestro · ["ma","…"] spostamento di un giocatore.
+Esempio: ${AI_EX}
+
+APPUNTI DEL MAESTRO
+${notes.trim() || '(scrivi qui gli appunti)'}`;
+}
+let REC = null;
+function dictate(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, ta = document.getElementById('ai-notes');
+  if(REC){ try{ REC.stop(); }catch(e){} REC = null; U.recOn = false; render(); return; }
+  if(!SR){ toast('Qui il microfono dell\'app non va: tocca il riquadro e usa il microfono della tastiera'); if(ta) ta.focus(); return; }
+  const key = U.impFor || '_'; U.aiNotes = U.aiNotes || {};
+  const r = new SR(); r.lang = 'it-IT'; r.continuous = true; r.interimResults = false;
+  r.onresult = ev=>{ let add = ''; for(let i=ev.resultIndex;i<ev.results.length;i++) if(ev.results[i].isFinal) add += ev.results[i][0].transcript; if(!add) return; const cur = U.aiNotes[key] || ''; U.aiNotes[key] = (cur && !/\s$/.test(cur) ? cur+' ' : cur) + add.trim(); const t = document.getElementById('ai-notes'); if(t) t.value = U.aiNotes[key]; };
+  r.onerror = ev=>{ REC = null; U.recOn = false; render(); toast(ev.error==='not-allowed'||ev.error==='service-not-allowed' ? 'Microfono non permesso qui: usa il microfono della tastiera' : 'Dettatura interrotta'); };
+  r.onend = ()=>{ if(REC===r){ REC = null; U.recOn = false; render(); } };
+  try{ r.start(); REC = r; U.recOn = true; render(); }catch(e){ toast('Usa il microfono della tastiera'); }
+}
 function importView(forId){
   const R = U.impData, who = forId ? ath(forId) : null;
   return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ ${who?esc(who.name):'Lezioni private'}</button>
     <h1>${who?'Incolla programma o lezione':'Nuovo allievo da chat'}</h1>
     ${who?`<p class="small muted" style="margin-top:-6px">Quello che incolli va a <b>${esc(who.name)}</b>: una lezione nuova si aggiunge alle altre, gli obiettivi uguali non si doppiano.</p>`:`<p class="small muted" style="margin-top:-6px">Per creare un allievo nuovo. Per aggiungere una lezione a un allievo che c'è già, apri il suo nome e incolla lì.</p>`}
-    ${!R ? `<section class="card"><h3>1 · Incolla il testo preparato in chat</h3><p class="small muted">In chat tocca "Copia" sul riquadro con il testo, poi tieni premuto qui sotto e scegli "Incolla". L'app ti mostra cosa contiene prima di inserirlo.</p>
+    ${!R ? `<section class="card" style="border-color:var(--clay)"><h3>1 · Racconta la lezione</h3><p class="small muted">Scrivi o detta come parleresti a un collega. Più cose dici, più la scheda viene completa:</p>
+      <ul class="small muted" style="margin:0;padding-left:18px"><li>obiettivi dell'allievo (tecnica, tattica, mentale, fisico)</li><li>le fasi con i minuti (attivazione, parte centrale…)</li><li>per ogni esercizio: dove state tu e l'allievo, dove va la palla, le serie</li></ul>
+      <textarea id="ai-notes" class="input" rows="7" data-c="ainotes" placeholder="Es.: ${who?esc(who.name.split(' ')[0]):'Serena'}, 60 minuti. Obiettivo: più profondità. Attivazione 10 minuti palleggio da metà campo. Poi esercizio: io a fondo campo gioco a caso su diritto e rovescio, lei deve mandare la palla nel riquadro nell'angolo destro, 4 serie da un minuto…">${esc((U.aiNotes&&U.aiNotes[U.impFor||'_'])||'')}</textarea>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ${U.recOn?'danger':'ghost'}" data-a="aidict">${U.recOn?'■ Ferma la dettatura':'🎙 Detta'}</button><button class="btn clay" data-a="aicopy">Copia la richiesta per l'IA</button></div>
+      ${U.aiCopied?`<div class="card" style="background:var(--surface-2,rgba(255,255,255,.04));gap:6px"><p class="small"><b>Copiata.</b> Ora apri Claude (o un'altra IA), tieni premuto nel campo del messaggio, scegli "Incolla" e invia. Quando risponde, tocca "Copia" sul riquadro con il testo e incollalo qui sotto al punto 2.</p><a class="btn ghost" style="text-decoration:none" href="https://claude.ai/new" target="_blank" rel="noopener" style="align-self:flex-start">Apri Claude</a></div>`:''}
+      ${U.aiShow?`<p class="small muted">Il telefono non ha permesso di copiare da solo: tieni premuto qui sotto, "Seleziona tutto" e "Copia".</p><textarea class="input" rows="5" readonly onfocus="this.select()">${esc(aiPrompt(U.impFor||null))}</textarea>`:''}
+      <p class="small muted">Il microfono si può usare anche dalla tastiera del telefono. Per i minorenni basta il nome.</p></section>
+      <section class="card"><h3>2 · Incolla la risposta dell'IA</h3><p class="small muted">Tocca "Copia" sul riquadro con il testo che ti ha preparato l'IA (o che ti ho preparato in chat), poi tieni premuto qui sotto e scegli "Incolla". L'app ti mostra cosa contiene prima di inserirlo.</p>
       <textarea id="imp-txt" class="input" rows="6" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
       <button class="btn clay" data-a="imppaste" style="align-self:flex-start">Leggi il testo</button>
       ${U.impErr?`<p class="small" style="color:var(--ko)">${esc(U.impErr)}</p>`:''}</section>
-      <section class="card"><h3>2 · Oppure scegli il file</h3><p class="small muted">Se hai salvato il file (finisce con .json) nei File del telefono o sul computer.</p>
+      <section class="card"><h3>Oppure scegli il file</h3><p class="small muted">Se hai salvato il file (finisce con .json) nei File del telefono o sul computer.</p>
       <div class="row"><label class="btn ghost" for="imp-file" style="display:inline-flex;align-items:center;cursor:pointer">Scegli il file .json</label>
       <input id="imp-file" type="file" accept=".json,application/json,.txt,text/plain" data-c="impfile" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div></section>`
     : `<section class="card"><h3>Cosa verrà inserito</h3><div class="list">${R.rows.map(r=>`<div><b style="font-size:17px">${esc(r.ex?r.ex.name:r.x.nome)}</b> ${r.ex?'<span class="tag teal">aggiorno la sua scheda</span>':'<span class="tag pri">nuovo allievo</span>'}${who && impNorm(r.x.nome)!==impNorm(who.name).split(' ')[0] && impNorm(r.x.nome)!==impNorm(who.name)?`<p class="small" style="color:var(--ko)">Attenzione: il testo è intestato a "${esc(r.x.nome)}".</p>`:''}
@@ -3323,11 +3386,14 @@ const ACT = {
   sheetopen(k){ U.sheetOpen=k; window.scrollTo(0,0); },
   sheetclose(){ U.sheetOpen=null; U.ppTab='lezioni'; window.scrollTo(0,0); },
   sheetdel(k){ const [aid,sid]=k.split(':'); const pv=privOf(aid); pv.sheets=(pv.sheets||[]).filter(x=>x.id!==sid); U.sheetOpen=null; U.confirm=null; save(); toast('Lezione tolta'); },
-  impfor(k){ U.impFor=k; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impfor(k){ U.impFor=k; U.aiCopied=false; U.aiShow=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impgo(){ U.impFor=null; U.tab='home'; U.homeView='priv'; U.privOpen=null; U.athPriv=null; U.sheetOpen=null; U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impopen(){ U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
-  impclose(){ U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
+  impclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
+  aidict(){ dictate(); },
+  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[U.impFor||'_']=ta.value; if(!(U.aiNotes[U.impFor||'_']||'').trim()){ toast('Prima scrivi o detta la lezione'); return; } const txt=aiPrompt(U.impFor||null);
+    try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
   imppaste(){ const r = impParse(document.getElementById('imp-txt').value||'', U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
   impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
@@ -3698,6 +3764,7 @@ document.addEventListener('input', e=>{
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
+  if(c==='ainotes'){ U.aiNotes = U.aiNotes || {}; U.aiNotes[U.impFor||'_'] = t.value; return; }
   if(c==='pv' && U.pvDraft){ U.pvDraft[t.dataset.k]=t.value; return; }
   if(c==='pf' && U.profDraft){ U.profDraft[t.dataset.k]=t.value; return; }
   if(c==='fitplan'){ S.fitPlan=S.fitPlan||{}; (S.fitPlan[t.dataset.k]=S.fitPlan[t.dataset.k]||{})[U.fitDate||todayISO()]=t.value; save(); return; }
