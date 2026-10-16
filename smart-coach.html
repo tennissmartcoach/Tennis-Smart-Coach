@@ -217,6 +217,8 @@ details.pres .list{margin-top:8px}
 .phbar{display:flex;gap:3px;border-radius:12px;overflow:hidden;min-height:50px}.phbar span{display:flex;flex-direction:column;justify-content:center;padding:6px 6px;color:#0F1620;font-size:12px;font-weight:700;min-width:0;overflow:hidden}.phbar b{font-size:10.5px;line-height:1.15;overflow-wrap:anywhere;hyphens:auto}
 .kpis.idk{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis.idk b,.kpis.idk3 b{font-size:20px;overflow-wrap:anywhere}.kpis.idk3{grid-template-columns:repeat(3,minmax(0,1fr))}.kpis.idk3 b{font-size:15px;overflow-wrap:normal}
 .shx{display:flex;flex-direction:column;gap:6px}
+.item.lp{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.lpmenu{display:flex;flex-direction:column;gap:8px;padding:10px 12px;margin:0 0 8px;border:1px solid var(--ko);border-radius:12px}
 .lnum{width:40px;height:40px;border-radius:10px;background:var(--clay);color:var(--on-clay);font:700 16px var(--f-disp);display:flex;align-items:center;justify-content:center;flex:none}
 .gpick{display:flex;gap:8px;overflow-x:auto;margin:-2px -4px 4px;padding:2px 4px 6px;scrollbar-width:none}.gpick::-webkit-scrollbar{display:none}
 .gpick button{flex:none;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);font:600 14px var(--f-body,inherit);white-space:nowrap}
@@ -1577,18 +1579,20 @@ function libraryView(){
 }
 
 /* new / edit exercise with court drawing */
-const TOOLS = [['A','Giocatore A'],['B','Giocatore B'],['M','Maestro'],['a','Colpo di A'],['b','Colpo di B'],['f','Palla del maestro'],['ma','Spostamento'],['z','Zona bersaglio'],['n','Numero']];
+const TOOLS = [['A','Giocatore A'],['B','Giocatore B'],['M','Maestro'],['a','Colpo di A'],['b','Colpo di B'],['f','Palla del maestro'],['ma','Spostamento'],['z','Zona bersaglio'],['c','Cono'],['n','Numero']];
 function editorView(){
   const E = U.ed;
   return `
-    <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.ctx?'Seduta':'Libreria'}</button>
-    <h1>${E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
+    <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
+    <h1>${E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
     <section class="card">
-      <div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>
+      ${E.sheet?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>
       <div class="field"><label for="ed-chip">Organizzazione</label><input id="ed-chip" class="input" data-c="ed" data-k="chip" value="${esc(E.chip)}" placeholder="Es. Maestro al cesto, poi a coppie"></div>
       <div class="field"><label for="ed-x">Descrizione</label><textarea id="ed-x" class="input" rows="4" data-c="ed" data-k="x" placeholder="Una riga per ogni punto: esecuzione, evoluzione, attenzione…">${esc(E.x)}</textarea></div>
+      ${E.sheet?`<div class="row" style="gap:8px"><div class="field" style="width:90px"><label for="ed-min">Minuti</label><input id="ed-min" class="input" inputmode="numeric" data-c="ed" data-k="min" value="${esc(String(E.min||''))}"></div><div class="field grow" style="flex:1;min-width:0"><label for="ed-serie">Serie</label><input id="ed-serie" class="input" data-c="ed" data-k="serie" value="${esc(E.serie||'')}" placeholder="Es. 4 serie da 1'"></div></div>
+      <div class="field"><label for="ed-obj">Obiettivo</label><input id="ed-obj" class="input" data-c="ed" data-k="obj" value="${esc(E.obj||'')}" placeholder="Es. profondità e precisione"></div>`:''}
     </section>
     <section class="card">
       <h3>Disegno sul campo</h3>
@@ -1599,8 +1603,9 @@ function editorView(){
       <div class="row"><button class="btn ghost" data-a="edundo" ${E.els.length?'':'disabled'} style="flex:1">↩ Annulla l'ultimo</button><button class="btn ghost" data-a="edclear" ${E.els.length?'':'disabled'} style="flex:1">Cancella disegno</button></div>
       ${LEGEND}
     </section>
-    ${E.ctx?`<label class="row small" style="gap:8px;align-items:center"><input type="checkbox" data-c="edlib" ${E.lib?'checked':''}> Salva anche nella libreria esercizi</label>`:''}
-    <button class="btn clay block" data-a="edsave">${E.ctx?'Salva e metti nella seduta':'Salva nella libreria'}</button>`;
+    ${E.ctx||E.sheet?`<label class="row small" style="gap:8px;align-items:center"><input type="checkbox" data-c="edlib" ${E.lib?'checked':''}> Salva anche nella libreria esercizi</label>`:''}
+    <button class="btn clay block" data-a="edsave">${E.sheet?'Salva nella lezione':E.ctx?'Salva e metti nella seduta':'Salva nella libreria'}</button>
+    ${E.sheet && E.sheet.j!==null ? (U.confirm==='shx'?`<section class="card"><p>Togliere questo esercizio dalla lezione?</p><div class="row"><button class="btn danger" data-a="shexdel">Sì, togli</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:`<button class="chip" data-a="askdel" data-k="shx" style="align-self:center">Togli questo esercizio</button>`) : ''}`;
 }
 function arrowPath(x1,y1,x2,y2,curve){
   if(!curve) return `M${x1} ${y1}L${x2} ${y2}`;
@@ -1796,7 +1801,7 @@ function aiPrompt(forId){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
-- Non inventare: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro.
+- Non inventare contenuti: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro. L'unica eccezione è il campetto (vedi sotto).
 - Per un minorenne usa solo il nome (o nome e iniziale del cognome), mai altri dati personali.
 - Se gli appunti descrivono solo una lezione, non riscrivere identikit e obiettivi: metti solo "nome", gli obiettivi nuovi (se ce ne sono) e "lezioni".
 
@@ -1822,7 +1827,8 @@ FORMATO
 }]}
 Regole sulle aree: tecnica = come si esegue il colpo (impugnatura, braccio, gambe, servizio come gesto); tattica = dove e quando mandare la palla (regolarità, precisione, profondità, direzioni, scelte, variazioni); mentale = concentrazione, emozioni, routine; fisica = spostamenti, resistenza, rapidità.
 
-IL CAMPETTO ("campo", facoltativo: mettilo solo se dagli appunti si capisce dove stanno i giocatori e dove va la palla)
+IL CAMPETTO ("campo"): mettilo SEMPRE, in OGNI esercizio di OGNI fase (anche attivazione e servizio), anche se il maestro non lo chiede.
+Se gli appunti non dicono dove stanno i giocatori, usa la disposizione più normale per quell'esercizio (allievo a fondo campo al centro; maestro dall'altra parte a fondo campo, a metà campo se gioca palle facili, a rete se si parla di volée) e disegna almeno: i giocatori, la palla del maestro, il colpo dell'allievo con la direzione detta (diagonale, lungolinea, centro), le zone bersaglio e i coni se nominati, un numero per ogni passaggio di una sequenza. Il maestro lo potrà correggere nell'app.
 Campo visto dall'alto, largo 220 e alto 110. Rete verticale a x=110. Metà sinistra (x da 10 a 110) = lato dell'allievo; metà destra (x da 110 a 210) = lato del maestro. Linee di fondo a x=10 e x=210; linee laterali del doppio a y=9 e y=101, del singolo a y=20.5 e y=89.5; linee del servizio a x=56 e x=164.
 Elementi (una lista per ogni elemento):
 ["A",x,y,"S"] allievo con la sua iniziale · ["B",x,y,"L"] secondo allievo · ["M",x,y] maestro · ["c",x,y] cono · ["z",x,y,larghezza,altezza] zona bersaglio · ["t",x,y,"testo"] scritta breve · ["n",x,y,"1"] numero della sequenza · ["a","M x y Q cx cy x2 y2"] colpo dell'allievo (percorso SVG) · ["b","…"] colpo del secondo allievo · ["f","…"] palla del maestro · ["ma","…"] spostamento di un giocatore.
@@ -2046,9 +2052,12 @@ function idCard(id, edit){
     ${pv.goals.length ? areas : `<section class="card"><p class="muted">${edit?'Nessun obiettivo. Aggiungili da "Modifica" o importa la scheda da file.':'Il maestro non ha ancora inserito gli obiettivi.'}</p></section>`}
     ${c.notes||edit?`<h2 class="hsec">Note sul percorso</h2><section class="card">${edit?`<textarea class="input" rows="3" data-c="ppnote" data-k="${id}" placeholder="Come sta andando il percorso">${esc(c.notes||'')}</textarea>`:`<p style="white-space:pre-line">${esc(c.notes)}</p>`}</section>`:''}`;
 }
+function shFind(sid){ for(const pv of Object.values(S.priv||{})){ const x=(pv.sheets||[]).find(z=>z.id===sid); if(x) return x; } return null; }
 function sheetList(id){
   const pv = privOf(id), xs = (pv.sheets||[]).slice().sort((p,q)=>p.n-q.n);
-  return xs.length ? `<section class="card" style="padding:4px 16px"><div class="list">${xs.map(x=>`<button class="item" data-a="sheetopen" data-k="${x.id}"><span class="lnum">L${x.n}</span><span class="grow"><b style="font-size:17px">${esc(x.sub||x.title)}</b><br><span class="small muted">${esc(x.title&&x.sub?x.title+' · ':'')}${x.date?fdate(x.date+'T12:00'):''}${x.dur?' · '+x.dur+"'":''}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`
+  return xs.length ? `<section class="card" style="padding:4px 16px"><div class="list">${xs.map(x=>`<button class="item lp" data-a="sheetopen" data-k="${x.id}" data-lp="${x.id}"><span class="lnum">L${x.n}</span><span class="grow"><b style="font-size:17px">${esc(x.sub||x.title)}</b><br><span class="small muted">${esc(x.title&&x.sub?x.title+' · ':'')}${x.date?fdate(x.date+'T12:00'):''}${x.dur?' · '+x.dur+"'":''}</span></span><span class="chev">›</span></button>
+      ${U.lpMenu===x.id?`<div class="lpmenu"><span class="small grow">Eliminare la lezione ${x.n}${x.sub||x.title?` «${esc(x.sub||x.title)}»`:''}? Non si può recuperare.</span><div class="row" style="gap:8px"><button class="btn danger" data-a="sheetdel" data-k="${id}:${x.id}">Elimina</button><button class="btn ghost" data-a="lpclose">Annulla</button></div></div>`:''}`).join('')}</div></section>
+    <p class="small muted" style="text-align:center;margin-top:-6px">Tieni premuto su una lezione per eliminarla.</p>`
     : '<section class="card"><p class="muted">Ancora nessuna lezione svolta registrata.</p></section>';
 }
 function sheetView(id, x, edit){
@@ -2070,7 +2079,9 @@ function sheetView(id, x, edit){
         <div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><b style="font-size:17px">${esc(e.t)}</b>${e.min?`<span class="muted" style="font:700 16px var(--f-disp);white-space:nowrap">${esc(String(e.min))}'</span>`:''}</div>
         ${(e.els||[]).length?`<div class="vis"><svg viewBox="0 0 220 110" role="img" aria-label="Campo: ${esc(e.t)}">${courtSVG(e.els)}</svg></div>`:''}
         ${(e.x||[]).map(l=>`<p class="small">${esc(l)}</p>`).join('')}
-        ${e.obj?`<p class="small"><b style="color:${PH_COL[i%PH_COL.length]}">Obiettivo:</b> ${esc(e.obj)}</p>`:''}${e.serie?`<p class="small"><b style="color:${PH_COL[i%PH_COL.length]}">Serie:</b> ${esc(e.serie)}</p>`:''}</div>`).join('')}
+        ${e.obj?`<p class="small"><b style="color:${PH_COL[i%PH_COL.length]}">Obiettivo:</b> ${esc(e.obj)}</p>`:''}${e.serie?`<p class="small"><b style="color:${PH_COL[i%PH_COL.length]}">Serie:</b> ${esc(e.serie)}</p>`:''}
+        ${edit?`<button class="chip" data-a="shexed" data-k="${x.id}:${i}:${j}" style="align-self:flex-start">✎ Modifica esercizio</button>`:''}</div>`).join('')}
+      ${edit?`<button class="btn ghost" data-a="shexed" data-k="${x.id}:${i}:n" style="align-self:flex-start">+ Aggiungi esercizio</button>`:''}
     </section>`).join('')}
     ${(x.touched||[]).length?`<section class="card"><span class="eyebrow">Obiettivi toccati</span><div class="chips">${x.touched.map(gid=>gmap[gid]?`<span class="chip" style="cursor:default">${esc(gmap[gid].short||gmap[gid].text)}</span>`:'').join('')}</div></section>`:''}
     <div class="focus2"><section class="card" style="gap:6px"><span class="eyebrow">Note dopo la lezione</span>${edit?`<textarea class="input" rows="3" data-c="shnote" data-k="${x.id}:after" placeholder="Cosa ha funzionato, cosa no">${esc(x.after||'')}</textarea>`:`<p class="small">${esc(x.after||'—')}</p>`}</section>
@@ -2079,6 +2090,7 @@ function sheetView(id, x, edit){
 }
 function privDetail(id){
   const a = ath(id), pv = privOf(id), tab = U.ppTab || 'scheda';
+  if(U.ed && U.ed.sheet && (pv.sheets||[]).some(x=>x.id===U.ed.sheet.sid)) return editorView();
   if(U.sheetOpen && (pv.sheets||[]).some(x=>x.id===U.sheetOpen)) return sheetView(id, pv.sheets.find(x=>x.id===U.sheetOpen), true);
   if(U.impFor===id) return importView(id);
   const empty = !(pv.card&&(pv.card.level||pv.card.dur)) && !pv.goals.length && !(pv.sheets||[]).length;
@@ -3383,9 +3395,13 @@ const ACT = {
   answath(k){ if(S.session.role==='coach'){ U.tab='ath'; U.athleteOpen=k; U.athTab=null; window.scrollTo(0,0); } else ACT.staffath(k); },
   homegrp(k){ U.homeGrp=k; },
   pptab(k){ U.ppTab=k; U.sheetOpen=null; window.scrollTo(0,0); },
-  sheetopen(k){ U.sheetOpen=k; window.scrollTo(0,0); },
+  sheetopen(k){ U.sheetOpen=k; U.lpMenu=null; window.scrollTo(0,0); },
+  shexed(k){ const [sid,pi,j]=k.split(':'), x=shFind(sid); if(!x) return; const e=j==='n'?null:x.phases[+pi].ex[+j];
+    U.ed={id:null, ph:'pr', t:e?e.t||'':'', chip:e?e.chip||'':'', x:e?(e.x||[]).join('\n'):'', min:e?e.min||'':'', obj:e?e.obj||'':'', serie:e?e.serie||'':'', els:e?JSON.parse(JSON.stringify(e.els||[])):[], vis:null, from:null, tool:'A', pend:null, ctx:null, lib:false, sheet:{sid, pi:+pi, j:j==='n'?null:+j}}; U.confirm=null; window.scrollTo(0,0); },
+  shexdel(){ const E=U.ed; const x=E&&E.sheet&&shFind(E.sheet.sid); if(x){ x.phases[E.sheet.pi].ex.splice(E.sheet.j,1); save(); toast('Esercizio tolto'); } U.ed=null; U.confirm=null; },
+  lpclose(){ U.lpMenu=null; U.confirm=null; },
   sheetclose(){ U.sheetOpen=null; U.ppTab='lezioni'; window.scrollTo(0,0); },
-  sheetdel(k){ const [aid,sid]=k.split(':'); const pv=privOf(aid); pv.sheets=(pv.sheets||[]).filter(x=>x.id!==sid); U.sheetOpen=null; U.confirm=null; save(); toast('Lezione tolta'); },
+  sheetdel(k){ const [aid,sid]=k.split(':'); const pv=privOf(aid); pv.sheets=(pv.sheets||[]).filter(x=>x.id!==sid); U.sheetOpen=null; U.confirm=null; U.lpMenu=null; save(); toast('Lezione tolta'); },
   impfor(k){ U.impFor=k; U.aiCopied=false; U.aiShow=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impgo(){ U.impFor=null; U.tab='home'; U.homeView='priv'; U.privOpen=null; U.athPriv=null; U.sheetOpen=null; U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impopen(){ U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
@@ -3395,7 +3411,7 @@ const ACT = {
   aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[U.impFor||'_']=ta.value; if(!(U.aiNotes[U.impFor||'_']||'').trim()){ toast('Prima scrivi o detta la lezione'); return; } const txt=aiPrompt(U.impFor||null);
     try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
   imppaste(){ const r = impParse(document.getElementById('imp-txt').value||'', U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
-  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
+  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; if(U.aiNotes) U.aiNotes[was||'_']=''; U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
   ppopen(k){ U.tab='plan'; U.planMode='weeks'; U.planGroup='pp_'+k; U.oWeek=null; U.oDay=null; U.pick=null; window.scrollTo(0,0); },
   ppback(k){ U.planGroup=null; U.oWeek=null; U.oDay=null; if(S.session.role==='coach'){ U.tab='home'; U.homeView='priv'; U.privOpen=k; } window.scrollTo(0,0); },
@@ -3672,13 +3688,18 @@ const ACT = {
   edundo(){ U.ed.els.pop(); U.ed.pend=null; }, edclear(){ U.ed.els=[]; U.ed.pend=null; },
   courttap(k,d,ev){ const E=U.ed, svg=ev.target.closest('svg'), r=svg.getBoundingClientRect();
     const x=Math.round((ev.clientX-r.left)/r.width*220), y=Math.round((ev.clientY-r.top)/r.height*110);
-    if(['A','B','M'].includes(E.tool)) E.els.push([E.tool,x,y]);
+    if(['A','B','M','c'].includes(E.tool)) E.els.push([E.tool,x,y]);
     else if(E.tool==='n'){ const n=E.els.filter(e=>e[0]==='n').length+1; E.els.push(['n',x,y,n]); }
     else if(!E.pend) E.pend=[x,y];
     else { const [x1,y1]=E.pend; E.pend=null;
       if(E.tool==='z') E.els.push(['z',Math.min(x1,x),Math.min(y1,y),Math.abs(x-x1),Math.abs(y-y1)]);
       else E.els.push([E.tool, arrowPath(x1,y1,x,y, E.tool!=='ma')]); } },
   edsave(){ const E=U.ed; if(!E.t.trim()){ toast('Scrivi il titolo'); return; }
+    if(E.sheet){ const x=shFind(E.sheet.sid); if(!x){ U.ed=null; return; } const ph=x.phases[E.sheet.pi]; ph.ex=ph.ex||[];
+      const ne={t:E.t.trim(), min:String(E.min||'').trim(), x:E.x.split('\n').map(l=>l.trim()).filter(Boolean), obj:String(E.obj||'').trim(), serie:String(E.serie||'').trim(), els:E.els, chip:E.chip.trim()};
+      if(E.sheet.j===null) ph.ex.push(ne); else ph.ex[E.sheet.j]=Object.assign(ph.ex[E.sheet.j]||{}, ne);
+      if(E.lib){ S.customEx=S.customEx||[]; S.customEx.push({id:'c'+uid(), custom:true, ph:'pr', t:ne.t, chip:ne.chip, lines:ne.x, els:ne.els}); }
+      save(); U.ed=null; toast(E.sheet.j===null?'Esercizio aggiunto':'Esercizio modificato'); return; }
     const ex={id:E.id||('c'+uid()), custom:true, ph:E.ph, t:E.t.trim(), chip:E.chip.trim(), lines:E.x.split('\n').map(l=>l.trim()).filter(Boolean)};
     if(E.els.length || !E.vis) ex.els=E.els; else ex.vis=E.vis;
     if(E.from) ex.from=E.from; if(E.ctx && !E.lib) ex.hidden=true;
@@ -3712,7 +3733,14 @@ const ACT = {
   undo(){ S.live.points.pop(); U.sel={ch:undefined, ex:null}; U.tsel=[]; save(); },
   finish(){ const m=S.live; if(!m.points.length){ S.live=null; U.confirm=null; save(); return; } m.done=true; S.matches.push(m); S.live=null; U.matchOpen=m.id; U.confirm=null; save(); window.scrollTo(0,0); }
 };
+let LP_T = null, LP_FIRED = false;
+const lpOpen = k=>{ LP_FIRED = true; U.lpMenu = k; U.confirm = null; render(); try{ navigator.vibrate && navigator.vibrate(20); }catch(e){} };
+document.addEventListener('pointerdown', e=>{ const t = e.target.closest && e.target.closest('[data-lp]'); clearTimeout(LP_T); LP_FIRED = false; if(!t) return; const k = t.dataset.lp; LP_T = setTimeout(()=>lpOpen(k), 550); });
+['pointerup','pointercancel','pointerleave'].forEach(n=>document.addEventListener(n, ()=>clearTimeout(LP_T)));
+document.addEventListener('pointermove', e=>{ if(Math.abs(e.movementX||0)+Math.abs(e.movementY||0)>6) clearTimeout(LP_T); });
+document.addEventListener('contextmenu', e=>{ const t = e.target.closest && e.target.closest('[data-lp]'); if(!t) return; e.preventDefault(); clearTimeout(LP_T); lpOpen(t.dataset.lp); });
 document.addEventListener('click', e=>{
+  if(LP_FIRED){ LP_FIRED = false; if(e.target.closest && e.target.closest('[data-lp]')){ e.preventDefault(); return; } }
   const t = e.target.closest('[data-a]'); if(!t || t.disabled) return;
   const fn = ACT[t.dataset.a]; if(!fn) return;
   fn(t.dataset.k, t.dataset, e); render();
