@@ -1774,7 +1774,9 @@ function plPupilCard(id){
 const impNorm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function impMine(){ const A = typeof myAccess==='function' ? myAccess() : null; return S.athletes.filter(a=>a.groupId===PRIV_ID && (!A || athVis(a, A))); }
 function impParse(txt){
-  let d; try{ d = JSON.parse(String(txt).trim().replace(/^```(json)?|```$/g,'')); }catch(e){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
+  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
+  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
   if(!d || !Array.isArray(d.allievi) || !d.allievi.length) return {err:'Nel file non ci sono allievi da importare.'};
   const mine = impMine();
   const rows = d.allievi.filter(x=>x && x.nome).map(x=>{ const ex = mine.find(a=>impNorm(a.name)===impNorm(x.nome)) || mine.find(a=>impNorm(a.name).split(' ')[0]===impNorm(x.nome) && impNorm(x.nome).indexOf(' ')<0);
@@ -1788,11 +1790,13 @@ function importView(){
   const R = U.impData;
   return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ Lezioni private</button>
     <h1>Importa da file</h1>
-    ${!R ? `<section class="card"><p class="small muted">Scegli il file preparato in chat (finisce con .json). L'app ti mostra cosa contiene prima di inserirlo: allievi, obiettivi, programma con esercizi e campetti, diario e calendario.</p>
-      <div class="row"><label class="btn clay" for="imp-file" style="display:inline-flex;align-items:center;cursor:pointer">Scegli il file</label>
-      <input id="imp-file" type="file" accept=".json,application/json,.txt,text/plain" data-c="impfile" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div>
-      <details class="pres"><summary class="small">Oppure incolla il testo del file</summary><textarea id="imp-txt" class="input" rows="5" placeholder="Incolla qui" style="margin-top:8px"></textarea><button class="btn ghost" data-a="imppaste" style="align-self:flex-start;margin-top:8px">Leggi il testo</button></details>
-      ${U.impErr?`<p class="small" style="color:var(--ko)">${esc(U.impErr)}</p>`:''}</section>`
+    ${!R ? `<section class="card"><h3>1 · Incolla il testo preparato in chat</h3><p class="small muted">In chat tocca "Copia" sul riquadro con il testo, poi tieni premuto qui sotto e scegli "Incolla". L'app ti mostra cosa contiene prima di inserirlo.</p>
+      <textarea id="imp-txt" class="input" rows="6" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
+      <button class="btn clay" data-a="imppaste" style="align-self:flex-start">Leggi il testo</button>
+      ${U.impErr?`<p class="small" style="color:var(--ko)">${esc(U.impErr)}</p>`:''}</section>
+      <section class="card"><h3>2 · Oppure scegli il file</h3><p class="small muted">Se hai salvato il file (finisce con .json) nei File del telefono o sul computer.</p>
+      <div class="row"><label class="btn ghost" for="imp-file" style="display:inline-flex;align-items:center;cursor:pointer">Scegli il file .json</label>
+      <input id="imp-file" type="file" accept=".json,application/json,.txt,text/plain" data-c="impfile" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div></section>`
     : `<section class="card"><h3>Cosa verrà inserito</h3><div class="list">${R.rows.map(r=>`<div><b style="font-size:17px">${esc(r.x.nome)}</b> ${r.ex?'<span class="tag teal">già nell\'app: aggiorno la scheda</span>':'<span class="tag pri">nuovo allievo</span>'}
         <ul class="small" style="margin:6px 0 0;padding-left:18px">${[r.card?'identikit (livello, categoria, durata, su cosa stiamo lavorando)':'', r.x.obiettivo?'obiettivo del percorso':'', r.x.frequenza?'frequenza e periodo':'', r.goals?`${r.goals} obiettivi nuovi`:'', r.sheets?`${r.sheets} ${r.sheets===1?'lezione svolta':'lezioni svolte'} con ${r.shex} esercizi${r.shc?` (${r.shc} con campetto)`:''}`:'', r.weeks?`programma: ${r.weeks} ${r.weeks===1?'settimana':'settimane'}, ${r.lessons} ${r.lessons===1?'lezione':'lezioni'}, ${r.exs} esercizi con campetto`:'', r.diary?`${r.diary} ${r.diary===1?'lezione':'lezioni'} nel diario`:'', r.cal?`${r.cal} ${r.cal===1?'lezione':'lezioni'} in calendario`:''].filter(Boolean).map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('')}</div>
         <p class="small muted">Non viene cancellato niente: gli obiettivi e le lezioni già presenti restano, quelli uguali non vengono doppiati.</p></section>
@@ -1924,6 +1928,7 @@ async function pdfLoad(aid, f){
   U.pdfBusy = aid; U.pdfDraft = null; render();
   try{
     let txt = ''; try{ txt = (await pdfText(await f.arrayBuffer())).trim(); }catch(e){ console.warn(e); }
+    if(/tennis-smart-coach|"allievi"\s*:/.test(txt)){ U.pdfErr = {aid, msg:'Questo PDF contiene il testo da importare, non una scheda da leggere. Usa Lezioni private → "Importa da file" e incolla lì il testo preparato in chat.'}; U.pdfBusy = null; render(); return; }
     const P = txt ? pdfParse(txt) : null, lab = Object.fromEntries(PAREAS);
     U.pdfDraft = !txt ? {aid, fail:true} : {aid, text:txt.slice(0,4000), title:P.title, freq:P.freq, goals:P.goals.map(g=>lab[g.area]+': '+g.text).join('\n'), none:!P.title && !P.freq && !P.goals.length};
     if(!txt) toast('Non riesco a leggere il testo del PDF');
