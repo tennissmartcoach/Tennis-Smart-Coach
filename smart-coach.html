@@ -980,7 +980,7 @@ function athList(){
   if(!g) return head + `<section class="card"><p>Nessun gruppo. Crealo con "+ Nuovo gruppo".</p></section>`;
   const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id)), seen = S.seen || '';
   if(g.id===PRIV_ID){
-    return head + (as.length ? `<div class="agrid">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(x=>x.st==='done').length;
+    return head + `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Scheda preparata in chat?</b><br><span class="muted">Incolla il testo e la scheda si compila da sola.</span></span><button class="btn clay" data-a="impgo">Importa scheda</button></div></section>` + (as.length ? `<div class="agrid">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(x=>x.st==='done').length;
       return `<button class="acard" data-a="athpriv" data-k="${a.id}"><b style="font-size:18px;font-family:var(--f-disp)">${esc(a.name)}</b>
         ${pv.prog.title?`<span class="small">${esc(pv.prog.title)}</span>`:''}
         <span class="small muted">${pv.goals.length} obiettivi${pv.goals.length?`, ${done} raggiunti`:''} · ${pv.lessons.length} lezioni</span></button>`; }).join('')}</div>` : '<section class="card"><p class="muted">Nessun allievo a lezione privata. Aggiungilo con "+ Nuovo atleta".</p></section>');
@@ -1789,7 +1789,7 @@ function impParse(txt){
 function importView(){
   const R = U.impData;
   return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ Lezioni private</button>
-    <h1>Importa da file</h1>
+    <h1>Importa scheda</h1>
     ${!R ? `<section class="card"><h3>1 · Incolla il testo preparato in chat</h3><p class="small muted">In chat tocca "Copia" sul riquadro con il testo, poi tieni premuto qui sotto e scegli "Incolla". L'app ti mostra cosa contiene prima di inserirlo.</p>
       <textarea id="imp-txt" class="input" rows="6" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
       <button class="btn clay" data-a="imppaste" style="align-self:flex-start">Leggi il testo</button>
@@ -1862,7 +1862,7 @@ function impApply(d){
 function privList(){
   const as = S.athletes.filter(a=>a.groupId===PRIV_ID);
   if(U.impOpen) return importView();
-  return `<div class="row between"><h1>Lezioni private</h1><button class="btn ghost" data-a="impopen">Importa da file</button></div>
+  return `<h1>Lezioni private</h1><section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Scheda preparata in chat?</b><br><span class="muted">Incolla il testo e la scheda si compila da sola.</span></span><button class="btn clay" data-a="impgo">Importa scheda</button></div></section>
     <section class="card" style="padding:4px 16px"><div class="list">${as.map(a=>{ const pv = privOf(a.id), done = pv.goals.filter(g=>g.st==='done').length;
       return `<button class="item" data-a="privopen" data-k="${a.id}"><span class="grow"><b style="font-size:17px">${esc(a.name)}</b><br><span class="small muted">${pv.prog.title?esc(pv.prog.title)+' · ':''}${pv.goals.length} obiettivi${pv.goals.length?`, ${done} raggiunti`:''} · ${pv.lessons.length} lezioni</span></span><span class="chev">›</span></button>`; }).join('') || '<p class="muted" style="padding:12px 0">Nessun allievo privato. Aggiungilo qui sotto.</p>'}</div></section>
     <section class="card"><h3>Nuovo allievo privato</h3><div class="row"><input id="f-privname" class="input" placeholder="Nome e iniziale del cognome" style="flex:1;min-width:0"><button class="btn" data-a="privadd">Aggiungi</button></div></section>`;
@@ -2013,7 +2013,7 @@ function sheetView(id, x, edit){
 function privDetail(id){
   const a = ath(id), pv = privOf(id), tab = U.ppTab || 'scheda';
   if(U.sheetOpen && (pv.sheets||[]).some(x=>x.id===U.sheetOpen)) return sheetView(id, pv.sheets.find(x=>x.id===U.sheetOpen), true);
-  return `<button class="btn ghost" data-a="privclose" style="align-self:flex-start">‹ Lezioni private</button>
+  return `<div class="row between" style="gap:8px"><button class="btn ghost" data-a="privclose">‹ Lezioni private</button><button class="btn ghost" data-a="impgo">Importa scheda</button></div>
     ${ppTabs(tab, [['scheda','Scheda'],['lezioni','Lezioni ('+((pv.sheets||[]).length)+')'],['gest','Modifica e calendario']])}
     ${tab==='scheda' ? idCard(id, true) : tab==='lezioni' ? sheetList(id) : privManage(id)}`;
 }
@@ -3316,6 +3316,7 @@ const ACT = {
   sheetopen(k){ U.sheetOpen=k; window.scrollTo(0,0); },
   sheetclose(){ U.sheetOpen=null; U.ppTab='lezioni'; window.scrollTo(0,0); },
   sheetdel(k){ const [aid,sid]=k.split(':'); const pv=privOf(aid); pv.sheets=(pv.sheets||[]).filter(x=>x.id!==sid); U.sheetOpen=null; U.confirm=null; save(); toast('Lezione tolta'); },
+  impgo(){ U.tab='home'; U.homeView='priv'; U.privOpen=null; U.athPriv=null; U.sheetOpen=null; U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impopen(){ U.impOpen=true; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impclose(){ U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
