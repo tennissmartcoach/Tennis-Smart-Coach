@@ -13,16 +13,12 @@ const replaceAll = (s, old, nw) => s.split(old).join(nw);
 const replaceFirst = (s, old, nw) => { const i = s.indexOf(old); return i < 0 ? s : s.slice(0, i) + nw + s.slice(i + old.length); };
 
 // the source is split in files; the published page stays one self-contained file
-const SRC_FILES = [
-  ['<link rel="stylesheet" href="src/style.css">', 'src/style.css', 'style'],
-  ['<script src="src/data.js"></script>', 'src/data.js', 'script'],
-  ['<script src="src/demo.js"></script>', 'src/demo.js', 'script'],
-];
-let src = read('smart-coach.html');
-for (const [tag, file, kind] of SRC_FILES) {
-  if (count(src, tag) !== 1) { console.error('build fermo: in smart-coach.html manca la riga\n  ' + tag); process.exit(1); }
-  src = src.replace(tag, () => `<${kind}>\n${read(file)}</${kind}>`);
-}
+// every <link href="src/…"> and <script src="src/…"> in smart-coach.html is put back inline, in the same order
+// the source page declares utf-8 so the browser reads the src/ files right; the published head below has its own
+const src = read('smart-coach.html')
+  .replace(/^<meta charset="utf-8">\n/, '')
+  .replace(/<link rel="stylesheet" href="(src\/[^"]+)">/g, (_, f) => `<style>\n${read(f)}</style>`)
+  .replace(/<script src="(src\/[^"]+)"><\/script>/g, (_, f) => `<script>\n${read(f)}</script>`);
 let cloud = read('online/cloud.js');
 cloud = replaceAll(cloud, 'return `<div class="login">${hero}${inner}</div>`;', 'return `<main style="padding-bottom:32px">${hero}${inner}</main>`;');
 let s = src;
@@ -74,8 +70,8 @@ s = replaceFirst(s, '<script>', '<script src="https://www.gstatic.com/firebasejs
 s = s.replace(/\s+$/, '') + '\n</body>\n</html>\n';
 mkdirSync(join(D, 'online/site'), { recursive: true });
 write('online/site/index.html', s);
-const scripts = [...s.matchAll(/<script>([\s\S]*?)<\/script>/g)];
-write('online/check.js', scripts[scripts.length - 1][1]);
+// all the app's code in one file, to check it with: node --check online/check.js
+write('online/check.js', [...s.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n'));
 const mock = read('online/mockfb.js');
 const t = replaceFirst(s.replace(/<script src="https:\/\/www\.gstatic\.com\/firebasejs\/[^"]+"><\/script>\n/g, ''), '<script>', '<script>' + mock + '</script>\n<script>');
 write('online/test.html', t);

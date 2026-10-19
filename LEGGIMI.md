@@ -6,7 +6,8 @@ Cartella per lavorare sull'app insieme. Puoi passarla così com'è anche al tuo 
 
 | File | Cosa contiene |
 |---|---|
-| `smart-coach.html` | **L'app vera e propria.** Contiene il codice; grafica, contenuti e dati di prova sono nei file di `src/`. Se lo apri nel browser funziona da solo (la cartella `src/` deve stare accanto): i dati restano nel browser (localStorage) e non tocca niente di online. **Le modifiche si fanno qui.** |
+| `smart-coach.html` | **La pagina dell'app.** Carica in ordine i file di `src/`. Se la apri nel browser funziona da sola (la cartella `src/` deve stare accanto): i dati restano nel browser (localStorage) e non tocca niente di online. |
+| `src/app/` | **Il codice dell'app, diviso per argomento.** Le modifiche si fanno qui: `core.js` (strumenti di base, archivio, stato), `match-engine.js` (punteggio e statistiche), `screens.js` (accesso, schermata principale, scheda atleta), `programme.js` (programmi, partita, libreria esercizi, campetto), `forms.js` (questionari e schede), `private.js` (lezioni private), `tournaments.js` (tornei), `team.js` (presenze, note, benessere, avvisi), `home.js` (le Home), `staff.js` (preparatori mentale e atletico), `actions.js` (cosa fanno i bottoni e avvio: va caricato per ultimo). |
 | `src/style.css` | La grafica dell'app (colori, caratteri, misure). `smart-coach.html` la carica da qui; il build la rimette dentro la pagina pubblicata, che resta un file unico. |
 | `src/data.js` | I contenuti del programma: le 12 settimane, la libreria esercizi con i campetti, le prove del giorno, i profili di gioco, la stagione 2026, questionari e test. |
 | `src/demo.js` | I dati di prova (atleti finti, partite, schede di esempio) per provare l'app. Non sono dati del circolo. |
@@ -24,11 +25,11 @@ Cartella per lavorare sull'app insieme. Puoi passarla così com'è anche al tuo 
 - I dati sono nello stato globale `S` e lo stato dell'interfaccia è in `U`. Ogni modifica chiama `save()` e poi `render()`.
 - I bottoni hanno `data-a="azione"` e, se serve, `data-k="chiave"`, e sono gestiti dall'oggetto `ACT`. I campi dei moduli hanno `data-c="..."` e sono gestiti dagli ascoltatori `change` e `input`.
 - La grafica è il tema "Progressi": sfondo scuro, giallo palla `#D7E84A`, caratteri Sora e IBM Plex Sans. I colori sono variabili CSS su `:root`.
-- `build.py` sostituisce alcune righe precise di `smart-coach.html` per agganciare la parte online. Se una di quelle righe cambia, il build si ferma con un errore che indica la riga da sistemare.
+- Il build rimette tutti i file di `src/` dentro un'unica pagina, nello stesso ordine in cui `smart-coach.html` li carica, poi sostituisce alcune righe precise del codice per agganciare la parte online. Se una di quelle righe cambia, il build si ferma con un errore che indica la riga da sistemare.
 
 ## Regole da rispettare
 
-1. **Le prove si fanno sul file `smart-coach.html` aperto in locale**, non sul sito online. La versione online è collegata al database vero del circolo, con gli atleti veri.
+1. **Le prove si fanno sul file `smart-coach.html` aperto in locale** (o con `node tools/verify/verify.mjs`), non sul sito online. La versione online è collegata al database vero del circolo, con gli atleti veri.
 2. Minorenni: solo nome e iniziale del cognome.
 3. Non pubblicare modifiche sul sito per conto proprio. Si rimanda il file modificato a Silvio, che lo unisce alla versione principale e la pubblica.
 4. Meglio modifiche piccole e descritte ("ho cambiato X perché Y"), così si uniscono facilmente.

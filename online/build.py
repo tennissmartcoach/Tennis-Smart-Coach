@@ -2,12 +2,12 @@ import re, os
 D=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 src=open(D+'smart-coach.html',encoding='utf-8').read()
 # the source is split in files; the published page stays one self-contained file
-SRC_FILES=[('<link rel="stylesheet" href="src/style.css">','src/style.css','style'),
-           ('<script src="src/data.js"></script>','src/data.js','script'),
-           ('<script src="src/demo.js"></script>','src/demo.js','script')]
-for tag,f,kind in SRC_FILES:
-    assert src.count(tag)==1,('manca la riga',tag)
-    src=src.replace(tag,'<'+kind+'>\n'+open(D+f,encoding='utf-8').read()+'</'+kind+'>')
+# every <link href="src/..."> and <script src="src/..."> in smart-coach.html is put back inline, in the same order
+rd=lambda f: open(D+f,encoding='utf-8').read()
+# the source page declares utf-8 so the browser reads the src/ files right; the published head below has its own
+if src.startswith('<meta charset="utf-8">\n'): src=src[len('<meta charset="utf-8">\n'):]
+src=re.sub(r'<link rel="stylesheet" href="(src/[^"]+)">',lambda m:'<style>\n'+rd(m.group(1))+'</style>',src)
+src=re.sub(r'<script src="(src/[^"]+)"></script>',lambda m:'<script>\n'+rd(m.group(1))+'</script>',src)
 cloud=open(D+'online/cloud.js').read()
 cloud=cloud.replace("return `<div class=\"login\">${hero}${inner}</div>`;","return `<main style=\"padding-bottom:32px\">${hero}${inner}</main>`;")
 s=src
@@ -57,7 +57,7 @@ s=s.replace("<script>","<script src=\"https://www.gstatic.com/firebasejs/10.12.2
 s=s.rstrip()+"\n</body>\n</html>\n"
 os.makedirs(D+'online/site',exist_ok=True)
 os.makedirs(D+'online/site',exist_ok=True); open(D+'online/site/index.html','w').write(s)
-open(D+'online/check.js','w').write(re.findall(r'<script>(.*?)</script>',s,re.S)[-1])
+open(D+'online/check.js','w').write('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)))
 mock=open(D+'online/mockfb.js').read()
 t=re.sub(r'<script src="https://www.gstatic.com/firebasejs/[^"]+"></script>\n','',s).replace('<script>','<script>'+mock+'</script>\n<script>',1)
 open(D+'online/test.html','w').write(t)

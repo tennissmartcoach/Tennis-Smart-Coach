@@ -105,9 +105,11 @@ async function online(browser, vp) {
 }
 
 const browser = await chromium.launch({ executablePath: EDGE });
+// a step that cannot go on (a missing button, a screen that never opens) is reported, and the run continues
+const guard = async (where, fn) => { try { await fn(); } catch (e) { fail(where, 'bloccato: ' + String(e.message || e).split('\n')[0]); } };
 for (const vp of VIEWPORTS) {
-  await local(browser, vp);
-  if (!onlyLocal) await online(browser, vp);
+  await guard('locale ' + vp.n, () => local(browser, vp));
+  if (!onlyLocal) await guard('online ' + vp.n, () => online(browser, vp));
 }
 await browser.close();
 console.log(`${checks} schermate controllate · screenshot in tools/verify/out`);
