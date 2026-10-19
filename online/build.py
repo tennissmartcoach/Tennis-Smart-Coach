@@ -1,6 +1,10 @@
 import re, os
 D=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
-src=open(D+'smart-coach.html').read()
+src=open(D+'smart-coach.html',encoding='utf-8').read()
+# the source is split in files; the published page stays one self-contained file
+CSS_LINK='<link rel="stylesheet" href="src/style.css">'
+assert src.count(CSS_LINK)==1,('manca la riga',CSS_LINK)
+src=src.replace(CSS_LINK,'<style>\n'+open(D+'src/style.css',encoding='utf-8').read()+'</style>')
 cloud=open(D+'online/cloud.js').read()
 cloud=cloud.replace("return `<div class=\"login\">${hero}${inner}</div>`;","return `<main style=\"padding-bottom:32px\">${hero}${inner}</main>`;")
 s=src

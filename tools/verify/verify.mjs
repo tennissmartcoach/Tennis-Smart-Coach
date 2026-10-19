@@ -2,8 +2,11 @@
 // goes through every role and every tab, and reports crashes, error screens and pages wider than the screen.
 // Usage: node tools/verify/verify.mjs            (local smart-coach.html + online build with fake Firebase)
 //        node tools/verify/verify.mjs --local    (only smart-coach.html)
+//        --save-baseline   keep these screenshots as the reference (tools/verify/baseline)
+//        --compare         after the run, list screenshots that differ from the reference
+// A clean-up that must not change the app should end with "identiche: N / N".
 import { chromium } from 'playwright-core';
-import { mkdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, readdirSync, readFileSync, cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -44,6 +47,8 @@ async function walkTabs(page, prefix) {
 
 async function newPage(browser, vp, where) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+  // same fake day on every run, so screenshots can be compared across days
+  await ctx.clock.setFixedTime(new Date('2026-10-16T10:00:00'));
   const page = await ctx.newPage();
   page.on('pageerror', e => fail(where, 'errore JavaScript: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) fail(where, 'console: ' + m.text()); });
@@ -106,5 +111,16 @@ for (const vp of VIEWPORTS) {
 }
 await browser.close();
 console.log(`${checks} schermate controllate · screenshot in tools/verify/out`);
+const BASE = join(HERE, 'baseline');
+if (process.argv.includes('--save-baseline')) { rmSync(BASE, { recursive: true, force: true }); cpSync(OUT, BASE, { recursive: true }); console.log('Riferimento salvato in tools/verify/baseline'); }
+if (process.argv.includes('--compare')) {
+  if (!existsSync(BASE)) fail('confronto', 'nessun riferimento: lancia prima con --save-baseline');
+  else {
+    const shots = readdirSync(BASE).filter(f => f.endsWith('.png'));
+    const diff = shots.filter(f => !existsSync(join(OUT, f)) || !readFileSync(join(OUT, f)).equals(readFileSync(join(BASE, f))));
+    console.log(`identiche: ${shots.length - diff.length} / ${shots.length}`);
+    diff.forEach(f => fail('confronto', 'schermata cambiata: ' + f));
+  }
+}
 if (problems.length) { console.log(`\n${problems.length} problemi:\n- ` + problems.join('\n- ')); process.exit(1); }
 console.log('Tutto ok');

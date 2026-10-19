@@ -18,6 +18,7 @@ Non dire mai che una modifica funziona solo perché il codice "sembra giusto": p
    - in locale entra come maestro, atleta, genitore, preparatore atletico e mentale, tocca ogni scheda della barra in basso e le sotto-schede dell'atleta;
    - online (`online/test.html`, database finto, nessun dato vero) crea un account maestro e un circolo con dati di prova, poi gira tutte le schede e controlla che i salvataggi arrivino.
    Segnala: errori JavaScript, schermata "Qualcosa non ha funzionato", pagine vuote, scroll orizzontale.
+   **Pulizie che non devono cambiare l'app** (riorganizzazioni, spostamenti di codice): prima della modifica `node tools/verify/verify.mjs --save-baseline`, dopo `node tools/verify/verify.mjs --compare`. Deve finire con `identiche: N / N`; ogni schermata diversa è un cambiamento da spiegare. Il collaudatore usa sempre lo stesso giorno finto (16/10/2026), quindi il confronto vale anche fra giorni diversi.
 4. **Guarda gli screenshot** in `tools/verify/out/` delle schermate toccate dalla modifica (con lo strumento Read): il test automatico vede i crash, non se una cosa è brutta o al posto sbagliato.
 5. Se hai cambiato un flusso specifico (un bottone, un modulo), provalo anche con un breve script Playwright mirato che clicca come farebbe un utente.
 
