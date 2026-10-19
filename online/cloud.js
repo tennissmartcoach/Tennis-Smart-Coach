@@ -490,7 +490,7 @@ function cloudView(){
       ${err}<button class="btn clay block" data-a="ccreate" ${C.busy?'disabled':''}>Crea il circolo</button></section>
     <button class="btn ghost" data-a="clogout" style="align-self:center">Esci</button>`;
   }
-  return `<div class="login">${hero}${inner}</div>`;
+  return `<main style="padding-bottom:32px">${hero}${inner}</main>`;
 }
 
 async function cBusy(fn){ C.busy = true; C.err=''; C.info=''; cloudRender(); try{ await fn(); }catch(e){ C.err = cErr(e); } C.busy = false; cloudRender(); }
@@ -607,3 +607,23 @@ function staffView(){
       <button class="btn ghost" data-a="staffcopy" style="align-self:flex-start">Copia il messaggio da mandare</button></section>
     ${C.invites && C.invites.length?`<section class="card"><h3>Inviti in attesa</h3><div class="list">${C.invites.map(i=>`<div class="row between" style="flex-wrap:nowrap"><span><b>${esc(i.email)}</b><br><span class="small muted">${esc(ROLE_LABEL[i.role]||i.role)}</span></span><button class="chip" data-a="staffuninvite" data-k="${esc(i.email)}">Annulla</button></div>`).join('')}</div></section>`:''}`:'<p class="small muted">Solo il maestro responsabile può invitare o rimuovere persone.</p>'}`;
 }
+
+/* ---------- how the app plugs into the online layer: the hook points are listed in HOOK, src/app/core.js ---------- */
+Object.assign(HOOK, {
+  start: () => { S = undefined; cloudInit(); render(); },
+  gate: () => C.ready ? '' : cloudView(),
+  beforeRender: () => viewFilterOn(),
+  afterRender: keep => viewFilterOff(keep),
+  clubName: () => C.clubName || '',
+  statusBar: () => syncBar(),
+  logout: () => ACT.clogout(),
+  homeView: v => v==='staff' ? staffView() : '',
+  toolItems: () => `<button class="item" data-a="staffopen"><span class="ticon" aria-hidden="true">${IC.people}</span><span class="grow"><b>Staff e accessi</b><br><span class="small muted">colleghi, preparatori e gruppi che vedono</span></span><span class="chev">›</span></button>`,
+  shareCard: a => cloudShareCard(a),
+  pinsExtra: g => cloudPinsExtra(g),
+  athExtra: a => cloudAthExtra(a),
+  pinHelp: 'Atleta e genitore entrano con il codice personale e il loro PIN. ↻ crea un nuovo PIN (quello vecchio smette di funzionare).',
+  athRemoved: id => cloudAthRemoved(id),
+  athMoved: a => { if(a.groupId===PRIV_ID) a.owner=C.user.uid; cloudMoved(a); },
+  codeChanging: g => { if(C.codes && g.code){ fbDb.doc('codes/'+g.code.toUpperCase()).delete().catch(()=>{}); delete C.codes[g.code.toUpperCase()]; } }
+});
