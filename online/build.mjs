@@ -13,10 +13,16 @@ const replaceAll = (s, old, nw) => s.split(old).join(nw);
 const replaceFirst = (s, old, nw) => { const i = s.indexOf(old); return i < 0 ? s : s.slice(0, i) + nw + s.slice(i + old.length); };
 
 // the source is split in files; the published page stays one self-contained file
-const CSS_LINK = '<link rel="stylesheet" href="src/style.css">';
-const page = read('smart-coach.html');
-if (count(page, CSS_LINK) !== 1) { console.error('build fermo: in smart-coach.html manca la riga\n  ' + CSS_LINK); process.exit(1); }
-const src = page.replace(CSS_LINK, () => '<style>\n' + read('src/style.css') + '</style>');
+const SRC_FILES = [
+  ['<link rel="stylesheet" href="src/style.css">', 'src/style.css', 'style'],
+  ['<script src="src/data.js"></script>', 'src/data.js', 'script'],
+  ['<script src="src/demo.js"></script>', 'src/demo.js', 'script'],
+];
+let src = read('smart-coach.html');
+for (const [tag, file, kind] of SRC_FILES) {
+  if (count(src, tag) !== 1) { console.error('build fermo: in smart-coach.html manca la riga\n  ' + tag); process.exit(1); }
+  src = src.replace(tag, () => `<${kind}>\n${read(file)}</${kind}>`);
+}
 let cloud = read('online/cloud.js');
 cloud = replaceAll(cloud, 'return `<div class="login">${hero}${inner}</div>`;', 'return `<main style="padding-bottom:32px">${hero}${inner}</main>`;');
 let s = src;

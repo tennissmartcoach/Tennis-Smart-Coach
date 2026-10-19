@@ -6,8 +6,10 @@ Cartella per lavorare sull'app insieme. Puoi passarla così com'è anche al tuo 
 
 | File | Cosa contiene |
 |---|---|
-| `smart-coach.html` | **L'app vera e propria.** Contiene codice e dati di prova; la grafica è in `src/style.css`. Se lo apri nel browser funziona da solo (la cartella `src/` deve stare accanto): i dati restano nel browser (localStorage) e non tocca niente di online. **Le modifiche si fanno qui.** |
+| `smart-coach.html` | **L'app vera e propria.** Contiene il codice; grafica, contenuti e dati di prova sono nei file di `src/`. Se lo apri nel browser funziona da solo (la cartella `src/` deve stare accanto): i dati restano nel browser (localStorage) e non tocca niente di online. **Le modifiche si fanno qui.** |
 | `src/style.css` | La grafica dell'app (colori, caratteri, misure). `smart-coach.html` la carica da qui; il build la rimette dentro la pagina pubblicata, che resta un file unico. |
+| `src/data.js` | I contenuti del programma: le 12 settimane, la libreria esercizi con i campetti, le prove del giorno, i profili di gioco, la stagione 2026, questionari e test. |
+| `src/demo.js` | I dati di prova (atleti finti, partite, schede di esempio) per provare l'app. Non sono dati del circolo. |
 | `online/cloud.js` | La parte online: accesso di maestri, staff, atleti e genitori, salvataggio su Firebase (Firestore), codici e PIN. |
 | `online/build.py` | Crea la versione online combinando `smart-coach.html` con `online/cloud.js`. Si lancia con `python3 online/build.py`. Il risultato va in `online/site/index.html`. |
 | `online/build.mjs` | Lo stesso build per chi ha Node invece di Python: `node online/build.mjs`. Produce gli stessi file. Se cambi una sostituzione, aggiornala in tutti e due. |
