@@ -226,11 +226,6 @@ function mfillView(){
     ${f.qs.map((q,i)=>`<section class="card"><p style="font-weight:700">${i+1}. ${esc(q.t)}</p>${q.type==='scale'?`<div class="seg" role="group">${[1,2,3,4,5].map(n=>`<button data-a="mfscale" data-k="${i}:${n}" aria-pressed="${D.a[i]===n}">${n}</button>`).join('')}</div><p class="small muted">1 per niente · 5 moltissimo</p>`:`<textarea class="input" rows="3" data-c="mfa" data-k="${i}">${esc(D.a[i]||'')}</textarea>`}</section>`).join('')}
     <button class="btn clay block" data-a="mfsend">Invia</button>`;
 }
-function mindForms(){
-  const fs = S.forms.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,40);
-  return `<h1>Schede</h1><p class="small muted">Le ultime schede compilate da atleti e famiglie. Tocca per aprire l'atleta.</p>
-    ${fs.length?`<section class="card" style="padding:4px 16px"><div class="list">${fs.map(f=>`<button class="item" data-a="staffath" data-k="${f.athleteId}" data-t="${TAB_OF[f.kind]||'prof'}"><span class="grow"><b>${esc(ath(f.athleteId)?.name)}</b> · ${esc(fname(f.kind))}${f.by==='parent'?' <span class="tag teal">famiglia</span>':''}<br><span class="small muted">${fdate(f.date)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:'<section class="card"><p class="muted">Nessuna scheda.</p></section>'}`;
-}
 function mindHome(){
   if(U.homeView==='notif') return notifView();
   if(U.homeView==='att') return attView();

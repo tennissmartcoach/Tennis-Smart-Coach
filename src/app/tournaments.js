@@ -94,10 +94,6 @@ function tWhoCard(who, actG, actA, actAll, editing, actToggle, all){
 }
 function upcoming(days){ const now = todayISO(), lim = new Date(Date.now()+days*864e5).toISOString().slice(0,10); return allTournaments().filter(x=>x.date>=weekMonday(weekOf(now).year, weekOf(now).n) && x.date<=lim); }
 function deadlines(days){ const now = todayISO(), lim = new Date(Date.now()+days*864e5).toISOString().slice(0,10); return allTournaments().filter(x=>x.t.deadline && x.t.deadline>=now && x.t.deadline<=lim); }
-function tourItem(x, showWeek){
-  const k = TKIND.find(z=>z[0]===x.t.kind);
-  return `<button class="item" data-a="openT" data-k="${x.y}:${x.n}:${x.i}"><span class="pdot" style="background:${x.i===0?'#B4532A':'#B9A79B'}"></span><span class="grow"><b>${esc(x.t.name)}</b>${isAlt(x)?' <span class="tag pri">alternativa</span>':''}${k?` <span class="tag teal">${k[1]}</span>`:''}<br><span class="small muted">${showWeek?`Sett. ${x.n} · dal ${dLabel(x.date)} · `:''}${(x.t.players||[]).length} iscritti${x.t.deadline?` · iscrizioni entro il ${dLabel(x.t.deadline)}`:''}</span></span><span class="chev">›</span></button>`;
-}
 function tourWeekView(y,n){
   const w = weekData(y,n);
   while(w.t.length<2) w.t.push({name:'', kind:'', deadline:'', info:'', players:[], results:{}});
@@ -209,11 +205,6 @@ function toursView(){
     ${body}`;
 }
 const LINK_DEF = {fitp:'https://www.fitp.it', te:'https://www.tenniseurope.org'};
-function searchMini(){
-  if(U.editLinks) return searchCard();
-  const L = Object.assign({}, LINK_DEF, S.links||{});
-  return `<div class="smini"><span class="small muted">Cerca:</span><a class="chip" href="${esc(L.fitp)}" target="_blank" rel="noopener">FITP ↗</a><a class="chip" href="${esc(L.te)}" target="_blank" rel="noopener">Tennis Europe ↗</a><button class="chip" data-a="lkedit" aria-label="Cambia i link">⚙</button></div>`;
-}
 function searchCard(){
   const L = Object.assign({}, LINK_DEF, S.links||{});
   if(U.editLinks) return `<section class="card"><h3>Link per la ricerca</h3>

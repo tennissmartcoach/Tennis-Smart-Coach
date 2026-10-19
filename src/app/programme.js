@@ -123,39 +123,7 @@ function planView(){
 }
 
 /* coach: results grid */
-function athHeader(){ return `<h1>Atleti</h1><div class="seg" role="group"><button data-a="athmode" data-k="week" aria-pressed="${U.athMode!=='test'}">Prove e schede</button><button data-a="athmode" data-k="test" aria-pressed="${U.athMode==='test'}">Test</button></div>`; }
 const teamGroups = () => S.groups.filter(g=>g.id!==PRIV_ID);
-function resultsView(){
-  if(!U.resGroup || U.resGroup===PRIV_ID) U.resGroup = teamGroups()[0]?.id;
-  const g = grp(U.resGroup);
-  if(!g) return `<section class="card"><p>Crea prima un gruppo nella scheda Gruppi.</p></section>`;
-  if(!U.resWeek) U.resWeek = g.week;
-  const wn = U.resWeek, w = W(wn);
-  const as = S.athletes.filter(a=>a.groupId===g.id);
-  const cell = (a,d)=>{ const rs = S.results.filter(r=>r.athleteId===a.id && r.week===wn && r.day===d); if(!rs.length) return '<span class="pc e">–</span>'; const r = rs[rs.length-1]; if(r.kind==='min') return `<span class="pc m">${r.ok}</span>`; const p = pct(r.ok,r.tot); return `<span class="pc ${p>=70?'h':p>=50?'m':'l'}">${r.ok}/${r.tot}</span>`; };
-  const ms = S.matches.filter(m=>m.groupId===g.id && m.week===wn && m.done);
-  const ids = new Set(as.map(a=>a.id));
-  const inbox = S.forms.filter(f=>ids.has(f.athleteId)).sort((a,b)=>a.date<b.date?1:-1).slice(0,8);
-  const seen = S.seen || '';
-  return `
-    <div class="chips">${teamGroups().map(x=>`<button class="chip" data-a="resgroup" data-k="${x.id}" aria-pressed="${x.id===g.id}">${esc(x.name)}</button>`).join('')}</div>
-    <section class="card"><div class="row between"><h3>Schede ricevute</h3>${inbox.filter(f=>f.date>seen).length?`<span class="tag">${inbox.filter(f=>f.date>seen).length} ${inbox.filter(f=>f.date>seen).length===1?'nuova':'nuove'}</span>`:''}</div>
-      ${inbox.length?`<div class="list">${inbox.map(f=>`<button class="item" data-a="openath" data-k="${f.athleteId}"><span class="grow"><b>${esc(ath(f.athleteId)?.name)}</b> · ${esc(fname(f.kind))}${f.by==='parent'?' <span class="tag teal">famiglia</span>':''}${f.date>seen?' <span class="tag">nuova</span>':''}<br><span class="muted small">${fdate(f.date)} · sett. ${f.week}</span></span><span class="chev">›</span></button>`).join('')}</div><p class="muted small">Tocca una scheda per aprire la pagina dell'atleta, dove trovi tutte le risposte.</p>`:'<p class="muted">Nessuna scheda compilata in questo gruppo.</p>'}
-    </section>
-    <section class="card">
-      <div class="row between"><button class="btn ghost" data-a="resweek" data-k="-1" ${wn<=1?'disabled':''} aria-label="Settimana precedente">‹</button>
-      <div style="text-align:center;flex:1;min-width:0"><span class="eyebrow">Settimana ${wn}${wn===g.week?' · in corso':''}</span><h3>${esc(w.name)}</h3></div>
-      <button class="btn ghost" data-a="resweek" data-k="1" ${wn>=12?'disabled':''} aria-label="Settimana successiva">›</button></div>
-      <div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${DAYS_S.map(x=>`<th>${x}</th>`).join('')}</tr></thead>
-      <tbody>${as.map(a=>`<tr><td><button class="item" data-a="openath" data-k="${a.id}" style="font-weight:600;color:var(--pri-ink)">${esc(a.name)}</button></td>${[0,1,2,3,4].map(d=>`<td>${cell(a,d)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-      <div class="list small">${[0,1,2,3,4].map(d=>`<div><b>${DAYS_S[d]}</b> · ${esc(PV(wn,d).t)}${PV(wn,d).k==='su'?` (su ${PV(wn,d).n})`:PV(wn,d).k==='min'?' (in 1 minuto)':''}</div>`).join('')}</div>
-      <p class="muted small">Ultimo risultato della prova del giorno. Tocca un nome per i dettagli.</p>
-    </section>
-    <section class="card"><h3>Partite guidate della settimana</h3>
-      ${ms.length?`<div class="list">${ms.map(matchItem).join('')}</div>`:'<p class="muted">Nessuna partita registrata in questa settimana.</p>'}
-    </section>`;
-}
-
 /* coach: groups */
 function groupsView(){
   const conf = U.confirm;
@@ -531,7 +499,6 @@ function lessonTL(g, fri){
   return `<div class="tl" aria-hidden="true">${ph.map(p=>`<span style="flex:${Math.max(1,+p.m||0)} 1 0;background:${p.c}">${p.pause?'':esc(p.n)}</span>`).join('')}</div>
     <p class="small muted">${durTxt(tot)} · ${ph.filter(p=>!p.pause).map(p=>`${esc(p.n)} ${p.m}'`).join(' · ')}</p>`;
 }
-const sortByPhase = (g, exs) => { const ord = lessonOf(g).phases.map(p=>p.k); const ix = e => { const i = ord.indexOf(e.ph==='ri'?'pr':e.ph); return i<0 ? 99 : i; }; return exs.slice().sort((a,b)=>ix(a)-ix(b)); };
 function lessonEditor(g){
   const L = ensureLesson(g), tot = L.phases.reduce((t,p)=>t+(+p.m||0),0), diff = (L.dur && L.phases.length) ? tot - L.dur : 0;
   return `<button class="btn ghost" data-a="lessonclose" style="align-self:flex-start">‹ Programma di ${esc(g.name)}</button>
