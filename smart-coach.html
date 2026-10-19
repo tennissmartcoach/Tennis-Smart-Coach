@@ -1063,6 +1063,7 @@ function ppBar(g){
       <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">Imposta</button></div>
       <p class="small muted">Costruisci settimane e lezioni con gli esercizi della libreria. L'allievo e i genitori vedono la settimana in corso.</p></section>`;
 }
+function aiGroupCard(g){ return `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Crea il programma con l'IA</b><br><span class="muted">Racconta o detta settimane e allenamenti: l'IA prepara il testo con esercizi e campetti, tu lo incolli qui.</span></span><button class="btn clay" data-a="gimpopen" data-k="${g.id}">Inizia</button></div></section>`; }
 function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
@@ -1082,7 +1083,7 @@ function ownPlanView(g){
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
         ${lessonTL(g)}<button class="chip" data-a="lessonopen" data-k="${g.id}" style="align-self:flex-start">Durata e fasi</button></section>
-      ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
+      ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="oedit" data-k="${x.i}">✎ Modifica</button><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
         p=>`<div class="row"><button class="btn ghost" data-a="opick" data-k="${p?p.k:''}" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="onewex" data-k="${p?p.k:''}" style="flex:1">+ Scrivi un esercizio</button></div>`)}
       ${LEGEND}`;
   }
@@ -1108,7 +1109,8 @@ function planView(){
   const top = `<div class="seg" role="group" aria-label="Sezione"><button data-a="planmode" data-k="weeks" aria-pressed="${U.planMode!=='lib'}">Programma</button><button data-a="planmode" data-k="lib" aria-pressed="${U.planMode==='lib'}">Libreria esercizi</button></div>`;
   if(U.planMode==='lib') return (U.pick?'':top) + libraryView();
   if(pg && pg.pp) return (U.oWeek?'':ppBar(pg)) + ownPlanView(pg);
-  if(isOwnG(pg)) return (U.oWeek?'':top + planGroupBar(pg)) + ownPlanView(pg);
+  if(pg && U.gImp===pg.id) return gImportView(pg);
+  if(isOwnG(pg)) return (U.oWeek?'':top + planGroupBar(pg) + aiGroupCard(pg)) + ownPlanView(pg);
   if(U.weekOpen && U.dayOpen!==null && U.dayOpen!==undefined) return dayView(U.weekOpen, U.dayOpen);
   if(U.weekOpen){
     const w = W(U.weekOpen);
@@ -1130,7 +1132,7 @@ function planView(){
   }
   const cur = new Set(S.groups.map(g=>g.week));
   const block = (from,to,title)=>`<section class="card"><span class="eyebrow">${title}</span><div class="list">${WEEKS.slice(from,to).map(w=>`<button class="item" data-a="openweek" data-k="${w.n}"><div class="wk" style="background:${wcol(w.n)}"><small>SETT</small>${w.n}</div><span class="grow"><b style="font-size:17px">${esc(w.name)}</b><br><span class="muted small">${esc(w.days[0])} · ${esc(w.days[1])}…</span></span>${cur.has(w.n)?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>`;
-  return `${top}${pg?planGroupBar(pg):''}<h1>Le 12 settimane</h1>${block(0,6,'Primo giro · conoscere')}${block(6,12,'Secondo giro · scegliere e adattarsi')}`;
+  return `${top}${pg?planGroupBar(pg)+aiGroupCard(pg):''}<h1>Le 12 settimane</h1>${block(0,6,'Primo giro · conoscere')}${block(6,12,'Secondo giro · scegliere e adattarsi')}`;
 }
 
 /* coach: results grid */
@@ -1792,7 +1794,14 @@ function impParse(txt, forId){
     return {x, ex, card:!!x.scheda, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, sheets:SH.length, shex:SE, shc:SC, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
   return {d, rows, forId:forId||null};
 }
+const aiKey = () => U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
 const AI_EX = '[["z",176,22,30,20],["t",191,19,"4×1\'"],["A",24,40,"S"],["M",204,76],["f","M198 72Q120 22 31 36"],["a","M30 45Q110 84 186 76"],["c",12,66],["n",70,46,"1"],["ma","M16 82C4 78 6 66 12 72"]]';
+const AI_CAMPO = `IL CAMPETTO ("campo"): mettilo SEMPRE, in OGNI esercizio di OGNI fase (anche attivazione e servizio), anche se il maestro non lo chiede.
+Se gli appunti non dicono dove stanno i giocatori, usa la disposizione più normale per quell'esercizio (allievo a fondo campo al centro; maestro dall'altra parte a fondo campo, a metà campo se gioca palle facili, a rete se si parla di volée) e disegna almeno: i giocatori, la palla del maestro, il colpo dell'allievo con la direzione detta (diagonale, lungolinea, centro), le zone bersaglio e i coni se nominati, un numero per ogni passaggio di una sequenza. Il maestro lo potrà correggere nell'app.
+Campo visto dall'alto, largo 220 e alto 110. Rete verticale a x=110. Metà sinistra (x da 10 a 110) = lato dell'allievo; metà destra (x da 110 a 210) = lato del maestro. Linee di fondo a x=10 e x=210; linee laterali del doppio a y=9 e y=101, del singolo a y=20.5 e y=89.5; linee del servizio a x=56 e x=164.
+Elementi (una lista per ogni elemento):
+["A",x,y,"S"] allievo con la sua iniziale · ["B",x,y,"L"] secondo allievo · ["M",x,y] maestro · ["c",x,y] cono · ["z",x,y,larghezza,altezza] zona bersaglio · ["t",x,y,"testo"] scritta breve · ["n",x,y,"1"] numero della sequenza · ["a","M x y Q cx cy x2 y2"] colpo dell'allievo (percorso SVG) · ["b","…"] colpo del secondo allievo · ["f","…"] palla del maestro · ["ma","…"] spostamento di un giocatore.
+Esempio: ${AI_EX}`;
 function aiPrompt(forId){
   const a = forId ? ath(forId) : null, pv = a ? privOf(a.id) : null, notes = (U.aiNotes && U.aiNotes[forId||'_']) || '';
   const next = pv ? Math.max(0, ...(pv.sheets||[]).map(x=>+x.n||0)) + 1 : 1;
@@ -1827,12 +1836,7 @@ FORMATO
 }]}
 Regole sulle aree: tecnica = come si esegue il colpo (impugnatura, braccio, gambe, servizio come gesto); tattica = dove e quando mandare la palla (regolarità, precisione, profondità, direzioni, scelte, variazioni); mentale = concentrazione, emozioni, routine; fisica = spostamenti, resistenza, rapidità.
 
-IL CAMPETTO ("campo"): mettilo SEMPRE, in OGNI esercizio di OGNI fase (anche attivazione e servizio), anche se il maestro non lo chiede.
-Se gli appunti non dicono dove stanno i giocatori, usa la disposizione più normale per quell'esercizio (allievo a fondo campo al centro; maestro dall'altra parte a fondo campo, a metà campo se gioca palle facili, a rete se si parla di volée) e disegna almeno: i giocatori, la palla del maestro, il colpo dell'allievo con la direzione detta (diagonale, lungolinea, centro), le zone bersaglio e i coni se nominati, un numero per ogni passaggio di una sequenza. Il maestro lo potrà correggere nell'app.
-Campo visto dall'alto, largo 220 e alto 110. Rete verticale a x=110. Metà sinistra (x da 10 a 110) = lato dell'allievo; metà destra (x da 110 a 210) = lato del maestro. Linee di fondo a x=10 e x=210; linee laterali del doppio a y=9 e y=101, del singolo a y=20.5 e y=89.5; linee del servizio a x=56 e x=164.
-Elementi (una lista per ogni elemento):
-["A",x,y,"S"] allievo con la sua iniziale · ["B",x,y,"L"] secondo allievo · ["M",x,y] maestro · ["c",x,y] cono · ["z",x,y,larghezza,altezza] zona bersaglio · ["t",x,y,"testo"] scritta breve · ["n",x,y,"1"] numero della sequenza · ["a","M x y Q cx cy x2 y2"] colpo dell'allievo (percorso SVG) · ["b","…"] colpo del secondo allievo · ["f","…"] palla del maestro · ["ma","…"] spostamento di un giocatore.
-Esempio: ${AI_EX}
+${AI_CAMPO}
 
 APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
@@ -1842,12 +1846,100 @@ function dictate(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, ta = document.getElementById('ai-notes');
   if(REC){ try{ REC.stop(); }catch(e){} REC = null; U.recOn = false; render(); return; }
   if(!SR){ toast('Qui il microfono dell\'app non va: tocca il riquadro e usa il microfono della tastiera'); if(ta) ta.focus(); return; }
-  const key = U.impFor || '_'; U.aiNotes = U.aiNotes || {};
+  const key = aiKey(); U.aiNotes = U.aiNotes || {};
   const r = new SR(); r.lang = 'it-IT'; r.continuous = true; r.interimResults = false;
   r.onresult = ev=>{ let add = ''; for(let i=ev.resultIndex;i<ev.results.length;i++) if(ev.results[i].isFinal) add += ev.results[i][0].transcript; if(!add) return; const cur = U.aiNotes[key] || ''; U.aiNotes[key] = (cur && !/\s$/.test(cur) ? cur+' ' : cur) + add.trim(); const t = document.getElementById('ai-notes'); if(t) t.value = U.aiNotes[key]; };
   r.onerror = ev=>{ REC = null; U.recOn = false; render(); toast(ev.error==='not-allowed'||ev.error==='service-not-allowed' ? 'Microfono non permesso qui: usa il microfono della tastiera' : 'Dettatura interrotta'); };
   r.onend = ()=>{ if(REC===r){ REC = null; U.recOn = false; render(); } };
   try{ r.start(); REC = r; U.recOn = true; render(); }catch(e){ toast('Usa il microfono della tastiera'); }
+}
+function gAiPrompt(g){
+  const L = g.lesson || lessonOf(g), phs = (L.phases||[]).filter(p=>!p.pause), o = ownOf(g.id), have = o.weeks.filter(w=>w.name || w.days.some(d=>d.title||d.ex.length)).length, notes = (U.aiNotes && U.aiNotes['g:'+g.id]) || '';
+  return `Sei l'assistente di un maestro di tennis. Trasforma gli appunti del maestro (in fondo) nel programma di allenamento di un gruppo, da incollare nell'app Tennis Smart Coach.
+
+COME RISPONDERE
+- Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Non inventare contenuti: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro. L'unica eccezione è il campetto (vedi sotto).
+- Gli atleti del gruppo non vanno nominati: nel campetto usa lettere (A, B, C…).
+
+IL GRUPPO
+- Nome: ${g.name}
+- Allenamenti a settimana: ${nS(g)} (al massimo ${nS(g)} lezioni per settimana)
+- Durata dell'allenamento: ${L.dur||''} minuti
+${phs.length?`- Fasi dell'allenamento (in "fase" scrivi uno di questi nomi esatti): ${phs.map(p=>p.n+(p.m?' '+p.m+"'":'')).join(' · ')}`:'- Fasi: usa quelle negli appunti (es. Attivazione, Parte centrale, Situazioni, Gioco)'}
+${have?`- Il programma ha già ${have} ${have===1?'settimana':'settimane'}: le settimane che scrivi si aggiungono dopo. Dai a ogni settimana un nome diverso.`:''}
+- Se gli appunti parlano di una sola settimana o di una sola lezione, metti solo quella.
+
+FORMATO
+{"tipo":"tennis-smart-coach","versione":2,"programma":{
+ "lezioniSettimana":${nS(g)},"durata":${L.dur||90},
+ "fasi":[${(phs.length?phs:[{n:'Attivazione',m:15},{n:'Parte centrale',m:45}]).map(p=>`{"nome":"${p.n}","min":${p.m||10}}`).join(',')}],
+ "settimane":[{"nome":"Settimana … · tema","lezioni":[{"titolo":"…","obiettivo":"cosa si allena in questa lezione",
+   "esercizi":[{"fase":"nome della fase","titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, serie"],"campo":[…]}]}]}]
+}}
+
+${AI_CAMPO}
+Per un gruppo: i giocatori sono ["A",x,y,"A"], ["B",x,y,"B"], e se servono altri ["A",x,y,"C"]…; quelli in attesa mettili fuori dal campo (x minore di 10).
+
+APPUNTI DEL MAESTRO
+${notes.trim() || '(scrivi qui gli appunti)'}`;
+}
+function gParse(txt){
+  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
+  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell’IA con il tasto "Copia", senza modificarla.'}; }
+  const P = d && (d.programma || (d.gruppi && d.gruppi[0] && d.gruppi[0].programma) || (d.allievi && d.allievi[0] && d.allievi[0].programma));
+  if(!P || !Array.isArray(P.settimane) || !P.settimane.length) return {err:'Nel testo non c’è un programma a settimane. Se è la lezione di un allievo privato, incollala nella sua pagina in Lezioni private.'};
+  const W = P.settimane, L = W.reduce((t,w)=>t+(w.lezioni||[]).length,0), E = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).length,0),0), C = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).filter(e=>(e.campo||[]).length).length,0),0);
+  return {P, weeks:W.length, lessons:L, exs:E, campi:C, names:W.map(w=>w.nome||'').filter(Boolean)};
+}
+function impProgram(P, g){
+  if(!g.lesson) g.lesson = JSON.parse(JSON.stringify(lessonOf(g)));
+  if(P.lezioniSettimana && g.pp) g.freq = Math.min(5, Math.max(1, +P.lezioniSettimana));
+  const fixed = !g.pp && g.lesson.phases.some(p=>!p.pause);
+  if(P.durata && (g.pp || !g.lesson.phases.length)) g.lesson.dur = +P.durata;
+  const phs = g.lesson.phases = g.lesson.phases || [];
+  const keyOf = f => { if(f===undefined || f===null || f==='') return phs.filter(p=>!p.pause)[0]?.k; const def = (typeof f==='number' || /^\d+$/.test(String(f))) ? (P.fasi||[])[+f] : {nome:String(f)}; if(!def || !def.nome) return phs.filter(p=>!p.pause)[0]?.k;
+    let ph = phs.find(p=>impNorm(p.n)===impNorm(def.nome));
+    if(!ph && fixed){ const ws = impNorm(def.nome).split(' ').filter(w=>w.length>3), work = phs.filter(p=>!p.pause); ph = work.find(p=>ws.some(w=>impNorm(p.n).includes(w))) || work[0]; return ph.k; }
+    if(!ph){ const fd = (P.fasi||[]).find(z=>impNorm(z.nome)===impNorm(def.nome)); ph = {k:'i'+uid().slice(0,5), n:String(def.nome), m:+((fd||def).min)||10}; phs.push(ph); } return ph.k; };
+  (P.fasi||[]).forEach(f=>f && f.nome && keyOf(f.nome));
+  const o = ownOf(g.id), blank = o.weeks.length===1 && !o.weeks[0].name && o.weeks[0].days.every(z=>!z.title && !z.note && !z.ex.length);
+  if(blank) o.weeks = [];
+  S.customEx = S.customEx || [];
+  const sig = (n, t) => impNorm(n)+'|'+impNorm(t), seen = new Set(o.weeks.map(w=>sig(w.name, w.days[0]&&w.days[0].title)));
+  let added = 0;
+  P.settimane.forEach(w=>{ if(seen.has(sig(w.nome, (w.lezioni||[])[0]&&w.lezioni[0].titolo))) return; const wk = blankWeek(); wk.name = w.nome || '';
+    (w.lezioni||[]).slice(0,5).forEach((l,i)=>{ const day = wk.days[i]; day.title = l.titolo || ''; day.note = l.obiettivo || ''; day.ex = []; day.exPh = [];
+      (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]};
+        S.customEx.push(ex); day.ex.push(ex.id); day.exPh.push(keyOf(e.fase)); }); });
+    o.weeks.push(wk); added++; });
+  if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length || o.cur<1) o.cur = 1;
+  return added;
+}
+function gImportView(g){
+  const R = U.gImpData, k = 'g:'+g.id;
+  return `<button class="btn ghost" data-a="gimpclose" style="align-self:flex-start">‹ Programma di ${esc(g.name)}</button>
+    <h1>Crea il programma con l'IA</h1>
+    <p class="small muted" style="margin-top:-6px">Va al gruppo <b>${esc(g.name)}</b>. Le settimane nuove si aggiungono a quelle che ci sono già.${isOwnG(g)?'':' Il gruppo passerà da "Le 12 settimane" a "Programma personale".'}</p>
+    ${!R ? `<section class="card" style="border-color:var(--clay)"><h3>1 · Racconta il programma</h3><p class="small muted">Scrivi o detta come parleresti a un collega. Più cose dici, più il programma viene completo:</p>
+      <ul class="small muted" style="margin:0;padding-left:18px"><li>quante settimane e il tema di ognuna</li><li>per ogni allenamento: titolo, obiettivo ed esercizi nelle fasi (${esc((lessonOf(g).phases||[]).filter(p=>!p.pause).map(p=>p.n).join(', ')||'attivazione, parte centrale…')})</li><li>per ogni esercizio: dove stanno maestro e atleti, dove va la palla, punteggio o serie</li></ul>
+      <textarea id="ai-notes" class="input" rows="8" data-c="ainotes" placeholder="Es.: 4 settimane sul gioco di volo. Settimana 1, primo allenamento: attivazione 15 minuti volée a coppie a metà campo; parte centrale: io al cesto da fondo, loro a rete, volée di diritto in diagonale nel riquadro, 3 serie da 10…">${esc((U.aiNotes&&U.aiNotes[k])||'')}</textarea>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ${U.recOn?'danger':'ghost'}" data-a="aidict">${U.recOn?'■ Ferma la dettatura':'🎙 Detta'}</button><button class="btn clay" data-a="aicopy">Copia la richiesta per l'IA</button></div>
+      ${U.aiCopied?`<div class="card" style="background:var(--surface-2,rgba(255,255,255,.04));gap:6px"><p class="small"><b>Copiata.</b> Ora apri Claude (o un'altra IA), tieni premuto nel campo del messaggio, scegli "Incolla" e invia. Quando risponde, tocca "Copia" sul riquadro con il testo e incollalo qui sotto al punto 2.</p><a class="btn ghost" style="text-decoration:none;align-self:flex-start" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a></div>`:''}
+      ${U.aiShow?`<p class="small muted">Il telefono non ha permesso di copiare da solo: tieni premuto qui sotto, "Seleziona tutto" e "Copia".</p><textarea class="input" rows="5" readonly onfocus="this.select()">${esc(gAiPrompt(g))}</textarea>`:''}
+      <p class="small muted">Il microfono si può usare anche dalla tastiera del telefono.</p></section>
+      <section class="card"><h3>2 · Incolla la risposta dell'IA</h3><p class="small muted">Tocca "Copia" sul riquadro con il testo preparato dall'IA, poi tieni premuto qui sotto e scegli "Incolla". L'app ti mostra cosa contiene prima di inserirlo.</p>
+      <textarea id="gimp-txt" class="input" rows="6" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
+      <button class="btn clay" data-a="gimppaste" style="align-self:flex-start">Leggi il testo</button>
+      ${U.gImpErr?`<p class="small" style="color:var(--ko)">${esc(U.gImpErr)}</p>`:''}</section>`
+    : `<section class="card"><h3>Cosa verrà inserito</h3><ul class="small" style="margin:0;padding-left:18px">
+        <li>${R.weeks} ${R.weeks===1?'settimana':'settimane'}${R.names.length?': '+R.names.map(esc).join(' · '):''}</li>
+        <li>${R.lessons} ${R.lessons===1?'allenamento':'allenamenti'} con ${R.exs} esercizi${R.campi?` (${R.campi} con campetto)`:''}</li>
+        ${isOwnG(g)?'':'<li>il gruppo passa a "Programma personale"</li>'}</ul>
+        <p class="small muted">Non viene cancellato niente: le settimane che ci sono restano, quelle uguali non vengono doppiate. Dopo puoi modificare ogni esercizio e il suo campetto.</p></section>
+      <button class="btn clay block" data-a="gimpdo">Conferma e inserisci</button>
+      <button class="btn ghost block" data-a="gimpreset">Incolla un altro testo</button>`}`;
 }
 function importView(forId){
   const R = U.impData, who = forId ? ath(forId) : null;
@@ -1908,21 +2000,7 @@ function impApply(d, forId){
     const P = x.programma;
     if(P && (P.settimane||[]).length){
       if(!pv.pg) pv.pg = {id:'pp_'+a.id, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}};
-      const g = pv.pg; g.freq = Math.min(5, Math.max(1, +P.lezioniSettimana || g.freq || 1)); if(P.durata) g.lesson.dur = +P.durata;
-      const phs = g.lesson.phases = g.lesson.phases || [];
-      const keyOf = f => { if(f===undefined || f===null || f==='') return phs.filter(p=>!p.pause)[0]?.k; const def = (P.fasi||[])[+f] || (typeof f==='string' ? {nome:f} : null); if(!def) return phs.filter(p=>!p.pause)[0]?.k;
-        let ph = phs.find(p=>impNorm(p.n)===impNorm(def.nome)); if(!ph){ ph = {k:'i'+uid().slice(0,5), n:String(def.nome), m:+def.min||10}; phs.push(ph); } return ph.k; };
-      (P.fasi||[]).forEach((f,i)=>keyOf(i));
-      const o = ownOf(g.id), blank = o.weeks.length===1 && !o.weeks[0].name && o.weeks[0].days.every(z=>!z.title && !z.note && !z.ex.length);
-      if(blank) o.weeks = [];
-      S.customEx = S.customEx || [];
-      const sig = (n, t) => impNorm(n)+'|'+impNorm(t), seen = new Set(o.weeks.map(w=>sig(w.name, w.days[0]&&w.days[0].title)));
-      P.settimane.forEach(w=>{ if(seen.has(sig(w.nome, (w.lezioni||[])[0]&&w.lezioni[0].titolo))) return; const wk = blankWeek(); wk.name = w.nome || '';
-        (w.lezioni||[]).slice(0,5).forEach((l,i)=>{ const day = wk.days[i]; day.title = l.titolo || ''; day.note = l.obiettivo || ''; day.ex = []; day.exPh = [];
-          (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]};
-            S.customEx.push(ex); day.ex.push(ex.id); day.exPh.push(keyOf(e.fase)); }); });
-        o.weeks.push(wk); });
-      if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length || o.cur<1) o.cur = 1;
+      impProgram(P, pv.pg);
     }
     const lk = new Set(pv.lessons.map(l=>(l.date||'').slice(0,10)+'|'+impNorm(l.what)));
     (x.diario||[]).forEach(l=>{ if(!l || !l.data || !l.fatto) return; const k = l.data+'|'+impNorm(l.fatto); if(lk.has(k)) return; lk.add(k); pv.lessons.push({id:uid(), date:new Date(l.data+'T12:00').toISOString(), what:String(l.fatto), next:String(l.prossima||'')}); });
@@ -3348,6 +3426,7 @@ const ACT = {
   owcopy(){ const o=ownOf(U.planGroup); o.weeks.push(JSON.parse(JSON.stringify(o.weeks[U.oWeek-1]))); save(); U.oWeek=o.weeks.length; toast('Settimana duplicata'); window.scrollTo(0,0); },
   owdel(){ const o=ownOf(U.planGroup); o.weeks.splice(U.oWeek-1,1); if(o.cur>o.weeks.length) o.cur=o.weeks.length; U.oWeek=null; U.confirm=null; save(); toast('Settimana eliminata'); },
   owcur(){ ownOf(U.planGroup).cur=U.oWeek; save(); toast('Settimana in corso aggiornata'); },
+  oedit(k){ const g=grp(U.planGroup), d=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay], i=+k, e=exById(d.ex[i]); if(!e) return; U.ed=exToEd(e, {own:U.planGroup, w:U.oWeek, d:U.oDay, ph:ownPh(g,d,i), i}); U.ed.lib=!e.hidden; if(e.custom && e.hidden){ U.ed.id=e.id; } window.scrollTo(0,0); },
   onewex(k){ const g=grp(U.planGroup); U.ed={id:null, ph:k||mapPh(g,null), t:'', chip:'', x:'', els:[], vis:null, from:null, tool:'A', pend:null, ctx:{own:U.planGroup, w:U.oWeek, d:U.oDay, ph:k||mapPh(g,null), i:null}, lib:true}; window.scrollTo(0,0); },
   opick(k){ U.pick={own:U.planGroup, w:U.oWeek, d:U.oDay, ph:k||'', i:null}; U.planMode='lib'; U.libPh='all'; U.libOpen=null; U.libQ=''; window.scrollTo(0,0); },
   odrop(k){ const d=ownSync(grp(U.planGroup), ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]); d.ex.splice(+k,1); d.exPh.splice(+k,1); save(); },
@@ -3408,8 +3487,14 @@ const ACT = {
   impclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
   aidict(){ dictate(); },
-  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[U.impFor||'_']=ta.value; if(!(U.aiNotes[U.impFor||'_']||'').trim()){ toast('Prima scrivi o detta la lezione'); return; } const txt=aiPrompt(U.impFor||null);
+  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
     try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
+  gimpopen(k){ U.gImp=k; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; U.oWeek=null; U.oDay=null; window.scrollTo(0,0); },
+  gimpclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.gImp=null; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; window.scrollTo(0,0); },
+  gimppaste(){ const r=gParse(document.getElementById('gimp-txt').value||''); if(r.err){ U.gImpErr=r.err; U.gImpData=null; } else { U.gImpErr=''; U.gImpData=r; } },
+  gimpreset(){ U.gImpData=null; U.gImpErr=''; },
+  gimpdo(){ const g=grp(U.gImp), R=U.gImpData; if(!g||!R) return; const before=ownOf(g.id).weeks.filter(w=>w.name||w.days.some(d=>d.title||d.ex.length)).length; g.prog='own'; const n=impProgram(R.P, g); save();
+    if(U.aiNotes) U.aiNotes['g:'+g.id]=''; U.gImp=null; U.gImpData=null; U.aiCopied=false; U.aiShow=false; U.planGroup=g.id; U.planMode='weeks'; U.oDay=null; U.oWeek = n ? before+1 : null; toast(n?`${g.name}: ${n} ${n===1?'settimana aggiunta':'settimane aggiunte'}`:'Queste settimane c\u2019erano già'); window.scrollTo(0,0); },
   imppaste(){ const r = impParse(document.getElementById('imp-txt').value||'', U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
   impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; if(U.aiNotes) U.aiNotes[was||'_']=''; U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
@@ -3704,6 +3789,7 @@ const ACT = {
     if(E.els.length || !E.vis) ex.els=E.els; else ex.vis=E.vis;
     if(E.from) ex.from=E.from; if(E.ctx && !E.lib) ex.hidden=true;
     S.customEx=S.customEx||[]; const i=S.customEx.findIndex(e=>e.id===ex.id); if(i>=0) S.customEx[i]=ex; else S.customEx.push(ex);
+    if(E.ctx && E.ctx.own && E.ctx.i!==null && E.ctx.i!==undefined){ const g0=grp(E.ctx.own), dd=ownSync(g0, ownOf(E.ctx.own).weeks[E.ctx.w-1].days[E.ctx.d]); dd.ex[E.ctx.i]=ex.id; save(); U.ed=null; toast('Esercizio modificato'); return; }
     if(E.ctx && E.ctx.own){ const g0=grp(E.ctx.own), dd=ownSync(g0, ownOf(E.ctx.own).weeks[E.ctx.w-1].days[E.ctx.d]); dd.ex.push(ex.id); dd.exPh.push(E.ctx.ph || mapPh(g0, ex)); save(); U.ed=null; toast('Esercizio aggiunto alla seduta'); window.scrollTo(0,0); return; }
     if(E.ctx){ const B=editableBlocks(E.ctx.w,E.ctx.d); B[E.ctx.ph]=B[E.ctx.ph]||[]; if(E.ctx.i===null) B[E.ctx.ph].push(ex.id); else B[E.ctx.ph][E.ctx.i]=ex.id; save(); U.ed=null; U.editDay=true; toast(E.ctx.i===null?'Esercizio aggiunto alla seduta':'Esercizio modificato'); window.scrollTo(0,0); return; }
     save(); U.ed=null; U.libOpen=ex.id; toast('Esercizio salvato'); window.scrollTo(0,0); },
@@ -3792,7 +3878,7 @@ document.addEventListener('input', e=>{
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
-  if(c==='ainotes'){ U.aiNotes = U.aiNotes || {}; U.aiNotes[U.impFor||'_'] = t.value; return; }
+  if(c==='ainotes'){ U.aiNotes = U.aiNotes || {}; U.aiNotes[aiKey()] = t.value; return; }
   if(c==='pv' && U.pvDraft){ U.pvDraft[t.dataset.k]=t.value; return; }
   if(c==='pf' && U.profDraft){ U.profDraft[t.dataset.k]=t.value; return; }
   if(c==='fitplan'){ S.fitPlan=S.fitPlan||{}; (S.fitPlan[t.dataset.k]=S.fitPlan[t.dataset.k]||{})[U.fitDate||todayISO()]=t.value; save(); return; }
