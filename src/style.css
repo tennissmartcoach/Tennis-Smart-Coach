@@ -52,6 +52,11 @@ select.input{appearance:auto}
 .pin{font-family:var(--f-disp);font-size:18px;color:var(--ink);margin:0 4px;letter-spacing:.05em}
 .chip.mini{padding:2px 8px;font-size:13px}
 .pinl{white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+/* online sync status bar (online/cloud.js) */
+.sync{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:2px 2px}
+.sync i{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
+.sync.saving i{background:var(--ochre)} .sync.off i{background:var(--muted)} .sync.err i{background:var(--ko)} .sync.err span{color:var(--ko);font-weight:600}
+.sync b{margin-left:auto;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
 .err{background:var(--ko-soft);color:var(--ko);border-radius:10px;padding:10px 12px;font-weight:600;font-size:15px}
 .note{background:var(--teal-soft);color:var(--ink);border-radius:10px;padding:12px 14px;font-size:14px}
 .note b{color:var(--teal)}

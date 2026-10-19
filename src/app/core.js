@@ -12,6 +12,8 @@ const uid = () => Math.random().toString(36).slice(2,10);
 const pct = (a,b) => b ? Math.round(a/b*100) : null;
 
 /* ---------- data store (this phone only, for now) ---------- */
+/* Hook points for the online layer (online/cloud.js fills them in). In this-phone mode they stay empty and the app works on its own. */
+const HOOK = {};
 const KEY = 'smartcoach.v3';
 let S;
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }

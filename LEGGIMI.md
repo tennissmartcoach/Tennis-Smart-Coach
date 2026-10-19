@@ -13,7 +13,7 @@ Cartella per lavorare sull'app insieme. Puoi passarla così com'è anche al tuo 
 | `src/demo.js` | I dati di prova (atleti finti, partite, schede di esempio) per provare l'app. Non sono dati del circolo. |
 | `online/cloud.js` | La parte online: accesso di maestri, staff, atleti e genitori, salvataggio su Firebase (Firestore), codici e PIN. |
 | `online/build.py` | Crea la versione online combinando `smart-coach.html` con `online/cloud.js`. Si lancia con `python3 online/build.py`. Il risultato va in `online/site/index.html`. |
-| `online/build.mjs` | Lo stesso build per chi ha Node invece di Python: `node online/build.mjs`. Produce gli stessi file. Se cambi una sostituzione, aggiornala in tutti e due. |
+| `online/build.mjs` | Lo stesso build per chi ha Node invece di Python: `node online/build.mjs`. Producono gli stessi file: se ne cambi uno, cambia anche l'altro. |
 | `tools/verify/` | Prova automatica: apre l'app in Edge su telefono e desktop, entra con tutti i ruoli e tocca tutte le schede. Prima volta `cd tools/verify && npm i`, poi `node tools/verify/verify.mjs`. |
 | `online/mockfb.js` | Finto Firebase da usare nei test: la versione online si prova senza toccare i dati veri. |
 | `online/firestore.rules` | Regole di sicurezza del database: chi può leggere e scrivere cosa. |
@@ -25,7 +25,8 @@ Cartella per lavorare sull'app insieme. Puoi passarla così com'è anche al tuo 
 - I dati sono nello stato globale `S` e lo stato dell'interfaccia è in `U`. Ogni modifica chiama `save()` e poi `render()`.
 - I bottoni hanno `data-a="azione"` e, se serve, `data-k="chiave"`, e sono gestiti dall'oggetto `ACT`. I campi dei moduli hanno `data-c="..."` e sono gestiti dagli ascoltatori `change` e `input`.
 - La grafica è il tema "Progressi": sfondo scuro, giallo palla `#D7E84A`, caratteri Sora e IBM Plex Sans. I colori sono variabili CSS su `:root`.
-- Il build rimette tutti i file di `src/` dentro un'unica pagina, nello stesso ordine in cui `smart-coach.html` li carica, poi sostituisce alcune righe precise del codice per agganciare la parte online. Se una di quelle righe cambia, il build si ferma con un errore che indica la riga da sistemare.
+- Il build rimette tutti i file di `src/` dentro un'unica pagina, nello stesso ordine in cui `smart-coach.html` li carica, e aggiunge `online/cloud.js` subito prima di `src/app/start.js`.
+- La parte online si aggancia all'app solo attraverso l'oggetto `HOOK` (in `src/app/core.js`): in modalità telefono resta vuoto e l'app funziona da sola; online `cloud.js` lo riempie (accesso, salvataggio, codici e PIN). Il build non cerca né sostituisce testo nel codice, quindi il codice si può modificare liberamente. Per agganciare una cosa nuova alla parte online: un punto `HOOK.nome` nell'app e la sua funzione in fondo a `cloud.js`. Se una di quelle righe cambia, il build si ferma con un errore che indica la riga da sistemare.
 
 ## Regole da rispettare
 

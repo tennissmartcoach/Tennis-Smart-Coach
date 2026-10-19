@@ -10,7 +10,7 @@ const ACT = {
   key(k){ if(k==='del'){ U.pin=U.pin.slice(0,-1); return; } if(U.pin.length>=4) return; U.pin+=k; U.err='';
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
-  logout(){ S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
+  logout(){ if(HOOK.logout){ HOOK.logout(); return; } S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
   tab(k){ if(k==='plan' && String(U.planGroup||'').startsWith('pp_')){ U.planGroup=null; U.oWeek=null; U.oDay=null; } U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -239,7 +239,7 @@ const ACT = {
   grpnew(){ const n=(document.getElementById('f-gname')?.value||'').trim(); if(!n){ toast('Scrivi il nome del gruppo'); return; } const id=uid(); S.groups.push({id, name:n, code:genCode(n), week:1, lesson:{dur:0, phases:[]}}); U.resGroup=id; U.newGrp=false; save(); toast('Gruppo creato'); },
   pinstoggle(){ U.showPins=!U.showPins; U.confirm=null; },
   grpedit(){ U.grpEdit=!U.grpEdit; U.confirm=null; },
-  grpcode(){ const g=grp(U.resGroup); g.code=genCode(g.name); save(); toast('Nuovo codice: '+g.code); },
+  grpcode(){ const g=grp(U.resGroup); if(HOOK.codeChanging) HOOK.codeChanging(g); g.code=genCode(g.name); save(); toast('Nuovo codice: '+g.code); },
   grpdel(){ const id=U.resGroup; S.groups=S.groups.filter(x=>x.id!==id); U.resGroup=null; U.grpEdit=false; U.confirm=null; save(); toast('Gruppo eliminato'); },
   athnew(){ const n=document.getElementById('f-na-name').value.trim(), gid=document.getElementById('f-na-grp').value; if(!n){ toast('Scrivi il nome'); return; }
     const id=uid(); S.athletes.push({id, groupId:gid, name:n, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); save(); U.newAth=false; U.resGroup=gid; toast(n+' aggiunto a '+(gid===PRIV_ID?'Lezioni private':grp(gid).name)); },
@@ -249,7 +249,7 @@ const ACT = {
   newpin(k){ ath(k).pin=genPin(); save(); toast('Nuovo PIN atleta'); }, newppin(k){ ath(k).ppin=genPin(); save(); toast('Nuovo PIN genitore'); },
   askdel(k){ U.confirm=k; }, nodel(){ U.confirm=null; },
   del(k){ const [t,id]=k.split(':');
-    if(t==='ath'){ S.athletes=S.athletes.filter(a=>a.id!==id); S.results=S.results.filter(r=>r.athleteId!==id); S.matches=S.matches.filter(m=>m.a.id!==id); S.forms=S.forms.filter(f=>f.athleteId!==id); S.tests=S.tests.filter(t=>t.athleteId!==id); toast('Tolto dal gruppo'); if(U.athleteOpen===id) U.athleteOpen=null; if(U.athPriv===id) U.athPriv=null; }
+    if(t==='ath'){ if(HOOK.athRemoved) HOOK.athRemoved(id); S.athletes=S.athletes.filter(a=>a.id!==id); S.results=S.results.filter(r=>r.athleteId!==id); S.matches=S.matches.filter(m=>m.a.id!==id); S.forms=S.forms.filter(f=>f.athleteId!==id); S.tests=S.tests.filter(t=>t.athleteId!==id); toast('Tolto dal gruppo'); if(U.athleteOpen===id) U.athleteOpen=null; if(U.athPriv===id) U.athPriv=null; }
     if(t==='m'){ S.matches=S.matches.filter(m=>m.id!==id); U.matchOpen=null; toast('Partita eliminata'); }
     U.confirm=null; save(); },
   addath(k){ const i=document.getElementById('f-new-'+k); const n=i.value.trim(); if(!n){ toast('Scrivi il nome'); return; } S.athletes.push({id:uid(), groupId:k, name:n, pin:genPin(), ppin:genPin()}); save(); toast(n+' aggiunto al gruppo'); },
@@ -471,7 +471,7 @@ document.addEventListener('change', e=>{
   if(c==='cleantour'){ U.clean.sel[t.dataset.k]=t.checked; return; }
   if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
   if(c==='athname'){ const a=ath(t.dataset.k), v=t.value.trim(); if(a && v){ a.name=v; save(); toast('Nome aggiornato'); render(); } return; }
-  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
+  if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(HOOK.athMoved) HOOK.athMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
@@ -550,5 +550,3 @@ document.addEventListener('keydown', e=>{
   if(e.target.id==='f-coach'){ ACT.coachin(); render(); }
 });
 
-S = load();
-render();

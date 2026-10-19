@@ -1,10 +1,12 @@
 /* Main render, login, today, athlete card and lists, player type */
 /* ---------- render ---------- */
-function render(){
+function render(){ const keep = HOOK.beforeRender ? HOOK.beforeRender() : null; try{ renderBase(); } finally { if(HOOK.afterRender) HOOK.afterRender(keep); } }
+function renderBase(){
   try{ renderInner(); }catch(e){ console.error(e); document.getElementById('app').innerHTML = `<section class="card" style="margin:16px"><h2>Qualcosa non ha funzionato</h2><p class="small">Questa schermata non si è potuta aprire. I dati sono al sicuro.</p><p class="small muted">${String(e&&e.message||e).replace(/</g,'&lt;')}</p><button class="btn clay" onclick="U.tab=null;U.tOpen=null;U.mEdit=null;U.oWeek=null;U.oDay=null;U.athleteOpen=null;render()">Torna alla Home</button></section>`; }
 }
 function renderInner(){
   const root = document.getElementById('app');
+  const gate = HOOK.gate ? HOOK.gate() : ''; if(gate){ root.innerHTML = gate; return; }
   if(S.session?.role==='student' && !me()) S.session=null;
   if(!S.session){ root.innerHTML = loginView(); return; }
   const role = S.session.role;
@@ -18,7 +20,8 @@ function renderInner(){
     : (isPriv ? [['shome','Home',IC.home],['pprog','Programma',IC.today],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]
               : [['shome','Home',IC.home],['week','Settimana',IC.plan],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]);
   if(!U.tab) U.tab = tabs[0][0];
-  const who = role==='coach' ? 'Maestro' : ROLE_NAME[role] ? ROLE_NAME[role] : (role==='parent' ? 'Genitore di ' : '') + esc(me()?.name) + ' · ' + esc(grp(me()?.groupId)?.name);
+  const club = HOOK.clubName ? HOOK.clubName() : '';
+  const who = (role==='coach' || ROLE_NAME[role]) ? (role==='coach' ? 'Maestro' : ROLE_NAME[role]) + (club ? ' · ' + esc(club) : '') : (role==='parent' ? 'Genitore di ' : '') + esc(me()?.name) + ' · ' + esc(grp(me()?.groupId)?.name);
   let body = '';
   switch(U.tab){
     case 'today': body = noticesFor('student', me().groupId) + todayView(); break;
@@ -38,8 +41,8 @@ function renderInner(){
     case 'meet': body = U.form ? formView() : meetView(); break;
     case 'pmatch': body = summaryView(S.matches.find(m=>m.id===U.matchOpen)); break;
     case 'plan': body = planView(); break;
-    case 'ath': body = (U.athleteOpen && ath(U.athleteOpen)) ? athleteView(U.athleteOpen) + athManage(ath(U.athleteOpen)) : (U.athPriv && ath(U.athPriv)) ? privDetail(U.athPriv) + athManage(ath(U.athPriv)) : athList(); break;
-    case 'priv': body = U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) : privList(); break;
+    case 'ath': body = (U.athleteOpen && ath(U.athleteOpen)) ? athleteView(U.athleteOpen) + athManage(ath(U.athleteOpen)) : (U.athPriv && ath(U.athPriv)) ? privDetail(U.athPriv) + (HOOK.shareCard ? HOOK.shareCard(ath(U.athPriv)) : '') + athManage(ath(U.athPriv)) : athList(); break;
+    case 'priv': body = U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) + (HOOK.shareCard ? HOOK.shareCard(ath(U.privOpen)) : '') : privList(); break;
     case 'week': body = isOwnG(grp(me().groupId)) ? ownWeekCard(grp(me().groupId)) : studentWeek(); break;
     case 'home': body = coachHome(); break;
     case 'tour': body = isCoach() ? toursView() : staffTours(); break;
@@ -69,6 +72,7 @@ function tdefView(){
 function newForms(){ const s = S.seen || ''; return S.forms.filter(f=>f.date>s).length; }
 function exampleNote(){
   if(U.tab==='match' && S.live) return '';
+  if(HOOK.statusBar) return HOOK.statusBar();
   return `<div class="note"><b>Versione di prova.</b> Per ora i dati restano solo su questo telefono.</div>`;
 }
 
@@ -278,12 +282,12 @@ function athList(){
       <div class="field"><label for="f-grn">Nome</label><input id="f-grn" class="input" data-c="grname" value="${esc(g.name)}"></div>
       <div class="row"><span class="small muted">Codice del gruppo <b style="color:var(--ink)">${esc(g.code||'')}</b></span><button class="chip" data-a="grpcode">Nuovo codice</button></div>
       ${n ? `<p class="small muted">Per eliminare il gruppo sposta o togli prima i suoi ${n} atleti.</p>` : (U.confirm==='grp:'+g.id ? `<div class="confirm"><span>Eliminare il gruppo ${esc(g.name)}?</span><div class="row"><button class="btn danger" data-a="grpdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>` : `<button class="btn danger" data-a="askdel" data-k="grp:${g.id}" style="align-self:flex-start">Elimina gruppo</button>`)}</section>`; })() : '';
-  const pins = (U.showPins && g) ? (()=>{ const as = S.athletes.filter(a=>a.groupId===g.id); return `<section class="card"><h3>Codici e PIN · ${esc(g.id===PRIV_ID?'Lezioni private':g.name)}</h3>
+  const pins = (U.showPins && g) ? (()=>{ const as = S.athletes.filter(a=>a.groupId===g.id); return `<section class="card"><h3>Codici e PIN · ${esc(g.id===PRIV_ID?'Lezioni private':g.name)}</h3>${HOOK.pinsExtra ? HOOK.pinsExtra(g) : ''}
       ${as.length?`<div class="list">${as.map(a=>`<div class="pinrow">
-        <b>${esc(a.name)}</b>
+        <b>${esc(a.name)}</b>${HOOK.athExtra ? HOOK.athExtra(a) : ''}
         <div class="row" style="gap:6px 14px"><span class="small muted pinl">PIN atleta <b class="pin">${esc(a.pin||'')}</b><button class="chip mini" data-a="newpin" data-k="${a.id}" aria-label="Nuovo PIN atleta">↻</button></span><span class="small muted pinl">PIN genitore <b class="pin">${esc(a.ppin||'')}</b><button class="chip mini" data-a="newppin" data-k="${a.id}" aria-label="Nuovo PIN genitore">↻</button></span></div>
         <div class="row" style="gap:8px;flex-wrap:nowrap"><select class="input" style="flex:1;min-width:0" data-c="athmove" data-k="${a.id}" aria-label="Gruppo di ${esc(a.name)}">${S.groups.map(x=>`<option value="${x.id}" ${x.id===a.groupId?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select>${U.confirm==='ath:'+a.id?`<button class="btn danger" data-a="del" data-k="ath:${a.id}">Sì, togli</button><button class="chip" data-a="nodel">No</button>`:`<button class="chip" data-a="askdel" data-k="ath:${a.id}">Togli</button>`}</div></div>`).join('')}</div>
-      <p class="small muted">Il PIN servirà ad atleti e genitori per entrare nell'app con il codice del gruppo. ↻ ne crea uno nuovo. Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
+      <p class="small muted">${HOOK.pinHelp || "Il PIN servirà ad atleti e genitori per entrare nell'app con il codice del gruppo. ↻ ne crea uno nuovo."} Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
   const head = `<div class="row between"><h1>Gruppi e atleti</h1></div>
     <div class="row" style="gap:8px">${U.newAth?'':`<button class="btn clay" data-a="athnewtoggle" style="flex:1">+ Nuovo atleta</button>`}${U.newGrp?'':`<button class="btn ghost" data-a="grpnewtoggle" style="flex:1">+ Nuovo gruppo</button>`}</div>
     ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}`;

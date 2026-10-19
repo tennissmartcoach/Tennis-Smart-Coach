@@ -11,7 +11,8 @@ Non dire mai che una modifica funziona solo perché il codice "sembra giusto": p
 
 1. **Build** (crea la versione online di prova con Firebase finto):
    `node online/build.mjs`
-   Se si ferma con "build fermo: trovate N copie…", una delle righe che il build sostituisce è cambiata in `smart-coach.html`: aggiorna la riga corrispondente in `online/build.mjs` **e** in `online/build.py` (Silvio usa ancora quello).
+   Il build non sostituisce testo nel codice: la parte online si aggancia con `HOOK` (src/app/core.js). Se si ferma con "build fermo", manca una riga che serve (per esempio `<script src="src/app/start.js">` in smart-coach.html). `online/build.py` fa le stesse cose: se cambi uno, cambia l'altro.
+   Controllo sintassi di tutto il codice: `node --check online/check.js`.
 2. **Prima volta su un computer**: `cd tools/verify && npm i` (scarica solo playwright-core, usa Edge già installato).
 3. **Prova**: `node tools/verify/verify.mjs` (aggiungi `--local` per provare solo `smart-coach.html`).
    Apre l'app su telefono (390×844) e desktop (1280×800) e:

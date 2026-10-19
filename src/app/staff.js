@@ -355,8 +355,9 @@ function notifView(){
 function coachHome(){
   if(U.homeView==='att') return attView();
   if(U.homeView==='groups') return `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + groupsView();
-  if(U.homeView==='priv') return U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) : `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + privList();
+  if(U.homeView==='priv') return U.privOpen && ath(U.privOpen) ? privDetail(U.privOpen) + (HOOK.shareCard ? HOOK.shareCard(ath(U.privOpen)) : '') : `<button class="btn ghost" data-a="homeback" style="align-self:flex-start">‹ Home</button>` + privList();
   if(U.homeView==='backup') return backupView();
+  if(HOOK.homeView){ const h = HOOK.homeView(U.homeView); if(h) return h; }
   if(U.homeView==='clean') return cleanView();
   if(U.homeView==='notice') return noticeView();
   if(U.homeView==='notif') return notifView();
@@ -387,7 +388,7 @@ function coachHome(){
       ${tool('homego','notice',IC.chat,'Avvisi', nn?`${nn} ${nn===1?'pubblicato':'pubblicati'} · scrivi un avviso`:'scrivi un avviso ad atleti e genitori')}
       ${tool('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
       ${tool('homelib','',IC.plan,'Libreria esercizi', `${P.ex.length+(S.customEx||[]).length} esercizi`)}
-      <button class="item" data-a="homego" data-k="backup"><span class="ticon" aria-hidden="true">${IC.home}</span><span class="grow"><b>Copia di sicurezza</b><br><span class="small muted">salva o ripristina i dati</span></span><span class="chev">›</span></button>
+      ${HOOK.toolItems ? HOOK.toolItems() : ''}<button class="item" data-a="homego" data-k="backup"><span class="ticon" aria-hidden="true">${IC.home}</span><span class="grow"><b>Copia di sicurezza</b><br><span class="small muted">salva o ripristina i dati</span></span><span class="chev">›</span></button>
       ${tool('cleanopen','',IC.test,'Togli i dati di prova','tornei, schede e profili')}
     </div></section>`;
 }
