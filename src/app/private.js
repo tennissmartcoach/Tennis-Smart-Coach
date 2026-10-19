@@ -229,7 +229,7 @@ function gImportView(g){
 function importView(forId){
   const R = U.impData, who = forId ? ath(forId) : null;
   return `<button class="btn ghost" data-a="impclose" style="align-self:flex-start">‹ ${who?esc(who.name):'Lezioni private'}</button>
-    <h1>${who?'Incolla programma o lezione':'Nuovo allievo da chat'}</h1>
+    <h1>${who?'Crea programma o lezione':'Nuovo allievo da chat'}</h1>
     ${who?`<p class="small muted" style="margin-top:-6px">Quello che incolli va a <b>${esc(who.name)}</b>: una lezione nuova si aggiunge alle altre, gli obiettivi uguali non si doppiano.</p>`:`<p class="small muted" style="margin-top:-6px">Per creare un allievo nuovo. Per aggiungere una lezione a un allievo che c'è già, apri il suo nome e incolla lì.</p>`}
     ${!R ? `<section class="card" style="border-color:var(--clay)"><h3>1 · Racconta la lezione</h3><p class="small muted">Scrivi o detta come parleresti a un collega. Più cose dici, più la scheda viene completa:</p>
       <ul class="small muted" style="margin:0;padding-left:18px"><li>obiettivi dell'allievo (tecnica, tattica, mentale, fisico)</li><li>le fasi con i minuti (attivazione, parte centrale…)</li><li>per ogni esercizio: dove state tu e l'allievo, dove va la palla, le serie</li></ul>
@@ -364,7 +364,7 @@ async function pdfLoad(aid, f){
   U.pdfBusy = aid; U.pdfDraft = null; render();
   try{
     let txt = ''; try{ txt = (await pdfText(await f.arrayBuffer())).trim(); }catch(e){ console.warn(e); }
-    if(/tennis-smart-coach|"allievi"\s*:/.test(txt)){ U.pdfErr = {aid, msg:'Questo PDF contiene il testo da importare, non una scheda da leggere. Apri la sua pagina in Lezioni private, tocca "Incolla programma o lezione" e incolla lì il testo preparato in chat.'}; U.pdfBusy = null; render(); return; }
+    if(/tennis-smart-coach|"allievi"\s*:/.test(txt)){ U.pdfErr = {aid, msg:'Questo PDF contiene il testo da importare, non una scheda da leggere. Apri la sua pagina in Lezioni private, tocca "Crea programma o lezione" e incolla lì il testo preparato in chat.'}; U.pdfBusy = null; render(); return; }
     const P = txt ? pdfParse(txt) : null, lab = Object.fromEntries(PAREAS);
     U.pdfDraft = !txt ? {aid, fail:true} : {aid, text:txt.slice(0,4000), title:P.title, freq:P.freq, goals:P.goals.map(g=>lab[g.area]+': '+g.text).join('\n'), none:!P.title && !P.freq && !P.goals.length};
     if(!txt) toast('Non riesco a leggere il testo del PDF');
@@ -457,8 +457,8 @@ function privDetail(id){
   if(U.sheetOpen && (pv.sheets||[]).some(x=>x.id===U.sheetOpen)) return sheetView(id, pv.sheets.find(x=>x.id===U.sheetOpen), true);
   if(U.impFor===id) return importView(id);
   const empty = !(pv.card&&(pv.card.level||pv.card.dur)) && !pv.goals.length && !(pv.sheets||[]).length;
-  return `<div class="row between" style="gap:8px"><button class="btn ghost" data-a="privclose">‹ Lezioni private</button>${empty?'':`<button class="btn clay" data-a="impfor" data-k="${id}">Incolla programma o lezione</button>`}</div>
-    ${empty ? `<section class="card" style="border-color:var(--clay)"><h3>Inserisci il programma di ${esc(a.name)}</h3><p class="small muted">Hai preparato in chat la scheda o una lezione? Copiala e incollala qui: va direttamente a ${esc(a.name)}.</p><button class="btn clay" data-a="impfor" data-k="${id}">Incolla il programma</button></section>` : ''}
+  return `<div class="row between" style="gap:8px"><button class="btn ghost" data-a="privclose">‹ Lezioni private</button>${empty?'':`<button class="btn clay" data-a="impfor" data-k="${id}">Crea programma o lezione</button>`}</div>
+    ${empty ? `<section class="card" style="border-color:var(--clay)"><h3>Crea il programma di ${esc(a.name)}</h3><p class="small muted">Racconta o detta la lezione: l'IA la prepara con esercizi e campetti, tu la incolli qui. Va direttamente a ${esc(a.name)}.</p><button class="btn clay" data-a="impfor" data-k="${id}">Crea il programma</button></section>` : ''}
     ${ppTabs(tab, [['scheda','Scheda'],['lezioni','Lezioni ('+((pv.sheets||[]).length)+')'],['gest','Modifica e calendario']])}
     ${tab==='scheda' ? idCard(id, true) : tab==='lezioni' ? sheetList(id) : privManage(id)}`;
 }
