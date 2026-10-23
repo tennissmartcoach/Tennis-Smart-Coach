@@ -234,9 +234,9 @@ function liveView(){
     <section class="card">
       <span class="eyebrow">1 · Prima del punto: cosa vuole fare ${esc(m.a.name)}?</span>
       <div class="pick">${m.choices.map((c,i)=>`<button data-a="pick" data-k="${i}" aria-pressed="${sel.ch===i}"><i>${i+1}</i><span>${esc(c)}</span></button>`).join('')}<button class="none" data-a="pick" data-k="none" aria-pressed="${sel.ch===null}">Nessuna scelta dichiarata</button></div>
+      <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con ace o doppio fallo il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button></div>
       ${needEx?`<span class="eyebrow">2 · L'ha eseguita?</span><div class="exrow"><button class="y" data-a="ex" data-k="1" aria-pressed="${sel.ex===true}">✓ Eseguita</button><button class="n" data-a="ex" data-k="0" aria-pressed="${sel.ex===false}">✗ Non eseguita</button><button class="ng" data-a="ex" data-k="ng" aria-pressed="${sel.ex==='ng'}">– Non giocato</button></div>${sel.ex==='ng'?'<p class="muted small">Il punto conta nel punteggio ma non nelle percentuali della scelta.</p>':''}`:''}
       <span class="eyebrow">${needEx?'3':'2'} · Chi vince il punto?</span>
-      <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con ace o doppio fallo il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button></div>
       <div class="winrow"><button class="win a" data-a="point" data-k="0" ${ready?'':'disabled'}>${esc(m.a.name)}<small>vince il punto</small></button><button class="win b" data-a="point" data-k="1" ${ready?'':'disabled'}>${esc(m.b.name)}<small>vince il punto</small></button></div>
       ${ready?'':'<p class="muted small" style="text-align:center">Scegli prima cosa voleva fare (o "nessuna scelta").</p>'}
     </section>`:`
