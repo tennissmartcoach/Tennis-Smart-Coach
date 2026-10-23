@@ -73,12 +73,12 @@ function matchStats(m){
   const n = m.choices.length;
   const rows = m.choices.map((label,i)=>({label, n:0, ex:0, exn:0, won:0, prn:0, prw:0, ng:0}));
   const none = {label:'Nessuna scelta', n:0, won:0, prn:0, prw:0, ex:0, exn:0, ng:0};
-  let won=0, srv=0, srvW=0, ret=0, retW=0, prn=0, prw=0; const quick = {aceA:0, dfA:0, aceB:0, dfB:0, ng:0};
+  let won=0, srv=0, srvW=0, ret=0, retW=0, prn=0, prw=0; const quick = {aceA:0, dfA:0, aceB:0, dfB:0, reA:0, reB:0, ng:0};
   m.points.forEach(p=>{
     const r = p.ch===null || p.ch===undefined ? none : rows[p.ch];
     if(!r) return;
     const w = p.w===0;
-    if(p.how==='ace'){ if(p.srv===0) quick.aceA++; else quick.aceB++; } else if(p.how==='df'){ if(p.srv===0) quick.dfA++; else quick.dfB++; }
+    if(p.how==='ace'){ if(p.srv===0) quick.aceA++; else quick.aceB++; } else if(p.how==='df'){ if(p.srv===0) quick.dfA++; else quick.dfB++; } else if(p.how==='re'){ if(p.srv===0) quick.reB++; else quick.reA++; }
     if(w) won++; if(p.pr){ prn++; if(w) prw++; }
     // a point not played (ace, double fault, nothing to try) counts in the score but says nothing about the choice
     if(p.ng){ r.ng++; quick.ng++; if(p.srv===0){ srv++; if(w) srvW++; } else { ret++; if(w) retW++; } return; }

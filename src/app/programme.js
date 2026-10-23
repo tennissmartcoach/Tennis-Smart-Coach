@@ -234,7 +234,7 @@ function liveView(){
     <section class="card">
       <span class="eyebrow">1 · Prima del punto: cosa vuole fare ${esc(m.a.name)}?</span>
       <div class="pick">${m.choices.map((c,i)=>`<button data-a="pick" data-k="${i}" aria-pressed="${sel.ch===i}"><i>${i+1}</i><span>${esc(c)}</span></button>`).join('')}<button class="none" data-a="pick" data-k="none" aria-pressed="${sel.ch===null}">Nessuna scelta dichiarata</button></div>
-      <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con ace o doppio fallo il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button></div>
+      <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con questi il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button><button data-a="quickpt" data-k="re">Err. in risp.</button></div>
       ${needEx?`<span class="eyebrow">2 · L'ha eseguita?</span><div class="exrow"><button class="y" data-a="ex" data-k="1" aria-pressed="${sel.ex===true}">✓ Eseguita</button><button class="n" data-a="ex" data-k="0" aria-pressed="${sel.ex===false}">✗ Non eseguita</button><button class="ng" data-a="ex" data-k="ng" aria-pressed="${sel.ex==='ng'}">– Non giocato</button></div>${sel.ex==='ng'?'<p class="muted small">Il punto conta nel punteggio ma non nelle percentuali della scelta.</p>':''}`:''}
       <span class="eyebrow">${needEx?'3':'2'} · Chi vince il punto?</span>
       <div class="winrow"><button class="win a" data-a="point" data-k="0" ${ready?'':'disabled'}>${esc(m.a.name)}<small>vince il punto</small></button><button class="win b" data-a="point" data-k="1" ${ready?'':'disabled'}>${esc(m.b.name)}<small>vince il punto</small></button></div>
@@ -243,7 +243,7 @@ function liveView(){
     <section class="card"><h2>Partita finita</h2><p>Vince <b>${esc(st.done===0?m.a.name:m.b.name)}</b> · ${esc(scoreLine(st))}</p><button class="btn clay block" data-a="finish">Vedi l'analisi</button></section>`}
     <section class="card">
       <div class="row between"><h3>Ultimi punti</h3><button class="chip" data-a="undo" ${m.points.length?'':'disabled'}>↩ Annulla l'ultimo</button></div>
-      ${last.length?`<div class="log">${last.map(({p,n})=>`<div><span class="n">${n}</span><span class="g">${p.ch===null||p.ch===undefined?'<span class="muted">Nessuna scelta</span>':esc(m.choices[p.ch])}${p.how==='ace'?' · <span class="tag">ace</span>':p.how==='df'?' · <span class="tag">doppio fallo</span>':p.ng?' · <span class="tag">non giocato</span>':p.ex===true?' ✓':p.ex===false?' ✗':''}${p.pr?' <span class="tag">imp.</span>':''}</span><b style="color:${p.w===0?'var(--ok)':'var(--ko)'}">${p.w===0?'Vinto':'Perso'}</b></div>`).join('')}</div>`:'<p class="muted small">Nessun punto ancora.</p>'}
+      ${last.length?`<div class="log">${last.map(({p,n})=>`<div><span class="n">${n}</span><span class="g">${p.ch===null||p.ch===undefined?'<span class="muted">Nessuna scelta</span>':esc(m.choices[p.ch])}${p.how==='ace'?' · <span class="tag">ace</span>':p.how==='df'?' · <span class="tag">doppio fallo</span>':p.how==='re'?' · <span class="tag">errore in risposta</span>':p.ng?' · <span class="tag">non giocato</span>':p.ex===true?' ✓':p.ex===false?' ✗':''}${p.pr?' <span class="tag">imp.</span>':''}</span><b style="color:${p.w===0?'var(--ok)':'var(--ko)'}">${p.w===0?'Vinto':'Perso'}</b></div>`).join('')}</div>`:'<p class="muted small">Nessun punto ancora.</p>'}
       ${st.done===null?(U.confirm==='stop'?`<div class="confirm"><span>Chiudere la partita adesso? I punti giocati restano salvati.</span><div class="row"><button class="btn" data-a="finish">Sì, chiudi</button><button class="btn ghost" data-a="nodel">Continua</button></div></div>`:`<button class="btn ghost" data-a="askdel" data-k="stop">Chiudi la partita prima della fine</button>`):''}
     </section>`;
 }
@@ -267,7 +267,7 @@ function summaryView(m){
         <div class="kpi"><b>${pct(s.srvW,s.srv) ?? '–'}%</b><span>vinti al servizio (${s.srvW}/${s.srv})</span></div>
         <div class="kpi"><b>${pct(s.retW,s.ret) ?? '–'}%</b><span>vinti in risposta (${s.retW}/${s.ret})</span></div>
       </div>
-      ${s.quick.aceA+s.quick.dfA+s.quick.aceB+s.quick.dfB+s.quick.ng ? `<p class="small muted">${esc(m.a.name)}: ${s.quick.aceA} ace, ${s.quick.dfA} doppi falli · ${esc(m.b.name)}: ${s.quick.aceB} ace, ${s.quick.dfB} doppi falli${s.quick.ng?` · ${s.quick.ng} punti non giocati, esclusi dalle percentuali delle scelte`:''}</p>` : ''}
+      ${s.quick.aceA+s.quick.dfA+s.quick.aceB+s.quick.dfB+s.quick.ng ? `<p class="small muted">${esc(m.a.name)}: ${s.quick.aceA} ace, ${s.quick.dfA} doppi falli, ${s.quick.reA} errori in risposta · ${esc(m.b.name)}: ${s.quick.aceB} ace, ${s.quick.dfB} doppi falli, ${s.quick.reB} errori in risposta${s.quick.ng?` · ${s.quick.ng} punti non giocati, esclusi dalle percentuali delle scelte`:''}</p>` : ''}
     </section>
     <section class="card">
       <h3>Le scelte: quante volte e con che esito</h3>
