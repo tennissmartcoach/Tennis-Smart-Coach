@@ -219,7 +219,8 @@ function liveView(){
   const m = S.live, f = m.format, st = replay(m), srv = curServer(st);
   const sel = U.sel;
   const needEx = m.trackEx && sel.ch !== undefined && sel.ch !== null;
-  const ready = sel.ch !== undefined && (!needEx || sel.ex !== null);
+  // no choice picked = point recorded without a choice; a picked choice still needs 'L'ha eseguita?' when that is tracked
+  const ready = !needEx || sel.ex !== null;
   const sv = st.done===null ? curServer(st) : 0, svName = esc(sv===0?m.a.name:m.b.name);
   const sets = i => st.sets.map(x=>`<span>${i===0?x.a:x.b}</span>`).join('') + (st.done===null && !st.tb?.whole && !st.tb?.decider ? `<b>${st.g[i]}</b>` : '');
   const tags = statusTags(f, st);
@@ -233,12 +234,12 @@ function liveView(){
     ${st.done===null?`
     <section class="card">
       <span class="eyebrow">1 · Prima del punto: cosa vuole fare ${esc(m.a.name)}?</span>
-      <div class="pick">${m.choices.map((c,i)=>`<button data-a="pick" data-k="${i}" aria-pressed="${sel.ch===i}"><i>${i+1}</i><span>${esc(c)}</span></button>`).join('')}<button class="none" data-a="pick" data-k="none" aria-pressed="${sel.ch===null}">Nessuna scelta dichiarata</button></div>
+      <div class="pick">${m.choices.map((c,i)=>`<button data-a="pick" data-k="${i}" aria-pressed="${sel.ch===i}"><i>${i+1}</i><span>${esc(c)}</span></button>`).join('')}</div>
       <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con questi il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button><button data-a="quickpt" data-k="re">Err. in risp.</button></div>
       ${needEx?`<span class="eyebrow">2 · L'ha eseguita?</span><div class="exrow"><button class="y" data-a="ex" data-k="1" aria-pressed="${sel.ex===true}">✓ Eseguita</button><button class="n" data-a="ex" data-k="0" aria-pressed="${sel.ex===false}">✗ Non eseguita</button><button class="ng" data-a="ex" data-k="ng" aria-pressed="${sel.ex==='ng'}">– Non giocato</button></div>${sel.ex==='ng'?'<p class="muted small">Il punto conta nel punteggio ma non nelle percentuali della scelta.</p>':''}`:''}
       <span class="eyebrow">${needEx?'3':'2'} · Chi vince il punto?</span>
       <div class="winrow"><button class="win a" data-a="point" data-k="0" ${ready?'':'disabled'}>${esc(m.a.name)}<small>vince il punto</small></button><button class="win b" data-a="point" data-k="1" ${ready?'':'disabled'}>${esc(m.b.name)}<small>vince il punto</small></button></div>
-      ${ready?'':'<p class="muted small" style="text-align:center">Scegli prima cosa voleva fare (o "nessuna scelta").</p>'}
+      ${ready?'':'<p class="muted small" style="text-align:center">Prima dimmi se ha eseguito la scelta.</p>'}
     </section>`:`
     <section class="card"><h2>Partita finita</h2><p>Vince <b>${esc(st.done===0?m.a.name:m.b.name)}</b> · ${esc(scoreLine(st))}</p><button class="btn clay block" data-a="finish">Vedi l'analisi</button></section>`}
     <section class="card">

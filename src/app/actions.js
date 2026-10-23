@@ -268,7 +268,7 @@ const ACT = {
     const format = {type:s.type, sets:s.sets, games:s.games, tb:s.tb, decider:s.decider, ad:s.ad, first:s.first};
     S.live = {id:uid(), groupId:g.id, week:g.week, date:new Date().toISOString(), a:{id:a.id,name:a.name}, b, format, choices:s.choices.map(c=>c.trim()||'Scelta'), trackEx:s.trackEx, points:[], done:false};
     U.sel={ch:undefined, ex:null}; save(); window.scrollTo(0,0); },
-  pick(k){ U.sel.ch = k==='none' ? null : +k; U.sel.ex=null; },
+  pick(k){ const v = k==='none' ? null : +k; U.sel.ch = U.sel.ch===v ? undefined : v; U.sel.ex=null; },
   ex(k){ U.sel.ex = k==='ng' ? 'ng' : k==='1'; },
   // ace / double fault / return error: the point is not played and the app knows who won it (the receiver only on a double fault)
   quickpt(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const sv=curServer(st); if(U.sel.ch===undefined) U.sel.ch=null; U.sel.ex='ng'; U.sel.how=k; ACT.point(String(k==='df'?1-sv:sv)); },
