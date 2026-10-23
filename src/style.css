@@ -105,7 +105,11 @@ select.input{appearance:auto}
 .pick button i{font-style:normal;font-family:var(--f-disp);font-size:22px;font-weight:700;color:var(--clay)}
 .pick button[aria-pressed="true"]{border-color:var(--pri);background:var(--pri-soft)}
 .pick button.none{grid-column:1/-1;justify-content:center;min-height:44px;color:var(--muted)}
-.exrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.exrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.exrow button.ng[aria-pressed="true"]{border-color:var(--muted);background:var(--surface-2,rgba(127,127,127,.12));color:var(--ink)}
+.quickrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.quickrow button{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 14px;font-weight:700;color:var(--ink)}
+.quickrow span{flex:1 1 100%}
 .exrow button{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;font-weight:700}
 .exrow button.y[aria-pressed="true"]{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}
 .exrow button.n[aria-pressed="true"]{border-color:var(--ko);background:var(--ko-soft);color:var(--ko)}

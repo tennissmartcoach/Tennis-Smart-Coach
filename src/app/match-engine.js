@@ -71,23 +71,27 @@ function scoreLine(st){ const l = st.sets.map(x=> x.stb ? `[${x.a}-${x.b}]` : `$
 /* ---------- stats ---------- */
 function matchStats(m){
   const n = m.choices.length;
-  const rows = m.choices.map((label,i)=>({label, n:0, ex:0, exn:0, won:0, prn:0, prw:0}));
-  const none = {label:'Nessuna scelta', n:0, won:0, prn:0, prw:0, ex:0, exn:0};
-  let won=0, srv=0, srvW=0, ret=0, retW=0, prn=0, prw=0;
+  const rows = m.choices.map((label,i)=>({label, n:0, ex:0, exn:0, won:0, prn:0, prw:0, ng:0}));
+  const none = {label:'Nessuna scelta', n:0, won:0, prn:0, prw:0, ex:0, exn:0, ng:0};
+  let won=0, srv=0, srvW=0, ret=0, retW=0, prn=0, prw=0; const quick = {aceA:0, dfA:0, aceB:0, dfB:0, ng:0};
   m.points.forEach(p=>{
     const r = p.ch===null || p.ch===undefined ? none : rows[p.ch];
     if(!r) return;
     const w = p.w===0;
-    r.n++; if(w){ r.won++; won++; }
+    if(p.how==='ace'){ if(p.srv===0) quick.aceA++; else quick.aceB++; } else if(p.how==='df'){ if(p.srv===0) quick.dfA++; else quick.dfB++; }
+    if(w) won++; if(p.pr){ prn++; if(w) prw++; }
+    // a point not played (ace, double fault, nothing to try) counts in the score but says nothing about the choice
+    if(p.ng){ r.ng++; quick.ng++; if(p.srv===0){ srv++; if(w) srvW++; } else { ret++; if(w) retW++; } return; }
+    r.n++; if(w) r.won++;
     if(p.ex!==null && p.ex!==undefined){ r.exn++; if(p.ex) r.ex++; }
-    if(p.pr){ r.prn++; prn++; if(w){ r.prw++; prw++; } }
+    if(p.pr){ r.prn++; if(w) r.prw++; }
     if(p.srv===0){ srv++; if(w) srvW++; } else { ret++; if(w) retW++; }
   });
-  return {rows, none, tot:m.points.length, won, srv, srvW, ret, retW, prn, prw};
+  return {rows, none, tot:m.points.length, won, srv, srvW, ret, retW, prn, prw, quick};
 }
 function mergeStats(list){
   const by = {};
-  list.forEach(m=>{ const s = matchStats(m); s.rows.forEach(r=>{ const k = r.label; by[k] = by[k] || {label:k, n:0, won:0, ex:0, exn:0, prn:0, prw:0}; ['n','won','ex','exn','prn','prw'].forEach(f=>by[k][f]+=r[f]); }); });
+  list.forEach(m=>{ const s = matchStats(m); s.rows.forEach(r=>{ const k = r.label; by[k] = by[k] || {label:k, n:0, won:0, ex:0, exn:0, prn:0, prw:0, ng:0}; ['n','won','ex','exn','prn','prw','ng'].forEach(f=>by[k][f]+=r[f]||0); }); });
   return Object.values(by).filter(r=>r.n>0).sort((a,b)=>b.n-a.n);
 }
 

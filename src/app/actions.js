@@ -269,9 +269,11 @@ const ACT = {
     S.live = {id:uid(), groupId:g.id, week:g.week, date:new Date().toISOString(), a:{id:a.id,name:a.name}, b, format, choices:s.choices.map(c=>c.trim()||'Scelta'), trackEx:s.trackEx, points:[], done:false};
     U.sel={ch:undefined, ex:null}; save(); window.scrollTo(0,0); },
   pick(k){ U.sel.ch = k==='none' ? null : +k; U.sel.ex=null; },
-  ex(k){ U.sel.ex = k==='1'; },
-  point(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const w=+k;
-    m.points.push({w, ch:U.sel.ch, ex: (m.trackEx && U.sel.ch!==null) ? U.sel.ex : null, srv:curServer(st), pr:isPressure(m.format,st)});
+  ex(k){ U.sel.ex = k==='ng' ? 'ng' : k==='1'; },
+  // ace / double fault: the point is not played and the app knows who won it (the server for an ace, the receiver for a double fault)
+  quickpt(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const sv=curServer(st); if(U.sel.ch===undefined) U.sel.ch=null; U.sel.ex='ng'; U.sel.how=k; ACT.point(String(k==='ace'?sv:1-sv)); },
+  point(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const w=+k; const ng = U.sel.ex==='ng';
+    m.points.push(Object.assign({w, ch:U.sel.ch??null, ex: (m.trackEx && U.sel.ch!==null && !ng) ? U.sel.ex : null, srv:curServer(st), pr:isPressure(m.format,st)}, ng?{ng:true}:{}, U.sel.how?{how:U.sel.how}:{}));
     const gBefore = st.g[0]+st.g[1]+st.sets.length*100; applyPoint(m.format, st, w);
     U.sel={ch:undefined, ex:null}; save();
     const gAfter = st.g[0]+st.g[1]+st.sets.length*100;
