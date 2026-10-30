@@ -428,12 +428,59 @@ function libraryView(){
 
 /* new / edit exercise with court drawing */
 const TOOLS = [['A','Giocatore A'],['B','Giocatore B'],['M','Maestro'],['a','Colpo di A'],['b','Colpo di B'],['f','Palla del maestro'],['ma','Spostamento'],['z','Zona bersaglio'],['c','Cono'],['n','Numero']];
+/* one exercise prepared with an AI: the coach tells it, copies the request, pastes the answer back */
+function exAiPrompt(E){
+  const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
+  const cur = (E.t||'').trim() ? `
+ESERCIZIO DI PARTENZA (il maestro vuole cambiarlo come dice negli appunti)
+${JSON.stringify({titolo:E.t, etichetta:E.chip, righe:String(E.x||'').split('\n').filter(Boolean), campo:E.els||[]})}
+` : '';
+  return `Sei l'assistente di un maestro di tennis. Trasforma gli appunti del maestro (in fondo) in UN esercizio da incollare nell'app Tennis Smart Coach. L'esercizio va nella fase: ${where}.
+
+COME RISPONDERE
+- Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Non inventare contenuti: puoi solo mettere in ordine, dare un titolo breve e scrivere in italiano chiaro. L'unica eccezione è il campetto.
+- Gli atleti non vanno nominati: nel campetto usa lettere (A, B, C…).
+
+FORMATO
+{"tipo":"tennis-smart-coach","versione":2,"esercizio":{"titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, attenzione a…"],"min":10,"serie":"…","obiettivo":"…","campo":[…]}}
+("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)
+${cur}
+${AI_CAMPO}
+
+APPUNTI DEL MAESTRO
+${notes.trim() || '(scrivi qui gli appunti)'}`;
+}
+function exAiParse(txt){
+  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
+  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return null; }
+  let e = d && (d.esercizio || d.exercise);
+  if(!e && d && d.programma) e = (((d.programma.settimane||[])[0]||{}).lezioni||[{}])[0]?.esercizi?.[0];
+  if(!e && d && d.allievi) e = ((((d.allievi[0]||{}).lezioni||[])[0]||{}).fasi||[{}])[0]?.esercizi?.[0];
+  if(!e && d && (d.titolo || d.righe)) e = d;
+  return e && (e.titolo || (e.righe||[]).length) ? e : null;
+}
+function exAiCard(E){
+  if(!E.ai) return `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Crealo con l'IA</b><br><span class="muted">Racconta o detta l'esercizio: l'IA prepara titolo, descrizione e campetto, tu incolli qui la risposta.</span></span><button class="btn clay" data-a="exai" data-k="1">Inizia</button></div></section>`;
+  return `<section class="card" style="border-color:var(--clay)"><div class="row between"><h3>Crealo con l'IA</h3><button class="chip" data-a="exai" data-k="0">Chiudi</button></div>
+    <p class="small muted"><b>1 ·</b> Racconta l'esercizio: dove stanno maestro e atleti, dove va la palla, punteggio o serie.${(E.t||'').trim()?' L\'IA parte dall\'esercizio che c\'è già e lo cambia come dici.':''}</p>
+    <textarea id="ai-notes" class="input" rows="5" data-c="ainotes" placeholder="Es.: io al cesto da fondo, due atleti a rete in fila; volée di diritto in diagonale nel riquadro, poi smash; 3 serie da 10…">${esc((U.aiNotes&&U.aiNotes.ex)||'')}</textarea>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ${U.recOn?'danger':'ghost'}" data-a="aidict">${U.recOn?'■ Ferma la dettatura':'🎙 Detta'}</button><button class="btn clay" data-a="aicopy">Copia la richiesta per l'IA</button></div>
+    ${U.aiCopied?`<p class="small"><b>Copiata.</b> Incollala in Claude (o un'altra IA) e invia; poi copia la risposta e incollala qui sotto.</p><a class="btn ghost" style="text-decoration:none;align-self:flex-start" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a>`:''}
+    ${U.aiShow?`<p class="small muted">Il telefono non ha permesso di copiare da solo: tieni premuto qui sotto, "Seleziona tutto" e "Copia".</p><textarea class="input" rows="5" readonly onfocus="this.select()">${esc(exAiPrompt(E))}</textarea>`:''}
+    <p class="small muted"><b>2 ·</b> Incolla la risposta dell'IA:</p>
+    <textarea id="exai-txt" class="input" rows="4" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
+    <button class="btn clay" data-a="exaipaste" style="align-self:flex-start">Metti nell'esercizio</button>
+    ${U.exAiErr?`<p class="small" style="color:var(--ko)">${esc(U.exAiErr)}</p>`:''}</section>`;
+}
 function editorView(){
   const E = U.ed;
   return `
     <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
     <h1>${E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
+    ${exAiCard(E)}
     <section class="card">
       ${E.sheet?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>

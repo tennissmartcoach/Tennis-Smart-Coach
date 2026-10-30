@@ -79,7 +79,7 @@ function impParse(txt, forId){
     return {x, ex, card:!!x.scheda, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, sheets:SH.length, shex:SE, shc:SC, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
   return {d, rows, forId:forId||null};
 }
-const aiKey = () => U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
+const aiKey = () => U.ed && U.ed.ai ? 'ex' : U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
 const AI_EX = '[["z",176,22,30,20],["t",191,19,"4×1\'"],["A",24,40,"S"],["M",204,76],["f","M198 72Q120 22 31 36"],["a","M30 45Q110 84 186 76"],["c",12,66],["n",70,46,"1"],["ma","M16 82C4 78 6 66 12 72"]]';
 const AI_CAMPO = `IL CAMPETTO ("campo"): mettilo SEMPRE, in OGNI esercizio di OGNI fase (anche attivazione e servizio), anche se il maestro non lo chiede.
 Se gli appunti non dicono dove stanno i giocatori, usa la disposizione più normale per quell'esercizio (allievo a fondo campo al centro; maestro dall'altra parte a fondo campo, a metà campo se gioca palle facili, a rete se si parla di volée) e disegna almeno: i giocatori, la palla del maestro, il colpo dell'allievo con la direzione detta (diagonale, lungolinea, centro), le zone bersaglio e i coni se nominati, un numero per ogni passaggio di una sequenza. Il maestro lo potrà correggere nell'app.

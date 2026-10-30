@@ -105,8 +105,14 @@ const ACT = {
   impclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
   aidict(){ dictate(); },
-  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
+  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.ed&&U.ed.ai?'Prima scrivi o detta l\'esercizio':U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.ed&&U.ed.ai?exAiPrompt(U.ed):U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
     try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
+  exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
+  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
+    E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
+    if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
+    if(!E.sheet && !E.ctx) E.lib=true;
+    E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
   gimpopen(k){ U.gImp=k; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; U.oWeek=null; U.oDay=null; window.scrollTo(0,0); },
   gimpclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.gImp=null; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; window.scrollTo(0,0); },
   gimppaste(){ const r=gParse(document.getElementById('gimp-txt').value||''); if(r.err){ U.gImpErr=r.err; U.gImpData=null; } else { U.gImpErr=''; U.gImpData=r; } },
