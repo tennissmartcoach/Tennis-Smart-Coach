@@ -257,6 +257,12 @@ const ACT = {
   savecc(){ const v=document.getElementById('f-cc').value.trim().toUpperCase(); if(v.length<4){ toast('Almeno 4 caratteri'); return; } S.coachCode=v; save(); toast('Codice maestro salvato'); },
   reset(k){ const sess=S.session; if(typeof cloudAthRemoved==='function') (S.athletes||[]).forEach(a=>cloudAthRemoved(a.id)); S = k==='empty' ? {roster:6, example:false, coachCode:S.coachCode, season:{2026:{weeks:{}}}, groups:[], athletes:[], results:[], matches:[], forms:[], tests:[], customEx:S.customEx||[], plan:S.plan||{}, session:sess, live:null} : seed(); S.session=sess; U.confirm=null; U.resGroup=null; U.resWeek=null; U.setup=null; save(); toast(k==='empty'?'Tutto cancellato: puoi partire con i tuoi gruppi':'Dati di prova ripristinati'); },
   set(k,d){ const s=U.setup; let v=d.v; if(v==='true') v=true; else if(v==='false') v=false; else if(/^\d+$/.test(v)) v=+v; s[k]=v; },
+  psave(k){ const s=U.setup, x={choices:s.choices.map(c=>String(c).trim()).filter(Boolean), tasks:s.tasks.map(c=>String(c).trim()).filter(Boolean), at:todayISO()};
+    if(!x.choices.length && !x.tasks.length){ toast('Scrivi almeno una scelta o un compito'); return; }
+    if(k==='a'){ const a=ath(s.a); if(!a) return; a.mset=x; s.from='athlete'; toast('Salvate per '+a.name); }
+    else { const g=grp(s.groupId); if(!g) return; g.mset=x; s.from=ath(s.a)?.mset?'athlete':'group'; toast('Salvate per '+g.name+(ath(s.a)?.mset?' ('+ath(s.a).name+' ha le sue)':'')); }
+    save(); },
+  pclear(k){ const s=U.setup; if(k==='a'){ const a=ath(s.a); if(a) delete a.mset; } else { const g=grp(s.groupId); if(g) delete g.mset; } presetInto(s); save(); toast('Tolte'); },
   addchoice(){ U.setup.choices.push('Nuova scelta'); }, delchoice(k){ U.setup.choices.splice(+k,1); },
   start(){ const s=U.setup; const a=ath(s.a); if(!a){ toast('Scegli chi analizziamo'); return; }
     if(s.mode==='task'){ const tasks=s.tasks.map(t=>t.trim()).filter(Boolean); if(!tasks.length){ toast('Serve almeno un compito'); return; } const g=grp(s.groupId);
@@ -487,8 +493,8 @@ document.addEventListener('change', e=>{
   if(c==='tour' && t.type==='date'){ render(); return; }
   if(!c || !U.setup) return;
   const s = U.setup;
-  if(c==='mgroup'){ s.groupId=t.value; const g=grp(t.value); s.a=S.athletes.find(x=>x.groupId===g.id)?.id||''; s.b=''; s.choices=W(g.week).choices.map(x=>x.label); render(); }
-  if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; render(); }
+  if(c==='mgroup'){ s.groupId=t.value; const g=grp(t.value); s.a=S.athletes.find(x=>x.groupId===g.id)?.id||''; s.b=''; presetInto(s); render(); }
+  if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; presetInto(s); render(); }
   if(c==='mb'){ s.b=t.value; render(); }
 });
 document.addEventListener('focusin', e=>{ if(e.target && e.target.dataset && e.target.dataset.c==='phname') lessonSnap(); });

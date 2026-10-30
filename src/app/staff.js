@@ -276,6 +276,7 @@ function studentHome(){
     ${noticesFor('student', a.groupId)}
     ${todo.length?`<section class="card" style="border-color:var(--clay)"><h3>Come è andata?</h3><p class="small muted">Inserisci turno e incontri giocati.</p><div class="list">${todo.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b><br><span class="small muted">${dRange(x.date,x.end)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:''}
     ${myMindForms(id).replace('Dal preparatore mentale','Schede da compilare')}
+    ${presetCard(id)}
     ${tr?`<section class="card">${tr}</section>`:''}
     ${isPriv ? mindNextCard(id) + `<section class="card"><h2>Il tuo programma</h2><p class="small muted">Lezioni, obiettivi e lavoro da fare.</p><button class="btn clay block" data-a="tab" data-k="pprog">Apri il programma</button></section>` : `<h2 style="margin-top:4px">Oggi</h2>` + fitTodayCard(grp(a.groupId)) + mindNextCard(id) + (isOwnG(grp(a.groupId)) ? ownTodayCard(grp(a.groupId), false) + wellToday() : todayView())}
     ${tourHomeCard(id,false)}

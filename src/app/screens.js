@@ -347,7 +347,7 @@ function weekDays(w, full, g){
 function studentWeek(){
   const a = me(), g = grp(a.groupId), w = W(g.week);
   return `${typeCard(w.n, true)}${weekDays(w.n, true, g)}
-    <section class="card"><span class="eyebrow">Le scelte dell’allenamento 5</span><div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}</span></div>`).join('')}</div></section>`;
+    ${presetCard(a.id) || `<section class="card"><span class="eyebrow">Le scelte dell’allenamento 5</span><div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}</span></div>`).join('')}</div></section>`}`;
 }
 
 /* ---------- athlete card: strengths and areas to improve ---------- */

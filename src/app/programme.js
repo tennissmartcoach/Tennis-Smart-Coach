@@ -154,9 +154,38 @@ function groupsView(){
 }
 
 /* match analysis */
+/* choices and tasks the coach prepares in advance: for one athlete (a.mset) or for the whole group (g.mset).
+   They live inside athletes and groups, which athletes and parents can already read online. */
+function mPreset(aid, gid){
+  const a = ath(aid), g = grp(gid || (a && a.groupId));
+  if(a && a.mset && ((a.mset.choices||[]).length || (a.mset.tasks||[]).length)) return Object.assign({by:'athlete'}, a.mset);
+  if(g && g.mset && ((g.mset.choices||[]).length || (g.mset.tasks||[]).length)) return Object.assign({by:'group'}, g.mset);
+  return null;
+}
+const DEF_TASKS = ['Palla corta','Cross stretto','Vado a rete'];
+function presetInto(s){ const g = grp(s.groupId), pr = mPreset(s.a, s.groupId);
+  s.choices = pr && (pr.choices||[]).length ? pr.choices.slice() : W(g?.week||1).choices.map(c=>c.label);
+  s.tasks = pr && (pr.tasks||[]).length ? pr.tasks.slice() : DEF_TASKS.slice(); s.from = pr ? pr.by : null; return s; }
 function defaultSetup(){
   const g = isCoach() ? S.groups[0] : grp(me().groupId);
-  return { mode:'score', kind:'Partita', tasks:['Palla corta','Cross stretto','Vado a rete'], groupId:g?.id, a: isCoach() ? (S.athletes.find(x=>x.groupId===g?.id)?.id || '') : me().id, b:'', bName:'', type:'set', sets:1, games:4, tb:true, decider:'tb10', ad:false, first:0, trackEx:true, choices: W(g?.week||1).choices.map(c=>c.label) };
+  return presetInto({ mode:'score', kind:'Partita', tasks:[], groupId:g?.id, a: isCoach() ? (S.athletes.find(x=>x.groupId===g?.id)?.id || '') : me().id, b:'', bName:'', type:'set', sets:1, games:4, tb:true, decider:'tb10', ad:false, first:0, trackEx:true, choices:[] });
+}
+function presetSaveCard(s){
+  if(!isCoach()) return s.from ? `<p class="small muted">Preparate dal maestro.</p>` : '';
+  const a = ath(s.a), g = grp(s.groupId), when = x => x && x.at ? ' il '+fdate(x.at+'T12:00') : '';
+  const st = a && a.mset ? `<b>${esc(a.name)}</b> ha scelte e compiti suoi${when(a.mset)}.` : g && g.mset ? `Scelte e compiti del gruppo <b>${esc(g.name)}</b> preparati${when(g.mset)}.` : 'Non hai ancora preparato niente per questo gruppo: si usano le scelte della settimana.';
+  return `<section class="card" style="border-color:var(--clay)"><h3>Prepara per gli allievi</h3>
+    <p class="small muted">Salva le scelte e i compiti scritti qui: gli allievi li vedono nel loro profilo e li ritrovano già pronti quando inizia la partita.</p>
+    <p class="small">${st}</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn clay" data-a="psave" data-k="g">Salva per tutto il gruppo</button>${a?`<button class="btn ghost" data-a="psave" data-k="a">Solo per ${esc(a.name)}</button>`:''}</div>
+    ${a && a.mset ? `<button class="chip" data-a="pclear" data-k="a" style="align-self:flex-start">Togli quelle di ${esc(a.name)} (usa quelle del gruppo)</button>` : ''}${g && g.mset && !(a && a.mset) ? `<button class="chip" data-a="pclear" data-k="g" style="align-self:flex-start">Togli quelle del gruppo (torna alla settimana)</button>` : ''}</section>`;
+}
+function presetCard(aid){
+  const pr = mPreset(aid); if(!pr) return '';
+  return `<section class="card"><span class="eyebrow">Per la partita · dal maestro</span>
+    ${(pr.choices||[]).length?`<h3>Le tue scelte</h3><div class="choices">${pr.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c)}</span></div>`).join('')}</div>`:''}
+    ${(pr.tasks||[]).length?`<h3>I tuoi compiti</h3><div class="choices">${pr.tasks.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c)}</span></div>`).join('')}</div>`:''}
+    <p class="small muted">Le ritrovi già pronte in Match Analysis.</p></section>`;
 }
 function matchTab(){
   if(S.live) return liveView();
@@ -191,6 +220,7 @@ function setupView(){
       ${s.tasks.length<6?`<button class="btn ghost" data-a="addtask">+ Aggiungi un compito</button>`:''}
       <p class="muted small">Esempi: palla corta, cross stretto, vado a rete, risposta profonda, seconda carica.</p>
     </section>
+    ${presetSaveCard(s)}
     <button class="btn clay block" data-a="start" style="padding:16px;font-size:18px">Inizia</button>
     ${recent.length?`<section class="card"><h3>Ultime partite</h3><div class="list">${recent.map(matchItem).join('')}</div></section>`:''}`:`
     <section class="card">
@@ -205,12 +235,13 @@ function setupView(){
       <div class="field"><label>Serve per prima</label>${seg('first',[[0,'A'],[1,'B']],s.first)}</div>
     </section>
     <section class="card">
-      <div class="row between"><h3>Scelte da registrare</h3><span class="tag pri">Sett. ${g?.week}</span></div>
+      <div class="row between"><h3>Scelte da registrare</h3><span class="tag pri">${s.from==='athlete'?'Preparate per '+esc(ath(s.a)?.name||''):s.from==='group'?'Preparate per il gruppo':'Sett. '+g?.week}</span></div>
       <p class="muted small">Prima di ogni punto A dichiara una scelta. Puoi cambiare il testo o aggiungerne.</p>
       <div class="list">${s.choices.map((c,i)=>`<div class="row"><b style="font-family:var(--f-disp);font-size:20px;color:var(--clay);width:18px">${i+1}</b><input class="input" style="flex:1;min-width:0;padding:9px 12px" value="${esc(c)}" data-c="choice" data-k="${i}" aria-label="Scelta ${i+1}"><button class="chip" data-a="delchoice" data-k="${i}" aria-label="Togli scelta ${i+1}">✕</button></div>`).join('')}</div>
       ${s.choices.length<6?`<button class="btn ghost" data-a="addchoice">+ Aggiungi una scelta</button>`:''}
       <div class="field"><label>Registra anche se la scelta è stata eseguita</label>${seg('trackEx',[['true','Sì'],['false','No, solo chi vince']],s.trackEx)}</div>
     </section>
+    ${presetSaveCard(s)}
     <button class="btn clay block" data-a="start" style="padding:16px;font-size:18px">Inizia la partita</button>
     ${recent.length?`<section class="card"><h3>Ultime partite</h3><div class="list">${recent.map(matchItem).join('')}</div></section>`:''}`}`;
 }
