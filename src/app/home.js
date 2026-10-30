@@ -44,6 +44,24 @@ function nextTourPlayers(days){
 const blankFitWeek = () => ({name:'', days:[0,1,2,3,4].map(()=>({title:'', text:''}))});
 function fitProgOf(gid){ S.fitProg = S.fitProg || {}; const o = S.fitProg[gid] = S.fitProg[gid] || {cur:1, weeks:[]}; if(!o.weeks.length) o.weeks.push(blankFitWeek()); if(o.cur>o.weeks.length) o.cur=o.weeks.length; return o; }
 function fitDay(g, di){ const o = fitProgOf(g.id), w = o.weeks[o.cur-1]; return w ? w.days[di] : null; }
+/* what the fitness coach needs from the tennis side: today's session, the athletic profile of the week's player type, the coach's note */
+const fitNoteKey = g => isOwnG(g) ? 'o'+ownOf(g.id).cur : String(g.week);
+const fitNoteOf = g => ((g.fitNotes||{})[fitNoteKey(g)] || '').trim();
+function fitTypeAtl(g){ if(isOwnG(g) || g.pp) return null; const pf = PROF[g.week], r = pf && pf.rows.find(x=>x.a==='Atletica'); return r ? {name:W(g.week).name, fa:r.fa} : null; }
+function tennisDayList(g, di){
+  if(isOwnG(g)){ const d = ownOf(g.id).weeks[ownOf(g.id).cur-1].days[di]; if(!d) return {title:'', obj:'', ex:[]};
+    return {title:d.title||'', obj:esc(d.note||''), ex:ownItems(g, d).map(x=>`<li><b>${esc(phInfo(x.ph)[0])}:</b> ${x.e.custom?esc(x.e.t):x.e.t}</li>`)}; }
+  const w = g.week, D = P.prog[w][di], B = dayBlocks(w, di), seq = di===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
+  return {title:D.title||'', obj:D.obj||'', ex:seq.flatMap(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`))};
+}
+function fitTennisCard(g, di, open){
+  const t = tennisDayList(g, di), ta = fitTypeAtl(g), note = fitNoteOf(g);
+  return `<section class="card" style="border-left:4px solid var(--pri)"><span class="eyebrow">Programma tennis · ${esc(gWeekName(g))}</span>
+    <h3>${esc(t.title || 'Seduta da definire')}</h3>${t.obj?`<p class="small">${t.obj}</p>`:''}
+    ${note?`<div class="note"><b>Il maestro chiede attenzione su:</b> ${esc(note)}</div>`:''}
+    ${ta?`<p class="small"><span class="tag pri">Atletica · ${esc(ta.name)}</span></p><p class="small">${ta.fa}</p>`:''}
+    ${t.ex.length?(open?`<ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${t.ex.join('')}</ul>`:`<button class="chip" data-a="fittennis" style="align-self:flex-start">Vedi gli esercizi del maestro (${t.ex.length})</button>`):''}</section>`;
+}
 function fitHome(){
   if(U.homeView==='notif') return notifView();
   if(U.homeView==='att') return attView();
@@ -57,8 +75,8 @@ function fitHome(){
       ${sessDots(g)}
       <h2>${esc(sessHead(g, di, fd.title||'Seduta da scrivere'))}</h2>
       ${wk&&fd.text?`<p style="white-space:pre-line">${esc(fd.text)}</p>`:''}
-      ${wk?`<p class="small muted">Seduta tecnica del maestro: ${esc(gDayTitle(g,di))}</p>`:''}
-      <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">${attBtnLab(g,'fit')}</button><button class="btn ghost" data-a="fpopen" data-k="${g.id}:${o.cur}" style="flex:1">Apri la settimana</button></div></section>`; }
+      <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">${attBtnLab(g,'fit')}</button><button class="btn ghost" data-a="fpopen" data-k="${g.id}:${o.cur}" style="flex:1">Apri la settimana</button></div></section>
+      ${wk ? fitTennisCard(g, di, U.fitTennis) : ''}`; }
   return `${homeHead()}
     <h2 class="hsec">Oggi in campo</h2>
     ${card}
@@ -86,8 +104,14 @@ function fitProgView(){
       <p class="small muted">Si salva da solo. Gli atleti vedono la seduta del giorno nella loro Home quando questa è la settimana in corso.</p>
       <div class="row"><button class="btn ghost" data-a="fpcopy">Duplica questa settimana</button>${o.weeks.length>1?(U.confirm==='fpw'?`<button class="btn danger" data-a="fpdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button>`:`<button class="btn danger" data-a="askdel" data-k="fpw">Elimina settimana</button>`):''}</div>`;
   }
+  const ta = fitTypeAtl(g), note = fitNoteOf(g);
   return `<h1>Programma atletico</h1>
     <section class="card"><div class="field"><label for="f-fpgrp">Gruppo</label><select id="f-fpgrp" class="input inbig" data-c="fpgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div></section>
+    <section class="card" style="border-left:4px solid var(--pri)"><span class="eyebrow">Il tennis di questa settimana · ${esc(g.name)}</span><h3>${esc(gWeekName(g))}</h3>
+      ${note?`<div class="note"><b>Il maestro chiede attenzione su:</b> ${esc(note)}</div>`:''}
+      ${ta?`<p class="small"><span class="tag pri">Atletica per questa tipologia</span></p><p class="small">${ta.fa}</p>`:''}
+      ${U.fitTennis ? `<div class="list">${pickOf(g).map(i=>{ const t = tennisDayList(g, i); return `<div><span class="eyebrow">${sLabel(g,i)}</span><p style="font-weight:700">${esc(t.title||'Seduta da definire')}</p>${t.obj?`<p class="small">${t.obj}</p>`:''}${t.ex.length?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${t.ex.join('')}</ul>`:''}</div>`; }).join('')}</div><button class="chip" data-a="fittennis" style="align-self:flex-start">Chiudi il programma tennis</button>`
+        : `<button class="btn ghost" data-a="fittennis" style="align-self:flex-start">Vedi il programma tennis della settimana</button>`}</section>
     <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="fpweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.filter(d=>d.title||d.text).length} di 5 sedute scritte</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="fpadd">+ Aggiungi settimana</button>`;
 }

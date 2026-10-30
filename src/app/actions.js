@@ -277,6 +277,8 @@ const ACT = {
   pick(k){ const v = k==='none' ? null : +k; U.sel.ch = U.sel.ch===v ? undefined : v; U.sel.ex=null; },
   ex(k){ U.sel.ex = k==='ng' ? 'ng' : k==='1'; },
   // ace / double fault / return error: the point is not played and the app knows who won it (the receiver only on a double fault)
+  fittennis(){ U.fitTennis = !U.fitTennis; },
+  srvset(k){ if(S.live){ S.live.srvNow=+k; save(); } },
   quickpt(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const sv=curServer(st); if(U.sel.ch===undefined) U.sel.ch=null; U.sel.ex='ng'; U.sel.how=k; ACT.point(String(k==='df'?1-sv:sv)); },
   point(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const w=+k; const ng = U.sel.ex==='ng';
     m.points.push(Object.assign({w, ch:U.sel.ch??null, ex: (m.trackEx && U.sel.ch!==null && !ng) ? U.sel.ex : null, srv:curServer(st), pr:isPressure(m.format,st)}, ng?{ng:true}:{}, U.sel.how?{how:U.sel.how}:{}));
@@ -503,6 +505,7 @@ document.addEventListener('input', e=>{
   const t = e.target, c = t.dataset?.c;
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
+  if(c==='fitnote'){ const g=grp(U.planGroup); if(g){ g.fitNotes=g.fitNotes||{}; g.fitNotes[fitNoteKey(g)]=t.value; save(); } return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
   if(c==='ainotes'){ U.aiNotes = U.aiNotes || {}; U.aiNotes[aiKey()] = t.value; return; }
   if(c==='pv' && U.pvDraft){ U.pvDraft[t.dataset.k]=t.value; return; }

@@ -2,7 +2,8 @@
 /* ---------- scoring engine ---------- */
 function newState(f){
   const st = {sets:[], g:[0,0], p:[0,0], tb:null, server:f.first, done:null, won:[0,0]};
-  if(f.type!=='set') st.tb = {target: f.type==='tb7'?7:10, first:f.first, whole:true};
+  if(f.type==='free') st.free = true;
+  else if(f.type!=='set') st.tb = {target: f.type==='tb7'?7:10, first:f.first, whole:true};
   return st;
 }
 function tbServer(st){ const n = st.p[0]+st.p[1]; if(n===0) return st.tb.first; return Math.floor((n-1)/2)%2===0 ? 1-st.tb.first : st.tb.first; }
@@ -15,6 +16,7 @@ function setWon(f, st, w){
 }
 function applyPoint(f, st, w){
   if(st.done!==null) return;
+  if(st.free){ st.p[w]++; return; }   // without score: only points won and lost, the match never ends by itself
   const o = 1-w;
   if(st.tb){
     st.p[w]++;
@@ -35,16 +37,17 @@ function applyPoint(f, st, w){
   if(gw>=G && gw-go>=2){ st.sets.push({a:st.g[0], b:st.g[1]}); setWon(f, st, w); }
   else if(f.tb && st.g[0]===G && st.g[1]===G) st.tb = {target:7, first:st.server};
 }
-function replay(m){ const st = newState(m.format); m.points.forEach(p=>applyPoint(m.format, st, p.w)); return st; }
+// without score nobody changes service by the rules: the server is the one chosen on screen (m.srvNow), else the last one used
+function replay(m){ const st = newState(m.format); m.points.forEach(p=>applyPoint(m.format, st, p.w)); if(st.free){ const l = m.points[m.points.length-1]; st.server = m.srvNow ?? (l ? l.srv : m.format.first); } return st; }
 function isPressure(f, st){
-  if(st.done!==null) return false;
+  if(st.done!==null || st.free) return false;
   const [a,b] = st.p;
   if(st.tb){ const t = st.tb.target; return (a>=t-2 && b>=t-2) || (Math.max(a,b)>=t-1 && Math.abs(a-b)<=1); }
   if(!f.ad && a===3 && b===3) return true;
   return (a>=3 && b>=2) || (b>=3 && a>=2);
 }
 function ptLabel(f, st, i){
-  if(st.tb) return String(st.p[i]);
+  if(st.tb || st.free) return String(st.p[i]);
   const me = st.p[i], ot = st.p[1-i];
   if(me>=3 && ot>=3){ if(me===ot) return '40'; return me>ot ? 'V' : '40'; }
   return ['0','15','30','40'][Math.min(me,3)];
@@ -52,6 +55,7 @@ function ptLabel(f, st, i){
 function statusTags(f, st){
   const t = [];
   if(st.done!==null) return [['Partita finita','hot']];
+  if(st.free) return [['Senza punteggio: punti vinti','']];
   if(st.tb) t.push([st.tb.decider ? 'Super tie-break' : 'Tie-break', '']);
   else if(!f.ad && st.p[0]===3 && st.p[1]===3) t.push(['Killer point','hot']);
   else if(st.p[0]>=3 && st.p[1]>=3 && st.p[0]===st.p[1]) t.push(['Parità','']);
@@ -59,6 +63,7 @@ function statusTags(f, st){
   return t;
 }
 function formatLabel(f){
+  if(f.type==='free') return 'Senza punteggio';
   if(f.type==='tb7') return 'Tie-break a 7';
   if(f.type==='tb10') return 'Tie-break a 10';
   let s = (f.sets===1 ? '1 set' : '2 set su 3') + ' a ' + f.games + ' game';
@@ -66,7 +71,7 @@ function formatLabel(f){
   if(f.sets===3) s += f.decider==='tb10' ? ', 3° set super tie-break' : '';
   return s + (f.ad ? ', con vantaggi' : ', killer point');
 }
-function scoreLine(st){ const l = st.sets.map(x=> x.stb ? `[${x.a}-${x.b}]` : `${x.a}-${x.b}${x.tb!==undefined?`(${x.tb})`:''}`); if(st.done===null && (st.g[0]||st.g[1])) l.push(`${st.g[0]}-${st.g[1]}`); return l.join('  '); }
+function scoreLine(st){ if(st.free) return (st.p[0]+st.p[1]) ? `${st.p[0]} vinti, ${st.p[1]} persi` : ''; const l = st.sets.map(x=> x.stb ? `[${x.a}-${x.b}]` : `${x.a}-${x.b}${x.tb!==undefined?`(${x.tb})`:''}`); if(st.done===null && (st.g[0]||st.g[1])) l.push(`${st.g[0]}-${st.g[1]}`); return l.join('  '); }
 
 /* ---------- stats ---------- */
 function matchStats(m){

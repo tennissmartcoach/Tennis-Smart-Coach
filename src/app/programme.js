@@ -51,6 +51,7 @@ function ppBar(g){
       <p class="small muted">Costruisci settimane e lezioni con gli esercizi della libreria. L'allievo e i genitori vedono la settimana in corso.</p></section>`;
 }
 function aiGroupCard(g){ return `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Crea il programma con l'IA</b><br><span class="muted">Racconta o detta settimane e allenamenti: l'IA prepara il testo con esercizi e campetti, tu lo incolli qui.</span></span><button class="btn clay" data-a="gimpopen" data-k="${g.id}">Inizia</button></div></section>`; }
+function fitNoteField(g){ return `<div class="field"><label for="f-fitnote">Per il preparatore atletico · ${esc(gWeekName(g))}</label><textarea id="f-fitnote" class="input" rows="2" data-c="fitnote" placeholder="Es. questa settimana curare frenata e ripartenza, tanti cambi di direzione">${esc((g.fitNotes||{})[fitNoteKey(g)]||'')}</textarea><span class="small muted">Lo vede il preparatore atletico insieme al programma tennis e ai consigli atletici della tipologia.</span></div>`; }
 function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
@@ -58,6 +59,7 @@ function planGroupBar(g){
     <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p>
     <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
     <div class="field"><label>Allenamenti a settimana</label><div class="seg" role="group">${[2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
+    ${fitNoteField(g)}
     ${!isOwnG(g) && nS(g)<5 ? `<p class="small muted">Con ${nS(g)} allenamenti a settimana il gruppo fa ${PICK12[nS(g)].map(i=>'il '+(i+1)).join(', ').replace(/, ([^,]*)$/,' e $1')} del programma: il primo e l'ultimo ci sono sempre, per il confronto della prova.</p>` : ''}</section>`;
 }
 function ownPlanView(g){
@@ -225,14 +227,15 @@ function setupView(){
     ${recent.length?`<section class="card"><h3>Ultime partite</h3><div class="list">${recent.map(matchItem).join('')}</div></section>`:''}`:`
     <section class="card">
       <h3>Tipo di partita</h3>
-      ${seg('type',[['tb7','Tie-break a 7'],['tb10','Tie-break a 10'],['set','A set']],s.type)}
+      ${seg('type',[['tb7','Tie-break a 7'],['tb10','Tie-break a 10'],['set','A set'],['free','Senza punteggio']],s.type)}
+      ${s.type==='free'?'<p class="muted small">Conta solo la scelta, se è stata eseguita e chi ha fatto il punto. Utile anche per guardare un torneo da fuori. La chiudi tu quando vuoi.</p>':''}
       ${s.type==='set'?`
         <div class="field"><label>Set</label>${seg('sets',[[1,'1 set'],[3,'2 su 3']],s.sets)}</div>
         <div class="field"><label>Game per set</label>${seg('games',[[6,'A 6 game'],[4,'A 4 game (set corti)']],s.games)}</div>
         <div class="field"><label>Sul ${s.games}-${s.games}</label>${seg('tb',[['true','Tie-break a 7'],['false','Si va avanti di 2']],s.tb)}</div>
         ${s.sets===3?`<div class="field"><label>Terzo set</label>${seg('decider',[['tb10','Super tie-break a 10'],['set','Set normale']],s.decider)}</div>`:''}
         <div class="field"><label>Sul 40-40</label>${seg('ad',[['true','Vantaggi'],['false','Killer point']],s.ad)}</div>`:''}
-      <div class="field"><label>Serve per prima</label>${seg('first',[[0,'A'],[1,'B']],s.first)}</div>
+      <div class="field"><label>${s.type==='free'?'Al servizio all’inizio':'Serve per prima'}</label>${seg('first',[[0,'A'],[1,'B']],s.first)}</div>
     </section>
     <section class="card">
       <div class="row between"><h3>Scelte da registrare</h3><span class="tag pri">${s.from==='athlete'?'Preparate per '+esc(ath(s.a)?.name||''):s.from==='group'?'Preparate per il gruppo':'Sett. '+g?.week}</span></div>
@@ -253,7 +256,7 @@ function liveView(){
   // no choice picked = point recorded without a choice; a picked choice still needs 'L'ha eseguita?' when that is tracked
   const ready = !needEx || sel.ex !== null;
   const sv = st.done===null ? curServer(st) : 0, svName = esc(sv===0?m.a.name:m.b.name);
-  const sets = i => st.sets.map(x=>`<span>${i===0?x.a:x.b}</span>`).join('') + (st.done===null && !st.tb?.whole && !st.tb?.decider ? `<b>${st.g[i]}</b>` : '');
+  const sets = i => st.sets.map(x=>`<span>${i===0?x.a:x.b}</span>`).join('') + (st.done===null && !st.free && !st.tb?.whole && !st.tb?.decider ? `<b>${st.g[i]}</b>` : '');
   const tags = statusTags(f, st);
   const last = m.points.slice(-6).map((p,k)=>({p, n:m.points.length-Math.min(6,m.points.length)+k+1})).reverse();
   return `
@@ -266,6 +269,7 @@ function liveView(){
     <section class="card">
       <span class="eyebrow">1 · Prima del punto: cosa vuole fare ${esc(m.a.name)}?</span>
       <div class="pick">${m.choices.map((c,i)=>`<button data-a="pick" data-k="${i}" aria-pressed="${sel.ch===i}"><i>${i+1}</i><span>${esc(c)}</span></button>`).join('')}</div>
+      ${st.free?`<div class="field"><label>Chi serve?</label><div class="seg" role="group"><button data-a="srvset" data-k="0" aria-pressed="${sv===0}">${esc(m.a.name)}</button><button data-a="srvset" data-k="1" aria-pressed="${sv===1}">${esc(m.b.name)}</button></div></div>`:''}
       <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con questi il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button><button data-a="quickpt" data-k="re">Err. in risp.</button></div>
       ${needEx?`<span class="eyebrow">2 · L'ha eseguita?</span><div class="exrow"><button class="y" data-a="ex" data-k="1" aria-pressed="${sel.ex===true}">✓ Eseguita</button><button class="n" data-a="ex" data-k="0" aria-pressed="${sel.ex===false}">✗ Non eseguita</button><button class="ng" data-a="ex" data-k="ng" aria-pressed="${sel.ex==='ng'}">– Non giocato</button></div>${sel.ex==='ng'?'<p class="muted small">Il punto conta nel punteggio ma non nelle percentuali della scelta.</p>':''}`:''}
       <span class="eyebrow">${needEx?'3':'2'} · Chi vince il punto?</span>
@@ -276,7 +280,7 @@ function liveView(){
     <section class="card">
       <div class="row between"><h3>Ultimi punti</h3><button class="chip" data-a="undo" ${m.points.length?'':'disabled'}>↩ Annulla l'ultimo</button></div>
       ${last.length?`<div class="log">${last.map(({p,n})=>`<div><span class="n">${n}</span><span class="g">${p.ch===null||p.ch===undefined?'<span class="muted">Nessuna scelta</span>':esc(m.choices[p.ch])}${p.how==='ace'?' · <span class="tag">ace</span>':p.how==='df'?' · <span class="tag">doppio fallo</span>':p.how==='re'?' · <span class="tag">errore in risposta</span>':p.ng?' · <span class="tag">non giocato</span>':p.ex===true?' ✓':p.ex===false?' ✗':''}${p.pr?' <span class="tag">imp.</span>':''}</span><b style="color:${p.w===0?'var(--ok)':'var(--ko)'}">${p.w===0?'Vinto':'Perso'}</b></div>`).join('')}</div>`:'<p class="muted small">Nessun punto ancora.</p>'}
-      ${st.done===null?(U.confirm==='stop'?`<div class="confirm"><span>Chiudere la partita adesso? I punti giocati restano salvati.</span><div class="row"><button class="btn" data-a="finish">Sì, chiudi</button><button class="btn ghost" data-a="nodel">Continua</button></div></div>`:`<button class="btn ghost" data-a="askdel" data-k="stop">Chiudi la partita prima della fine</button>`):''}
+      ${st.done===null?(U.confirm==='stop'?`<div class="confirm"><span>Chiudere la partita adesso? I punti giocati restano salvati.</span><div class="row"><button class="btn" data-a="finish">Sì, chiudi</button><button class="btn ghost" data-a="nodel">Continua</button></div></div>`:`<button class="btn ${st.free?'clay':'ghost'}" data-a="askdel" data-k="stop">${st.free?'Fine: vedi l’analisi':'Chiudi la partita prima della fine'}</button>`):''}
     </section>`;
 }
 function summaryView(m){
@@ -289,8 +293,8 @@ function summaryView(m){
     <button class="btn ghost" data-a="closematch" style="align-self:flex-start">‹ ${S.session.role==='parent'?'Progressi':'Nuova partita'}</button>
     <section class="board">
       <div class="hd"><span>Settimana ${m.week} · ${esc(W(m.week).name)}</span><span>${new Date(m.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}</span></div>
-      ${[0,1].map(i=>`<div class="brow"><span class="srv"></span><span class="nm">${esc(i===0?m.a.name:m.b.name)}</span><span class="sets">${st.sets.map(x=>`<span${(i===0?x.a>x.b:x.b>x.a)?' style="color:var(--board-ink)"':''}>${i===0?x.a:x.b}</span>`).join('')}${st.done===null?`<b>${st.g[i]}</b>`:''}</span><span class="pts">${st.done===i?'✓':st.done===null?ptLabel(m.format,st,i):''}</span></div>`).join('')}
-      <div class="status"><span>${esc(formatLabel(m.format))}</span>${st.done===null?'<span class="hot">Chiusa prima della fine</span>':''}</div>
+      ${[0,1].map(i=>`<div class="brow"><span class="srv"></span><span class="nm">${esc(i===0?m.a.name:m.b.name)}</span><span class="sets">${st.sets.map(x=>`<span${(i===0?x.a>x.b:x.b>x.a)?' style="color:var(--board-ink)"':''}>${i===0?x.a:x.b}</span>`).join('')}${st.done===null&&!st.free?`<b>${st.g[i]}</b>`:''}</span><span class="pts">${st.done===i?'✓':st.done===null?ptLabel(m.format,st,i):''}</span></div>`).join('')}
+      <div class="status"><span>${esc(formatLabel(m.format))}</span>${st.done===null&&!st.free?'<span class="hot">Chiusa prima della fine</span>':''}</div>
     </section>
     <section class="card">
       <span class="eyebrow">Analisi di ${esc(m.a.name)}</span>
