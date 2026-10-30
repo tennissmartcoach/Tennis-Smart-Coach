@@ -631,7 +631,8 @@ function weekOf(iso){ const t = new Date(iso+'T00:00Z'); let y = t.getUTCFullYea
 /* ---------- scoring engine ---------- */
 function newState(f){
   const st = {sets:[], g:[0,0], p:[0,0], tb:null, server:f.first, done:null, won:[0,0]};
-  if(f.type!=='set') st.tb = {target: f.type==='tb7'?7:10, first:f.first, whole:true};
+  if(f.type==='free') st.free = true;
+  else if(f.type!=='set') st.tb = {target: f.type==='tb7'?7:10, first:f.first, whole:true};
   return st;
 }
 function tbServer(st){ const n = st.p[0]+st.p[1]; if(n===0) return st.tb.first; return Math.floor((n-1)/2)%2===0 ? 1-st.tb.first : st.tb.first; }
@@ -644,6 +645,7 @@ function setWon(f, st, w){
 }
 function applyPoint(f, st, w){
   if(st.done!==null) return;
+  if(st.free){ st.p[w]++; return; }   // without score: only points won and lost, the match never ends by itself
   const o = 1-w;
   if(st.tb){
     st.p[w]++;
@@ -664,16 +666,17 @@ function applyPoint(f, st, w){
   if(gw>=G && gw-go>=2){ st.sets.push({a:st.g[0], b:st.g[1]}); setWon(f, st, w); }
   else if(f.tb && st.g[0]===G && st.g[1]===G) st.tb = {target:7, first:st.server};
 }
-function replay(m){ const st = newState(m.format); m.points.forEach(p=>applyPoint(m.format, st, p.w)); return st; }
+// without score nobody changes service by the rules: the server is the one chosen on screen (m.srvNow), else the last one used
+function replay(m){ const st = newState(m.format); m.points.forEach(p=>applyPoint(m.format, st, p.w)); if(st.free){ const l = m.points[m.points.length-1]; st.server = m.srvNow ?? (l ? l.srv : m.format.first); } return st; }
 function isPressure(f, st){
-  if(st.done!==null) return false;
+  if(st.done!==null || st.free) return false;
   const [a,b] = st.p;
   if(st.tb){ const t = st.tb.target; return (a>=t-2 && b>=t-2) || (Math.max(a,b)>=t-1 && Math.abs(a-b)<=1); }
   if(!f.ad && a===3 && b===3) return true;
   return (a>=3 && b>=2) || (b>=3 && a>=2);
 }
 function ptLabel(f, st, i){
-  if(st.tb) return String(st.p[i]);
+  if(st.tb || st.free) return String(st.p[i]);
   const me = st.p[i], ot = st.p[1-i];
   if(me>=3 && ot>=3){ if(me===ot) return '40'; return me>ot ? 'V' : '40'; }
   return ['0','15','30','40'][Math.min(me,3)];
@@ -681,6 +684,7 @@ function ptLabel(f, st, i){
 function statusTags(f, st){
   const t = [];
   if(st.done!==null) return [['Partita finita','hot']];
+  if(st.free) return [['Senza punteggio: punti vinti','']];
   if(st.tb) t.push([st.tb.decider ? 'Super tie-break' : 'Tie-break', '']);
   else if(!f.ad && st.p[0]===3 && st.p[1]===3) t.push(['Killer point','hot']);
   else if(st.p[0]>=3 && st.p[1]>=3 && st.p[0]===st.p[1]) t.push(['Parità','']);
@@ -688,6 +692,7 @@ function statusTags(f, st){
   return t;
 }
 function formatLabel(f){
+  if(f.type==='free') return 'Senza punteggio';
   if(f.type==='tb7') return 'Tie-break a 7';
   if(f.type==='tb10') return 'Tie-break a 10';
   let s = (f.sets===1 ? '1 set' : '2 set su 3') + ' a ' + f.games + ' game';
@@ -695,7 +700,7 @@ function formatLabel(f){
   if(f.sets===3) s += f.decider==='tb10' ? ', 3° set super tie-break' : '';
   return s + (f.ad ? ', con vantaggi' : ', killer point');
 }
-function scoreLine(st){ const l = st.sets.map(x=> x.stb ? `[${x.a}-${x.b}]` : `${x.a}-${x.b}${x.tb!==undefined?`(${x.tb})`:''}`); if(st.done===null && (st.g[0]||st.g[1])) l.push(`${st.g[0]}-${st.g[1]}`); return l.join('  '); }
+function scoreLine(st){ if(st.free) return (st.p[0]+st.p[1]) ? `${st.p[0]} vinti, ${st.p[1]} persi` : ''; const l = st.sets.map(x=> x.stb ? `[${x.a}-${x.b}]` : `${x.a}-${x.b}${x.tb!==undefined?`(${x.tb})`:''}`); if(st.done===null && (st.g[0]||st.g[1])) l.push(`${st.g[0]}-${st.g[1]}`); return l.join('  '); }
 
 /* ---------- stats ---------- */
 function matchStats(m){
@@ -1075,7 +1080,7 @@ function weekDays(w, full, g){
 function studentWeek(){
   const a = me(), g = grp(a.groupId), w = W(g.week);
   return `${typeCard(w.n, true)}${weekDays(w.n, true, g)}
-    <section class="card"><span class="eyebrow">Le scelte dell’allenamento 5</span><div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}</span></div>`).join('')}</div></section>`;
+    ${presetCard(a.id) || `<section class="card"><span class="eyebrow">Le scelte dell’allenamento 5</span><div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}</span></div>`).join('')}</div></section>`}`;
 }
 
 /* ---------- athlete card: strengths and areas to improve ---------- */
@@ -1157,6 +1162,7 @@ function ppBar(g){
       <p class="small muted">Costruisci settimane e lezioni con gli esercizi della libreria. L'allievo e i genitori vedono la settimana in corso.</p></section>`;
 }
 function aiGroupCard(g){ return `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Crea il programma con l'IA</b><br><span class="muted">Racconta o detta settimane e allenamenti: l'IA prepara il testo con esercizi e campetti, tu lo incolli qui.</span></span><button class="btn clay" data-a="gimpopen" data-k="${g.id}">Inizia</button></div></section>`; }
+function fitNoteField(g){ return `<div class="field"><label for="f-fitnote">Per il preparatore atletico · ${esc(gWeekName(g))}</label><textarea id="f-fitnote" class="input" rows="2" data-c="fitnote" placeholder="Es. questa settimana curare frenata e ripartenza, tanti cambi di direzione">${esc((g.fitNotes||{})[fitNoteKey(g)]||'')}</textarea><span class="small muted">Lo vede il preparatore atletico insieme al programma tennis e ai consigli atletici della tipologia.</span></div>`; }
 function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
@@ -1164,6 +1170,7 @@ function planGroupBar(g){
     <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p>
     <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
     <div class="field"><label>Allenamenti a settimana</label><div class="seg" role="group">${[2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
+    ${fitNoteField(g)}
     ${!isOwnG(g) && nS(g)<5 ? `<p class="small muted">Con ${nS(g)} allenamenti a settimana il gruppo fa ${PICK12[nS(g)].map(i=>'il '+(i+1)).join(', ').replace(/, ([^,]*)$/,' e $1')} del programma: il primo e l'ultimo ci sono sempre, per il confronto della prova.</p>` : ''}</section>`;
 }
 function ownPlanView(g){
@@ -1260,9 +1267,38 @@ function groupsView(){
 }
 
 /* match analysis */
+/* choices and tasks the coach prepares in advance: for one athlete (a.mset) or for the whole group (g.mset).
+   They live inside athletes and groups, which athletes and parents can already read online. */
+function mPreset(aid, gid){
+  const a = ath(aid), g = grp(gid || (a && a.groupId));
+  if(a && a.mset && ((a.mset.choices||[]).length || (a.mset.tasks||[]).length)) return Object.assign({by:'athlete'}, a.mset);
+  if(g && g.mset && ((g.mset.choices||[]).length || (g.mset.tasks||[]).length)) return Object.assign({by:'group'}, g.mset);
+  return null;
+}
+const DEF_TASKS = ['Palla corta','Cross stretto','Vado a rete'];
+function presetInto(s){ const g = grp(s.groupId), pr = mPreset(s.a, s.groupId);
+  s.choices = pr && (pr.choices||[]).length ? pr.choices.slice() : W(g?.week||1).choices.map(c=>c.label);
+  s.tasks = pr && (pr.tasks||[]).length ? pr.tasks.slice() : DEF_TASKS.slice(); s.from = pr ? pr.by : null; return s; }
 function defaultSetup(){
   const g = isCoach() ? S.groups[0] : grp(me().groupId);
-  return { mode:'score', kind:'Partita', tasks:['Palla corta','Cross stretto','Vado a rete'], groupId:g?.id, a: isCoach() ? (S.athletes.find(x=>x.groupId===g?.id)?.id || '') : me().id, b:'', bName:'', type:'set', sets:1, games:4, tb:true, decider:'tb10', ad:false, first:0, trackEx:true, choices: W(g?.week||1).choices.map(c=>c.label) };
+  return presetInto({ mode:'score', kind:'Partita', tasks:[], groupId:g?.id, a: isCoach() ? (S.athletes.find(x=>x.groupId===g?.id)?.id || '') : me().id, b:'', bName:'', type:'set', sets:1, games:4, tb:true, decider:'tb10', ad:false, first:0, trackEx:true, choices:[] });
+}
+function presetSaveCard(s){
+  if(!isCoach()) return s.from ? `<p class="small muted">Preparate dal maestro.</p>` : '';
+  const a = ath(s.a), g = grp(s.groupId), when = x => x && x.at ? ' il '+fdate(x.at+'T12:00') : '';
+  const st = a && a.mset ? `<b>${esc(a.name)}</b> ha scelte e compiti suoi${when(a.mset)}.` : g && g.mset ? `Scelte e compiti del gruppo <b>${esc(g.name)}</b> preparati${when(g.mset)}.` : 'Non hai ancora preparato niente per questo gruppo: si usano le scelte della settimana.';
+  return `<section class="card" style="border-color:var(--clay)"><h3>Prepara per gli allievi</h3>
+    <p class="small muted">Salva le scelte e i compiti scritti qui: gli allievi li vedono nel loro profilo e li ritrovano già pronti quando inizia la partita.</p>
+    <p class="small">${st}</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn clay" data-a="psave" data-k="g">Salva per tutto il gruppo</button>${a?`<button class="btn ghost" data-a="psave" data-k="a">Solo per ${esc(a.name)}</button>`:''}</div>
+    ${a && a.mset ? `<button class="chip" data-a="pclear" data-k="a" style="align-self:flex-start">Togli quelle di ${esc(a.name)} (usa quelle del gruppo)</button>` : ''}${g && g.mset && !(a && a.mset) ? `<button class="chip" data-a="pclear" data-k="g" style="align-self:flex-start">Togli quelle del gruppo (torna alla settimana)</button>` : ''}</section>`;
+}
+function presetCard(aid){
+  const pr = mPreset(aid); if(!pr) return '';
+  return `<section class="card"><span class="eyebrow">Per la partita · dal maestro</span>
+    ${(pr.choices||[]).length?`<h3>Le tue scelte</h3><div class="choices">${pr.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c)}</span></div>`).join('')}</div>`:''}
+    ${(pr.tasks||[]).length?`<h3>I tuoi compiti</h3><div class="choices">${pr.tasks.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c)}</span></div>`).join('')}</div>`:''}
+    <p class="small muted">Le ritrovi già pronte in Match Analysis.</p></section>`;
 }
 function matchTab(){
   if(S.live) return liveView();
@@ -1297,26 +1333,29 @@ function setupView(){
       ${s.tasks.length<6?`<button class="btn ghost" data-a="addtask">+ Aggiungi un compito</button>`:''}
       <p class="muted small">Esempi: palla corta, cross stretto, vado a rete, risposta profonda, seconda carica.</p>
     </section>
+    ${presetSaveCard(s)}
     <button class="btn clay block" data-a="start" style="padding:16px;font-size:18px">Inizia</button>
     ${recent.length?`<section class="card"><h3>Ultime partite</h3><div class="list">${recent.map(matchItem).join('')}</div></section>`:''}`:`
     <section class="card">
       <h3>Tipo di partita</h3>
-      ${seg('type',[['tb7','Tie-break a 7'],['tb10','Tie-break a 10'],['set','A set']],s.type)}
+      ${seg('type',[['tb7','Tie-break a 7'],['tb10','Tie-break a 10'],['set','A set'],['free','Senza punteggio']],s.type)}
+      ${s.type==='free'?'<p class="muted small">Conta solo la scelta, se è stata eseguita e chi ha fatto il punto. Utile anche per guardare un torneo da fuori. La chiudi tu quando vuoi.</p>':''}
       ${s.type==='set'?`
         <div class="field"><label>Set</label>${seg('sets',[[1,'1 set'],[3,'2 su 3']],s.sets)}</div>
         <div class="field"><label>Game per set</label>${seg('games',[[6,'A 6 game'],[4,'A 4 game (set corti)']],s.games)}</div>
         <div class="field"><label>Sul ${s.games}-${s.games}</label>${seg('tb',[['true','Tie-break a 7'],['false','Si va avanti di 2']],s.tb)}</div>
         ${s.sets===3?`<div class="field"><label>Terzo set</label>${seg('decider',[['tb10','Super tie-break a 10'],['set','Set normale']],s.decider)}</div>`:''}
         <div class="field"><label>Sul 40-40</label>${seg('ad',[['true','Vantaggi'],['false','Killer point']],s.ad)}</div>`:''}
-      <div class="field"><label>Serve per prima</label>${seg('first',[[0,'A'],[1,'B']],s.first)}</div>
+      <div class="field"><label>${s.type==='free'?'Al servizio all’inizio':'Serve per prima'}</label>${seg('first',[[0,'A'],[1,'B']],s.first)}</div>
     </section>
     <section class="card">
-      <div class="row between"><h3>Scelte da registrare</h3><span class="tag pri">Sett. ${g?.week}</span></div>
+      <div class="row between"><h3>Scelte da registrare</h3><span class="tag pri">${s.from==='athlete'?'Preparate per '+esc(ath(s.a)?.name||''):s.from==='group'?'Preparate per il gruppo':'Sett. '+g?.week}</span></div>
       <p class="muted small">Prima di ogni punto A dichiara una scelta. Puoi cambiare il testo o aggiungerne.</p>
       <div class="list">${s.choices.map((c,i)=>`<div class="row"><b style="font-family:var(--f-disp);font-size:20px;color:var(--clay);width:18px">${i+1}</b><input class="input" style="flex:1;min-width:0;padding:9px 12px" value="${esc(c)}" data-c="choice" data-k="${i}" aria-label="Scelta ${i+1}"><button class="chip" data-a="delchoice" data-k="${i}" aria-label="Togli scelta ${i+1}">✕</button></div>`).join('')}</div>
       ${s.choices.length<6?`<button class="btn ghost" data-a="addchoice">+ Aggiungi una scelta</button>`:''}
       <div class="field"><label>Registra anche se la scelta è stata eseguita</label>${seg('trackEx',[['true','Sì'],['false','No, solo chi vince']],s.trackEx)}</div>
     </section>
+    ${presetSaveCard(s)}
     <button class="btn clay block" data-a="start" style="padding:16px;font-size:18px">Inizia la partita</button>
     ${recent.length?`<section class="card"><h3>Ultime partite</h3><div class="list">${recent.map(matchItem).join('')}</div></section>`:''}`}`;
 }
@@ -1328,7 +1367,7 @@ function liveView(){
   // no choice picked = point recorded without a choice; a picked choice still needs 'L'ha eseguita?' when that is tracked
   const ready = !needEx || sel.ex !== null;
   const sv = st.done===null ? curServer(st) : 0, svName = esc(sv===0?m.a.name:m.b.name);
-  const sets = i => st.sets.map(x=>`<span>${i===0?x.a:x.b}</span>`).join('') + (st.done===null && !st.tb?.whole && !st.tb?.decider ? `<b>${st.g[i]}</b>` : '');
+  const sets = i => st.sets.map(x=>`<span>${i===0?x.a:x.b}</span>`).join('') + (st.done===null && !st.free && !st.tb?.whole && !st.tb?.decider ? `<b>${st.g[i]}</b>` : '');
   const tags = statusTags(f, st);
   const last = m.points.slice(-6).map((p,k)=>({p, n:m.points.length-Math.min(6,m.points.length)+k+1})).reverse();
   return `
@@ -1341,6 +1380,7 @@ function liveView(){
     <section class="card">
       <span class="eyebrow">1 · Prima del punto: cosa vuole fare ${esc(m.a.name)}?</span>
       <div class="pick">${m.choices.map((c,i)=>`<button data-a="pick" data-k="${i}" aria-pressed="${sel.ch===i}"><i>${i+1}</i><span>${esc(c)}</span></button>`).join('')}</div>
+      ${st.free?`<div class="field"><label>Chi serve?</label><div class="seg" role="group"><button data-a="srvset" data-k="0" aria-pressed="${sv===0}">${esc(m.a.name)}</button><button data-a="srvset" data-k="1" aria-pressed="${sv===1}">${esc(m.b.name)}</button></div></div>`:''}
       <div class="quickrow"><span class="small muted">Al servizio <b>${svName}</b> · con questi il punto si segna da solo:</span><button data-a="quickpt" data-k="ace">Ace</button><button data-a="quickpt" data-k="df">Doppio fallo</button><button data-a="quickpt" data-k="re">Err. in risp.</button></div>
       ${needEx?`<span class="eyebrow">2 · L'ha eseguita?</span><div class="exrow"><button class="y" data-a="ex" data-k="1" aria-pressed="${sel.ex===true}">✓ Eseguita</button><button class="n" data-a="ex" data-k="0" aria-pressed="${sel.ex===false}">✗ Non eseguita</button><button class="ng" data-a="ex" data-k="ng" aria-pressed="${sel.ex==='ng'}">– Non giocato</button></div>${sel.ex==='ng'?'<p class="muted small">Il punto conta nel punteggio ma non nelle percentuali della scelta.</p>':''}`:''}
       <span class="eyebrow">${needEx?'3':'2'} · Chi vince il punto?</span>
@@ -1351,7 +1391,7 @@ function liveView(){
     <section class="card">
       <div class="row between"><h3>Ultimi punti</h3><button class="chip" data-a="undo" ${m.points.length?'':'disabled'}>↩ Annulla l'ultimo</button></div>
       ${last.length?`<div class="log">${last.map(({p,n})=>`<div><span class="n">${n}</span><span class="g">${p.ch===null||p.ch===undefined?'<span class="muted">Nessuna scelta</span>':esc(m.choices[p.ch])}${p.how==='ace'?' · <span class="tag">ace</span>':p.how==='df'?' · <span class="tag">doppio fallo</span>':p.how==='re'?' · <span class="tag">errore in risposta</span>':p.ng?' · <span class="tag">non giocato</span>':p.ex===true?' ✓':p.ex===false?' ✗':''}${p.pr?' <span class="tag">imp.</span>':''}</span><b style="color:${p.w===0?'var(--ok)':'var(--ko)'}">${p.w===0?'Vinto':'Perso'}</b></div>`).join('')}</div>`:'<p class="muted small">Nessun punto ancora.</p>'}
-      ${st.done===null?(U.confirm==='stop'?`<div class="confirm"><span>Chiudere la partita adesso? I punti giocati restano salvati.</span><div class="row"><button class="btn" data-a="finish">Sì, chiudi</button><button class="btn ghost" data-a="nodel">Continua</button></div></div>`:`<button class="btn ghost" data-a="askdel" data-k="stop">Chiudi la partita prima della fine</button>`):''}
+      ${st.done===null?(U.confirm==='stop'?`<div class="confirm"><span>Chiudere la partita adesso? I punti giocati restano salvati.</span><div class="row"><button class="btn" data-a="finish">Sì, chiudi</button><button class="btn ghost" data-a="nodel">Continua</button></div></div>`:`<button class="btn ${st.free?'clay':'ghost'}" data-a="askdel" data-k="stop">${st.free?'Fine: vedi l’analisi':'Chiudi la partita prima della fine'}</button>`):''}
     </section>`;
 }
 function summaryView(m){
@@ -1364,8 +1404,8 @@ function summaryView(m){
     <button class="btn ghost" data-a="closematch" style="align-self:flex-start">‹ ${S.session.role==='parent'?'Progressi':'Nuova partita'}</button>
     <section class="board">
       <div class="hd"><span>Settimana ${m.week} · ${esc(W(m.week).name)}</span><span>${new Date(m.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}</span></div>
-      ${[0,1].map(i=>`<div class="brow"><span class="srv"></span><span class="nm">${esc(i===0?m.a.name:m.b.name)}</span><span class="sets">${st.sets.map(x=>`<span${(i===0?x.a>x.b:x.b>x.a)?' style="color:var(--board-ink)"':''}>${i===0?x.a:x.b}</span>`).join('')}${st.done===null?`<b>${st.g[i]}</b>`:''}</span><span class="pts">${st.done===i?'✓':st.done===null?ptLabel(m.format,st,i):''}</span></div>`).join('')}
-      <div class="status"><span>${esc(formatLabel(m.format))}</span>${st.done===null?'<span class="hot">Chiusa prima della fine</span>':''}</div>
+      ${[0,1].map(i=>`<div class="brow"><span class="srv"></span><span class="nm">${esc(i===0?m.a.name:m.b.name)}</span><span class="sets">${st.sets.map(x=>`<span${(i===0?x.a>x.b:x.b>x.a)?' style="color:var(--board-ink)"':''}>${i===0?x.a:x.b}</span>`).join('')}${st.done===null&&!st.free?`<b>${st.g[i]}</b>`:''}</span><span class="pts">${st.done===i?'✓':st.done===null?ptLabel(m.format,st,i):''}</span></div>`).join('')}
+      <div class="status"><span>${esc(formatLabel(m.format))}</span>${st.done===null&&!st.free?'<span class="hot">Chiusa prima della fine</span>':''}</div>
     </section>
     <section class="card">
       <span class="eyebrow">Analisi di ${esc(m.a.name)}</span>
@@ -1499,12 +1539,59 @@ function libraryView(){
 
 /* new / edit exercise with court drawing */
 const TOOLS = [['A','Giocatore A'],['B','Giocatore B'],['M','Maestro'],['a','Colpo di A'],['b','Colpo di B'],['f','Palla del maestro'],['ma','Spostamento'],['z','Zona bersaglio'],['c','Cono'],['n','Numero']];
+/* one exercise prepared with an AI: the coach tells it, copies the request, pastes the answer back */
+function exAiPrompt(E){
+  const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
+  const cur = (E.t||'').trim() ? `
+ESERCIZIO DI PARTENZA (il maestro vuole cambiarlo come dice negli appunti)
+${JSON.stringify({titolo:E.t, etichetta:E.chip, righe:String(E.x||'').split('\n').filter(Boolean), campo:E.els||[]})}
+` : '';
+  return `Sei l'assistente di un maestro di tennis. Trasforma gli appunti del maestro (in fondo) in UN esercizio da incollare nell'app Tennis Smart Coach. L'esercizio va nella fase: ${where}.
+
+COME RISPONDERE
+- Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Non inventare contenuti: puoi solo mettere in ordine, dare un titolo breve e scrivere in italiano chiaro. L'unica eccezione è il campetto.
+- Gli atleti non vanno nominati: nel campetto usa lettere (A, B, C…).
+
+FORMATO
+{"tipo":"tennis-smart-coach","versione":2,"esercizio":{"titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, attenzione a…"],"min":10,"serie":"…","obiettivo":"…","campo":[…]}}
+("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)
+${cur}
+${AI_CAMPO}
+
+APPUNTI DEL MAESTRO
+${notes.trim() || '(scrivi qui gli appunti)'}`;
+}
+function exAiParse(txt){
+  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
+  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return null; }
+  let e = d && (d.esercizio || d.exercise);
+  if(!e && d && d.programma) e = (((d.programma.settimane||[])[0]||{}).lezioni||[{}])[0]?.esercizi?.[0];
+  if(!e && d && d.allievi) e = ((((d.allievi[0]||{}).lezioni||[])[0]||{}).fasi||[{}])[0]?.esercizi?.[0];
+  if(!e && d && (d.titolo || d.righe)) e = d;
+  return e && (e.titolo || (e.righe||[]).length) ? e : null;
+}
+function exAiCard(E){
+  if(!E.ai) return `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Crealo con l'IA</b><br><span class="muted">Racconta o detta l'esercizio: l'IA prepara titolo, descrizione e campetto, tu incolli qui la risposta.</span></span><button class="btn clay" data-a="exai" data-k="1">Inizia</button></div></section>`;
+  return `<section class="card" style="border-color:var(--clay)"><div class="row between"><h3>Crealo con l'IA</h3><button class="chip" data-a="exai" data-k="0">Chiudi</button></div>
+    <p class="small muted"><b>1 ·</b> Racconta l'esercizio: dove stanno maestro e atleti, dove va la palla, punteggio o serie.${(E.t||'').trim()?' L\'IA parte dall\'esercizio che c\'è già e lo cambia come dici.':''}</p>
+    <textarea id="ai-notes" class="input" rows="5" data-c="ainotes" placeholder="Es.: io al cesto da fondo, due atleti a rete in fila; volée di diritto in diagonale nel riquadro, poi smash; 3 serie da 10…">${esc((U.aiNotes&&U.aiNotes.ex)||'')}</textarea>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ${U.recOn?'danger':'ghost'}" data-a="aidict">${U.recOn?'■ Ferma la dettatura':'🎙 Detta'}</button><button class="btn clay" data-a="aicopy">Copia la richiesta per l'IA</button></div>
+    ${U.aiCopied?`<p class="small"><b>Copiata.</b> Incollala in Claude (o un'altra IA) e invia; poi copia la risposta e incollala qui sotto.</p><a class="btn ghost" style="text-decoration:none;align-self:flex-start" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a>`:''}
+    ${U.aiShow?`<p class="small muted">Il telefono non ha permesso di copiare da solo: tieni premuto qui sotto, "Seleziona tutto" e "Copia".</p><textarea class="input" rows="5" readonly onfocus="this.select()">${esc(exAiPrompt(E))}</textarea>`:''}
+    <p class="small muted"><b>2 ·</b> Incolla la risposta dell'IA:</p>
+    <textarea id="exai-txt" class="input" rows="4" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
+    <button class="btn clay" data-a="exaipaste" style="align-self:flex-start">Metti nell'esercizio</button>
+    ${U.exAiErr?`<p class="small" style="color:var(--ko)">${esc(U.exAiErr)}</p>`:''}</section>`;
+}
 function editorView(){
   const E = U.ed;
   return `
     <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
     <h1>${E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
+    ${exAiCard(E)}
     <section class="card">
       ${E.sheet?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>
@@ -1920,7 +2007,7 @@ function impParse(txt, forId){
     return {x, ex, card:!!x.scheda, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, sheets:SH.length, shex:SE, shc:SC, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
   return {d, rows, forId:forId||null};
 }
-const aiKey = () => U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
+const aiKey = () => U.ed && U.ed.ai ? 'ex' : U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
 const AI_EX = '[["z",176,22,30,20],["t",191,19,"4×1\'"],["A",24,40,"S"],["M",204,76],["f","M198 72Q120 22 31 36"],["a","M30 45Q110 84 186 76"],["c",12,66],["n",70,46,"1"],["ma","M16 82C4 78 6 66 12 72"]]';
 const AI_CAMPO = `IL CAMPETTO ("campo"): mettilo SEMPRE, in OGNI esercizio di OGNI fase (anche attivazione e servizio), anche se il maestro non lo chiede.
 Se gli appunti non dicono dove stanno i giocatori, usa la disposizione più normale per quell'esercizio (allievo a fondo campo al centro; maestro dall'altra parte a fondo campo, a metà campo se gioca palle facili, a rete se si parla di volée) e disegna almeno: i giocatori, la palla del maestro, il colpo dell'allievo con la direzione detta (diagonale, lungolinea, centro), le zone bersaglio e i coni se nominati, un numero per ogni passaggio di una sequenza. Il maestro lo potrà correggere nell'app.
@@ -2835,6 +2922,24 @@ function nextTourPlayers(days){
 const blankFitWeek = () => ({name:'', days:[0,1,2,3,4].map(()=>({title:'', text:''}))});
 function fitProgOf(gid){ S.fitProg = S.fitProg || {}; const o = S.fitProg[gid] = S.fitProg[gid] || {cur:1, weeks:[]}; if(!o.weeks.length) o.weeks.push(blankFitWeek()); if(o.cur>o.weeks.length) o.cur=o.weeks.length; return o; }
 function fitDay(g, di){ const o = fitProgOf(g.id), w = o.weeks[o.cur-1]; return w ? w.days[di] : null; }
+/* what the fitness coach needs from the tennis side: today's session, the athletic profile of the week's player type, the coach's note */
+const fitNoteKey = g => isOwnG(g) ? 'o'+ownOf(g.id).cur : String(g.week);
+const fitNoteOf = g => ((g.fitNotes||{})[fitNoteKey(g)] || '').trim();
+function fitTypeAtl(g){ if(isOwnG(g) || g.pp) return null; const pf = PROF[g.week], r = pf && pf.rows.find(x=>x.a==='Atletica'); return r ? {name:W(g.week).name, fa:r.fa} : null; }
+function tennisDayList(g, di){
+  if(isOwnG(g)){ const d = ownOf(g.id).weeks[ownOf(g.id).cur-1].days[di]; if(!d) return {title:'', obj:'', ex:[]};
+    return {title:d.title||'', obj:esc(d.note||''), ex:ownItems(g, d).map(x=>`<li><b>${esc(phInfo(x.ph)[0])}:</b> ${x.e.custom?esc(x.e.t):x.e.t}</li>`)}; }
+  const w = g.week, D = P.prog[w][di], B = dayBlocks(w, di), seq = di===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
+  return {title:D.title||'', obj:D.obj||'', ex:seq.flatMap(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`))};
+}
+function fitTennisCard(g, di, open){
+  const t = tennisDayList(g, di), ta = fitTypeAtl(g), note = fitNoteOf(g);
+  return `<section class="card" style="border-left:4px solid var(--pri)"><span class="eyebrow">Programma tennis · ${esc(gWeekName(g))}</span>
+    <h3>${esc(t.title || 'Seduta da definire')}</h3>${t.obj?`<p class="small">${t.obj}</p>`:''}
+    ${note?`<div class="note"><b>Il maestro chiede attenzione su:</b> ${esc(note)}</div>`:''}
+    ${ta?`<p class="small"><span class="tag pri">Atletica · ${esc(ta.name)}</span></p><p class="small">${ta.fa}</p>`:''}
+    ${t.ex.length?(open?`<ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${t.ex.join('')}</ul>`:`<button class="chip" data-a="fittennis" style="align-self:flex-start">Vedi gli esercizi del maestro (${t.ex.length})</button>`):''}</section>`;
+}
 function fitHome(){
   if(U.homeView==='notif') return notifView();
   if(U.homeView==='att') return attView();
@@ -2848,8 +2953,8 @@ function fitHome(){
       ${sessDots(g)}
       <h2>${esc(sessHead(g, di, fd.title||'Seduta da scrivere'))}</h2>
       ${wk&&fd.text?`<p style="white-space:pre-line">${esc(fd.text)}</p>`:''}
-      ${wk?`<p class="small muted">Seduta tecnica del maestro: ${esc(gDayTitle(g,di))}</p>`:''}
-      <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">${attBtnLab(g,'fit')}</button><button class="btn ghost" data-a="fpopen" data-k="${g.id}:${o.cur}" style="flex:1">Apri la settimana</button></div></section>`; }
+      <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">${attBtnLab(g,'fit')}</button><button class="btn ghost" data-a="fpopen" data-k="${g.id}:${o.cur}" style="flex:1">Apri la settimana</button></div></section>
+      ${wk ? fitTennisCard(g, di, U.fitTennis) : ''}`; }
   return `${homeHead()}
     <h2 class="hsec">Oggi in campo</h2>
     ${card}
@@ -2877,8 +2982,14 @@ function fitProgView(){
       <p class="small muted">Si salva da solo. Gli atleti vedono la seduta del giorno nella loro Home quando questa è la settimana in corso.</p>
       <div class="row"><button class="btn ghost" data-a="fpcopy">Duplica questa settimana</button>${o.weeks.length>1?(U.confirm==='fpw'?`<button class="btn danger" data-a="fpdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button>`:`<button class="btn danger" data-a="askdel" data-k="fpw">Elimina settimana</button>`):''}</div>`;
   }
+  const ta = fitTypeAtl(g), note = fitNoteOf(g);
   return `<h1>Programma atletico</h1>
     <section class="card"><div class="field"><label for="f-fpgrp">Gruppo</label><select id="f-fpgrp" class="input inbig" data-c="fpgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div></section>
+    <section class="card" style="border-left:4px solid var(--pri)"><span class="eyebrow">Il tennis di questa settimana · ${esc(g.name)}</span><h3>${esc(gWeekName(g))}</h3>
+      ${note?`<div class="note"><b>Il maestro chiede attenzione su:</b> ${esc(note)}</div>`:''}
+      ${ta?`<p class="small"><span class="tag pri">Atletica per questa tipologia</span></p><p class="small">${ta.fa}</p>`:''}
+      ${U.fitTennis ? `<div class="list">${pickOf(g).map(i=>{ const t = tennisDayList(g, i); return `<div><span class="eyebrow">${sLabel(g,i)}</span><p style="font-weight:700">${esc(t.title||'Seduta da definire')}</p>${t.obj?`<p class="small">${t.obj}</p>`:''}${t.ex.length?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${t.ex.join('')}</ul>`:''}</div>`; }).join('')}</div><button class="chip" data-a="fittennis" style="align-self:flex-start">Chiudi il programma tennis</button>`
+        : `<button class="btn ghost" data-a="fittennis" style="align-self:flex-start">Vedi il programma tennis della settimana</button>`}</section>
     <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="fpweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.filter(d=>d.title||d.text).length} di 5 sedute scritte</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="fpadd">+ Aggiungi settimana</button>`;
 }
@@ -3265,6 +3376,7 @@ function studentHome(){
     ${noticesFor('student', a.groupId)}
     ${todo.length?`<section class="card" style="border-color:var(--clay)"><h3>Come è andata?</h3><p class="small muted">Inserisci turno e incontri giocati.</p><div class="list">${todo.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b><br><span class="small muted">${dRange(x.date,x.end)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:''}
     ${myMindForms(id).replace('Dal preparatore mentale','Schede da compilare')}
+    ${presetCard(id)}
     ${tr?`<section class="card">${tr}</section>`:''}
     ${isPriv ? mindNextCard(id) + `<section class="card"><h2>Il tuo programma</h2><p class="small muted">Lezioni, obiettivi e lavoro da fare.</p><button class="btn clay block" data-a="tab" data-k="pprog">Apri il programma</button></section>` : `<h2 style="margin-top:4px">Oggi</h2>` + fitTodayCard(grp(a.groupId)) + mindNextCard(id) + (isOwnG(grp(a.groupId)) ? ownTodayCard(grp(a.groupId), false) + wellToday() : todayView())}
     ${tourHomeCard(id,false)}
@@ -3508,8 +3620,14 @@ const ACT = {
   impclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
   aidict(){ dictate(); },
-  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
+  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.ed&&U.ed.ai?'Prima scrivi o detta l\'esercizio':U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.ed&&U.ed.ai?exAiPrompt(U.ed):U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
     try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
+  exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
+  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
+    E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
+    if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
+    if(!E.sheet && !E.ctx) E.lib=true;
+    E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
   gimpopen(k){ U.gImp=k; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; U.oWeek=null; U.oDay=null; window.scrollTo(0,0); },
   gimpclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.gImp=null; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; window.scrollTo(0,0); },
   gimppaste(){ const r=gParse(document.getElementById('gimp-txt').value||''); if(r.err){ U.gImpErr=r.err; U.gImpData=null; } else { U.gImpErr=''; U.gImpData=r; } },
@@ -3660,6 +3778,12 @@ const ACT = {
   savecc(){ const v=document.getElementById('f-cc').value.trim().toUpperCase(); if(v.length<4){ toast('Almeno 4 caratteri'); return; } S.coachCode=v; save(); toast('Codice maestro salvato'); },
   reset(k){ const sess=S.session; if(typeof cloudAthRemoved==='function') (S.athletes||[]).forEach(a=>cloudAthRemoved(a.id)); S = k==='empty' ? {roster:6, example:false, coachCode:S.coachCode, season:{2026:{weeks:{}}}, groups:[], athletes:[], results:[], matches:[], forms:[], tests:[], customEx:S.customEx||[], plan:S.plan||{}, session:sess, live:null} : seed(); S.session=sess; U.confirm=null; U.resGroup=null; U.resWeek=null; U.setup=null; save(); toast(k==='empty'?'Tutto cancellato: puoi partire con i tuoi gruppi':'Dati di prova ripristinati'); },
   set(k,d){ const s=U.setup; let v=d.v; if(v==='true') v=true; else if(v==='false') v=false; else if(/^\d+$/.test(v)) v=+v; s[k]=v; },
+  psave(k){ const s=U.setup, x={choices:s.choices.map(c=>String(c).trim()).filter(Boolean), tasks:s.tasks.map(c=>String(c).trim()).filter(Boolean), at:todayISO()};
+    if(!x.choices.length && !x.tasks.length){ toast('Scrivi almeno una scelta o un compito'); return; }
+    if(k==='a'){ const a=ath(s.a); if(!a) return; a.mset=x; s.from='athlete'; toast('Salvate per '+a.name); }
+    else { const g=grp(s.groupId); if(!g) return; g.mset=x; s.from=ath(s.a)?.mset?'athlete':'group'; toast('Salvate per '+g.name+(ath(s.a)?.mset?' ('+ath(s.a).name+' ha le sue)':'')); }
+    save(); },
+  pclear(k){ const s=U.setup; if(k==='a'){ const a=ath(s.a); if(a) delete a.mset; } else { const g=grp(s.groupId); if(g) delete g.mset; } presetInto(s); save(); toast('Tolte'); },
   addchoice(){ U.setup.choices.push('Nuova scelta'); }, delchoice(k){ U.setup.choices.splice(+k,1); },
   start(){ const s=U.setup; const a=ath(s.a); if(!a){ toast('Scegli chi analizziamo'); return; }
     if(s.mode==='task'){ const tasks=s.tasks.map(t=>t.trim()).filter(Boolean); if(!tasks.length){ toast('Serve almeno un compito'); return; } const g=grp(s.groupId);
@@ -3674,6 +3798,8 @@ const ACT = {
   pick(k){ const v = k==='none' ? null : +k; U.sel.ch = U.sel.ch===v ? undefined : v; U.sel.ex=null; },
   ex(k){ U.sel.ex = k==='ng' ? 'ng' : k==='1'; },
   // ace / double fault / return error: the point is not played and the app knows who won it (the receiver only on a double fault)
+  fittennis(){ U.fitTennis = !U.fitTennis; },
+  srvset(k){ if(S.live){ S.live.srvNow=+k; save(); } },
   quickpt(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const sv=curServer(st); if(U.sel.ch===undefined) U.sel.ch=null; U.sel.ex='ng'; U.sel.how=k; ACT.point(String(k==='df'?1-sv:sv)); },
   point(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const w=+k; const ng = U.sel.ex==='ng';
     m.points.push(Object.assign({w, ch:U.sel.ch??null, ex: (m.trackEx && U.sel.ch!==null && !ng) ? U.sel.ex : null, srv:curServer(st), pr:isPressure(m.format,st)}, ng?{ng:true}:{}, U.sel.how?{how:U.sel.how}:{}));
@@ -3890,8 +4016,8 @@ document.addEventListener('change', e=>{
   if(c==='tour' && t.type==='date'){ render(); return; }
   if(!c || !U.setup) return;
   const s = U.setup;
-  if(c==='mgroup'){ s.groupId=t.value; const g=grp(t.value); s.a=S.athletes.find(x=>x.groupId===g.id)?.id||''; s.b=''; s.choices=W(g.week).choices.map(x=>x.label); render(); }
-  if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; render(); }
+  if(c==='mgroup'){ s.groupId=t.value; const g=grp(t.value); s.a=S.athletes.find(x=>x.groupId===g.id)?.id||''; s.b=''; presetInto(s); render(); }
+  if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; presetInto(s); render(); }
   if(c==='mb'){ s.b=t.value; render(); }
 });
 document.addEventListener('focusin', e=>{ if(e.target && e.target.dataset && e.target.dataset.c==='phname') lessonSnap(); });
@@ -3900,6 +4026,7 @@ document.addEventListener('input', e=>{
   const t = e.target, c = t.dataset?.c;
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
+  if(c==='fitnote'){ const g=grp(U.planGroup); if(g){ g.fitNotes=g.fitNotes||{}; g.fitNotes[fitNoteKey(g)]=t.value; save(); } return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
   if(c==='ainotes'){ U.aiNotes = U.aiNotes || {}; U.aiNotes[aiKey()] = t.value; return; }
   if(c==='pv' && U.pvDraft){ U.pvDraft[t.dataset.k]=t.value; return; }
