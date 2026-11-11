@@ -148,7 +148,7 @@ function provaForm(w,d){
 }
 function provaResults(w,d){
   const gs = teamGroups().filter(g=>g.week===w); if(!gs.length || PV(w,d).k==='test') return '';
-  return gs.map(g=>{ const as = S.athletes.filter(a=>a.groupId===g.id); const rows = as.map(a=>{ const rs = S.results.filter(r=>r.athleteId===a.id && r.week===w && r.day===d); return {a, r:rs[rs.length-1]}; });
+  return gs.map(g=>{ const as = S.athletes.filter(a=>a.groupId===g.id); const rows = as.map(a=>{ const rs = S.results.filter(r=>r.athleteId===a.id && r.week===w && r.day===d && (r.cycle||1)===(g.cycle||1)); return {a, r:rs[rs.length-1]}; });
     const done = rows.filter(x=>x.r).length;
     return `<details class="pres"><summary><b>Risultati della prova · ${esc(g.name)}</b> <span class="muted small">${done} su ${as.length}</span></summary><div class="list small">${rows.map(({a,r})=>`<div class="row between"><span>${esc(a.name)}</span><b>${r?resVal(r):'<span class="muted">–</span>'}</b></div>`).join('')}</div></details>`; }).join('');
 }
@@ -157,7 +157,7 @@ function todayView(){
   const a = me(), g = grp(a.groupId), w = W(g.week);
   if(U.day===null) U.day = todayIdx(g);
   const d = U.day, pv = PV(w.n, d);
-  const mine = S.results.filter(r=>r.athleteId===a.id && r.week===g.week && r.day===d);
+  const mine = S.results.filter(r=>r.athleteId===a.id && r.week===g.week && r.day===d && (r.cycle||1)===(g.cycle||1));
   const c = U.cnt;
   let tool = '';
   if(pv.k==='test') tool = `<p>Oggi niente conta personale: i test li registra il maestro.</p>`;
@@ -338,7 +338,7 @@ function typeCard(w, full, noHead){
 }
 function weekDays(w, full, g){
   const pk = g ? pickOf(g) : [0,1,2,3,4];
-  return `<section class="card"><h3>Allenamento per allenamento</h3><div class="list">${P.prog[w].map((D,d)=>{ if(!pk.includes(d)) return '';
+  return `<section class="card"><h3>Allenamento per allenamento</h3><div class="list">${P.prog[w].map((_,d)=>{ const D = PD(w,d); if(!pk.includes(d)) return '';
     const B = dayBlocks(w,d), seq = d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
     const ex = full ? seq.map(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`).join('')).join('') : '';
     return `<div><span class="eyebrow">${g?sLabel(g,d):DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}

@@ -51,7 +51,7 @@ function fitTypeAtl(g){ if(isOwnG(g) || g.pp) return null; const pf = PROF[g.wee
 function tennisDayList(g, di){
   if(isOwnG(g)){ const d = ownOf(g.id).weeks[ownOf(g.id).cur-1].days[di]; if(!d) return {title:'', obj:'', ex:[]};
     return {title:d.title||'', obj:esc(d.note||''), ex:ownItems(g, d).map(x=>`<li><b>${esc(phInfo(x.ph)[0])}:</b> ${x.e.custom?esc(x.e.t):x.e.t}</li>`)}; }
-  const w = g.week, D = P.prog[w][di], B = dayBlocks(w, di), seq = di===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
+  const w = g.week, D = PD(w, di), B = dayBlocks(w, di), seq = di===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
   return {title:D.title||'', obj:D.obj||'', ex:seq.flatMap(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`))};
 }
 function fitTennisCard(g, di, open){

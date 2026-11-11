@@ -1,3 +1,5 @@
+/* the lesson being rewritten with the AI: an own-programme session if one is open, otherwise the open 12-week day */
+function dayAiTarget(){ const g = grp(U.planGroup); if(g && isOwnG(g) && U.oWeek && U.oDay!==null && U.oDay!==undefined) return {kind:'o', g, w:U.oWeek, d:U.oDay}; return {kind:'w', w:+U.weekOpen, d:+U.dayOpen}; }
 /* Button actions (ACT), event listeners and app start: must be loaded last */
 /* ---------- actions ---------- */
 function genCode(name){ const base = (name.match(/U\d{2}/i)?.[0] || name.replace(/[^A-Za-z]/g,'').slice(0,3) || 'GRP').toUpperCase(); let c; do { c = base + '-' + Math.random().toString(36).slice(2,5).toUpperCase(); } while(S.groups.some(g=>g.code===c)); return c; }
@@ -11,7 +13,7 @@ const ACT = {
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
   logout(){ if(HOOK.logout){ HOOK.logout(); return; } S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
-  tab(k){ if(k==='plan' && String(U.planGroup||'').startsWith('pp_')){ U.planGroup=null; U.oWeek=null; U.oDay=null; } U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
+  tab(k){ U.dayAi=false; U.dayAiData=null; if(k==='plan' && String(U.planGroup||'').startsWith('pp_')){ U.planGroup=null; U.oWeek=null; U.oDay=null; } U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
   cntmin(){ U.cnt.ok++; U.cnt.tot++; U.cnt.hist=(U.cnt.hist||[]).concat(true); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -21,7 +23,7 @@ const ACT = {
     let ok = U.cnt.ok, tot = pv.k==='su' ? pv.n : null;
     if(!mv){ toast('Scrivi il tuo risultato'); return; }
     ok = Math.max(0, Math.round(+mv)); if(isNaN(ok)){ toast('Scrivi un numero'); return; } if(pv.k==='su' && ok>pv.n){ toast(`Al massimo ${pv.n}`); return; }
-    S.results.push({id:uid(), athleteId:a.id, groupId:g.id, week:g.week, day:U.day, kind:pv.k, ok, tot, date:new Date().toISOString()});
+    S.results.push(Object.assign({id:uid(), athleteId:a.id, groupId:g.id, week:g.week, day:U.day, kind:pv.k, ok, tot, date:new Date().toISOString()}, g.cycle>1?{cycle:g.cycle}:{}));
     U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); save(); toast('Prova salvata'); },
   openweek(k){ U.weekOpen=+k; U.dayOpen=null; window.scrollTo(0,0); }, closeweek(){ U.weekOpen=null; U.dayOpen=null; },
   setweek(k){ const g=grp(document.getElementById('f-setweek').value); g.week=+k; save(); toast(g.name+': settimana '+k); },
@@ -39,7 +41,7 @@ const ACT = {
   setfreq(k){ const g=grp(U.planGroup); if(!g) return; g.freq=+k; save(); toast(`${k} allenamenti a settimana per ${g.name}`); },
   setprog(k){ const g=grp(U.planGroup); if(!g) return; g.prog=k; if(k==='own') ownOf(g.id); U.oWeek=null; U.oDay=null; save(); toast(k==='own'?'Programma personale per '+g.name:'Le 12 settimane per '+g.name); },
   oweek(k){ U.oWeek = k?+k:null; U.oDay=null; U.confirm=null; window.scrollTo(0,0); },
-  oday(k){ U.oDay = k===''?null:+k; window.scrollTo(0,0); },
+  oday(k){ U.dayAi=false; U.dayAiData=null; U.oDay = k===''?null:+k; window.scrollTo(0,0); },
   owadd(){ const o=ownOf(U.planGroup); o.weeks.push(blankWeek()); save(); U.oWeek=o.weeks.length; U.oDay=null; window.scrollTo(0,0); },
   owcopy(){ const o=ownOf(U.planGroup); o.weeks.push(JSON.parse(JSON.stringify(o.weeks[U.oWeek-1]))); save(); U.oWeek=o.weeks.length; toast('Settimana duplicata'); window.scrollTo(0,0); },
   owdel(){ const o=ownOf(U.planGroup); o.weeks.splice(U.oWeek-1,1); if(o.cur>o.weeks.length) o.cur=o.weeks.length; U.oWeek=null; U.confirm=null; save(); toast('Settimana eliminata'); },
@@ -105,8 +107,12 @@ const ACT = {
   impclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
   aidict(){ dictate(); },
-  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.ed&&U.ed.ai?'Prima scrivi o detta l\'esercizio':U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.ed&&U.ed.ai?exAiPrompt(U.ed):U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
+  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.ed&&U.ed.ai?'Prima scrivi o detta l\'esercizio':U.dayAi?'Prima scrivi o detta cosa cambiare':U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.ed&&U.ed.ai?exAiPrompt(U.ed):U.dayAi?dayAiPrompt(dayAiTarget()):U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
     try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
+  dayai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.dayAi = k==='1'; U.dayAiData=null; U.dayAiErr=''; U.aiCopied=false; U.aiShow=false; U.editDay=false; window.scrollTo(0,0); },
+  dayaipaste(){ const r=dayAiParse(document.getElementById('dayai-txt').value||'', dayAiTarget()); if(r.err){ U.dayAiErr=r.err; U.dayAiData=null; } else { U.dayAiErr=''; U.dayAiData=r; } window.scrollTo(0,0); },
+  dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
+  dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
   exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
@@ -317,6 +323,9 @@ const ACT = {
   homeatt(k){ U.homeView='att'; U.attGroup=k; U.attKind=attKindOf(); U.attDate=todayISO(); window.scrollTo(0,0); },
   sessdone(k){ const [gid,di]=k.split(':'), g=grp(gid); if(!g) return; g.sdone=g.sdone||{}; const key=gwk(g), m=g.sdone[key]=g.sdone[key]||{};
     if(m[di]) delete m[di]; else m[di]=todayISO(); save(); toast(m[di]?`${sLabel(g,+di)} fatto`:'Segno tolto'); },
+  // repeat weeks st..st+5: the ticks of the past round are kept apart (g.past) and the week starts again from st
+  cyclerep(k){ const [gid,st]=k.split(':'), g=grp(gid); if(!g) return; const s0=+st; g.past=g.past||[]; const old={}; for(let w=s0; w<s0+6; w++){ if(g.sdone&&g.sdone[w]){ old[w]=g.sdone[w]; delete g.sdone[w]; } }
+    g.past.push({end:todayISO(), from:s0, cycle:g.cycle||1, sdone:old}); g.cycle=(g.cycle||1)+1; g.week=s0; save(); toast(g.name+': si ricomincia dalla settimana '+s0+' (giro '+g.cycle+')'); },
   weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(g.week>=12){ toast('Il programma di 12 settimane è finito'); return; } g.week++; } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d,gid]=k.split(':'); if(gid) U.planGroup=gid; U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },
   homelib(){ U.tab='plan'; U.planMode='lib'; U.libOpen=null; window.scrollTo(0,0); },
@@ -387,9 +396,9 @@ const ACT = {
     const onlyLink = /^\s*https?:\/\/\S+\s*$/.test(U.tPaste||'');
     U.tParsed = onlyLink ? 'Dal solo link posso ricavare il nome. Per date e scadenza copia anche il testo della pagina, insieme al link.' : got.length ? `Trovati: ${got.join(', ')}.${!p.date?' Le date non le ho trovate: scegli la settimana qui sotto.':''}${!p.deadline?' Scadenza non trovata.':''}` : 'Non ho trovato dati utili: prova a copiare anche le date del torneo.'; if(!got.length) toast('Nessun dato trovato'); },
   planmode(k){ U.planMode=k; U.libOpen=null; window.scrollTo(0,0); },
-  openday(k){ U.dayOpen=+k; U.editDay=false; U.editProva=false; window.scrollTo(0,0); }, closeday(){ U.dayOpen=null; U.editDay=false; },
+  openday(k){ U.dayAi=false; U.dayAiData=null; U.dayOpen=+k; U.editDay=false; U.editProva=false; window.scrollTo(0,0); }, closeday(){ U.dayAi=false; U.dayAiData=null; U.dayOpen=null; U.editDay=false; },
   editday(k){ U.editDay = k==='1'; },
-  resetday(){ delete S.plan[dayKey(U.weekOpen,U.dayOpen)]; if(S.filoEdit) delete S.filoEdit[dayKey(U.weekOpen,U.dayOpen)]; save(); toast('Programma originale ripristinato'); },
+  resetday(){ delete S.plan[dayKey(U.weekOpen,U.dayOpen)]; delete S.plan[dayKey(U.weekOpen,U.dayOpen)+':txt']; if(S.filoEdit) delete S.filoEdit[dayKey(U.weekOpen,U.dayOpen)]; save(); toast('Programma originale ripristinato'); },
   pickex(k){ const [ph,i]=k.split(':'); U.pick={w:U.weekOpen, d:U.dayOpen, ph, i: i==='new'?null:+i}; U.planMode='lib'; U.libPh=ph==='ri'?'pr':(PH[ph]?ph:'all'); U.libOpen=null; U.libQ=''; window.scrollTo(0,0); },
   dropex(k){ const [ph,i]=k.split(':'); const B=editableBlocks(U.weekOpen,U.dayOpen); B[ph].splice(+i,1); save(); },
   upex(k){ const [ph,i]=k.split(':'); const B=editableBlocks(U.weekOpen,U.dayOpen), a=B[ph], j=+i; [a[j-1],a[j]]=[a[j],a[j-1]]; save(); },
@@ -402,7 +411,7 @@ const ACT = {
   filoreset(k){ if(S.filoEdit) delete S.filoEdit[k]; save(); },
   dayedex(k){ const [ph,i]=k.split(':'); const id=dayBlocks(U.weekOpen,U.dayOpen)[ph][+i]; U.ed=exToEd(exById(id), {w:U.weekOpen, d:U.dayOpen, ph, i:+i}); window.scrollTo(0,0); },
   daynewex(k){ U.ed={id:null, ph:k==='ri'?'pr':k, t:'', chip:'', x:'', els:[], vis:null, from:null, tool:'A', pend:null, ctx:{w:U.weekOpen, d:U.dayOpen, ph:k, i:null}, lib:true}; window.scrollTo(0,0); },
-  delex(k){ S.customEx=S.customEx.filter(e=>e.id!==k); Object.values(S.plan||{}).forEach(B=>Object.keys(B).forEach(ph=>B[ph]=B[ph].filter(id=>id!==k))); U.libOpen=null; U.confirm=null; save(); toast('Esercizio eliminato'); },
+  delex(k){ S.customEx=S.customEx.filter(e=>e.id!==k); Object.values(S.plan||{}).forEach(B=>Object.keys(B).forEach(ph=>{ if(Array.isArray(B[ph])) B[ph]=B[ph].filter(id=>id!==k); })); U.libOpen=null; U.confirm=null; save(); toast('Esercizio eliminato'); },
   edclose(){ U.ed=null; }, edph(k){ U.ed.ph=k; }, tool(k){ U.ed.tool=k; U.ed.pend=null; },
   edundo(){ U.ed.els.pop(); U.ed.pend=null; }, edclear(){ U.ed.els=[]; U.ed.pend=null; },
   courttap(k,d,ev){ const E=U.ed, svg=ev.target.closest('svg'), r=svg.getBoundingClientRect();

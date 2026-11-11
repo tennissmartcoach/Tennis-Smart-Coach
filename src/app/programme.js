@@ -7,7 +7,9 @@ const blankWeek = () => ({name:'', days:[0,1,2,3,4].map(blankDay)});
 function ownOf(gid){ let o; if(typeof gid==='string' && gid.startsWith('pp_')){ const pv = privOf(gid.slice(3)); o = pv.own = pv.own || {cur:1, weeks:[]}; } else { S.own = S.own || {}; o = S.own[gid] = S.own[gid] || {cur:1, weeks:[]}; } if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length) o.cur = o.weeks.length; return o; }
 const gWeekNo = g => isOwnG(g) ? ownOf(g.id).cur : g.week;
 const gWeekName = g => { if(!isOwnG(g)) return W(g.week).name; const o = ownOf(g.id), w = o.weeks[o.cur-1]; return w.name || `Settimana ${o.cur}`; };
-const gDayTitle = (g,di) => { if(!isOwnG(g)) return P.prog[g.week][di].title; const o = ownOf(g.id), d = o.weeks[o.cur-1].days[di]; return d.title || 'Seduta da definire'; };
+// a 12-week day, with the title and goal the coach may have rewritten (S.plan['w-d:txt'])
+const PD = (w,d) => { const D = P.prog[w][d], o = (S.plan||{})[w+'-'+d+':txt']; return o ? Object.assign({}, D, o) : D; };
+const gDayTitle = (g,di) => { if(!isOwnG(g)) return PD(g.week,di).title; const o = ownOf(g.id), d = o.weeks[o.cur-1].days[di]; return d.title || 'Seduta da definire'; };
 
 /* own programmes: d.ex = exercise ids, d.exPh = the group phase each one is placed in */
 function mapPh(g, e){ const w = lessonOf(g).phases.filter(p=>!p.pause); if(!w.length) return (e && e.ph) || 'pr'; const k = e ? (e.ph==='ri'?'pr':e.ph) : ''; return w.some(p=>p.k===k) ? k : w[0].k; }
@@ -65,13 +67,14 @@ function planGroupBar(g){
 function ownPlanView(g){
   const o = ownOf(g.id);
   if(U.oWeek && o.weeks[U.oWeek-1] && U.oDay!==null && U.oDay!==undefined){
+    if(U.dayAi) return dayAiView({kind:'o', g, w:U.oWeek, d:U.oDay});
     CUR_LG = g; const w = o.weeks[U.oWeek-1], d = w.days[U.oDay], exs = d.ex.map(exById);
     return `<button class="btn ghost" data-a="oday" data-k="" style="align-self:flex-start">‹ Settimana ${U.oWeek}</button>
       <section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${U.oWeek} · ${dayLab(g,U.oDay)}</span>
         ${U.oWeek===o.cur && S.session.role==='coach' ? (doneDate(g,U.oDay)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">✓ Fatto ${fdate(doneDate(g,U.oDay))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">Segna come fatto</button>`) : ''}
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
-        ${lessonTL(g)}<button class="chip" data-a="lessonopen" data-k="${g.id}" style="align-self:flex-start">Durata e fasi</button></section>
+        ${lessonTL(g)}<div class="row" style="gap:8px;flex-wrap:wrap"><button class="chip" data-a="lessonopen" data-k="${g.id}">Durata e fasi</button><button class="btn clay" data-a="dayai" data-k="1">Rifai la lezione con l'IA</button></div></section>
       ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="oedit" data-k="${x.i}">✎ Modifica</button><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
         p=>`<div class="row"><button class="btn ghost" data-a="opick" data-k="${p?p.k:''}" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="onewex" data-k="${p?p.k:''}" style="flex:1">+ Scrivi un esercizio</button></div>`)}
       ${LEGEND}`;
@@ -113,7 +116,7 @@ function planView(){
           <div class="row"><select id="f-setweek" class="input" style="flex:1">${teamGroups().map(g=>`<option value="${g.id}">${esc(g.name)} (ora sett. ${g.week})</option>`).join('')}</select><button class="btn" data-a="setweek" data-k="${w.n}">Imposta</button></div></div>
       </section>
       <section class="card"><h3>I cinque allenamenti</h3><p class="muted small">Tocca un giorno per vedere e modificare la seduta.</p>
-        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(d)}</b><br><span class="small muted">Prova: ${esc(PV(w.n,i).t)}</span></span><span class="chev">›</span></button>`).join('')}</div>
+        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]||(S.plan||{})[dayKey(w.n,i)+':txt']?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(((S.plan||{})[dayKey(w.n,i)+':txt']||{}).title||d)}</b><br><span class="small muted">Prova: ${esc(PV(w.n,i).t)}</span></span><span class="chev">›</span></button>`).join('')}</div>
       </section>
       <section class="card"><h3>Scelte della partita guidata</h3>
         <div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}${c.u14?' <span class="tag">U14</span>':''}</span></div>`).join('')}</div>
@@ -376,8 +379,9 @@ function pauseRow(t, x){ return `<div class="pause"><b>${t}</b><span>${x}</span>
 /* day view (coach, from Programma) */
 function dayView(w, d){
   const pg0 = grp(U.planGroup), LG = (pg0 && !isOwnG(pg0)) ? pg0 : (S.groups.find(x=>x.id!==PRIV_ID && !isOwnG(x) && x.week===w) || pg0); CUR_LG = LG;
-  const D = P.prog[w][d], B = dayBlocks(w,d), wk = W(w), fri = d===4, edit = U.editDay;
-  const custom = !!(S.plan||{})[dayKey(w,d)] || (S.filoEdit||{})[dayKey(w,d)]!==undefined;
+  if(U.dayAi) return dayAiView({kind:'w', w, d});
+  const D = PD(w,d), B = dayBlocks(w,d), wk = W(w), fri = d===4, edit = U.editDay;
+  const custom = !!(S.plan||{})[dayKey(w,d)] || !!(S.plan||{})[dayKey(w,d)+':txt'] || (S.filoEdit||{})[dayKey(w,d)]!==undefined;
   const blockHtml = ph => { CUR_PH = ph; try{
     const ids = B[ph] || [];
     const items = ids.map((id,i)=>{ const e = exById(id); if(!e) return ''; const ex = fri && ph==='ap' && !e.custom ? {...e, lines:e.lines.concat([`<b>Le scelte:</b> ${wk.choices.map((c,j)=>`${j+1} ${esc(c.label)}`).join(' · ')}`])} : e;
@@ -391,6 +395,7 @@ function dayView(w, d){
       <h1>${esc(D.title)}</h1>
       ${S.session.role==='coach'?S.groups.filter(g=>g.id!==PRIV_ID && !isOwnG(g) && g.week===w && pickOf(g).includes(d)).map(g=>`<div class="row" style="gap:8px"><span class="small"><b>${esc(g.name)}</b> · ${sLabel(g,d).toLowerCase()}</span>${doneDate(g,d)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">✓ Fatto ${fdate(doneDate(g,d))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">Segna come fatto</button>`}</div>`).join(''):''}
       ${D.obj?`<p><b>Obiettivo:</b> ${D.obj}</p>`:''}
+      ${S.session.role==='coach'?`<button class="btn clay" data-a="dayai" data-k="1" style="align-self:flex-start">Rifai la lezione con l'IA</button>`:''}
       ${U.editProva ? provaForm(w,d) : provaBox(w, d) + `<div class="row"><button class="chip" data-a="editprova">Modifica la prova</button>${(S.provaEdit||{})[w+'-'+d]?'<span class="tag teal">prova modificata</span>':''}</div>`}
       ${provaResults(w,d)}
       ${D.kw?`<p class="small"><span class="muted">Parola chiave:</span> <b>${esc(D.kw)}</b></p>`:''}
@@ -429,6 +434,81 @@ function libraryView(){
 /* new / edit exercise with court drawing */
 const TOOLS = [['A','Giocatore A'],['B','Giocatore B'],['M','Maestro'],['a','Colpo di A'],['b','Colpo di B'],['f','Palla del maestro'],['ma','Spostamento'],['z','Zona bersaglio'],['c','Cono'],['n','Numero']];
 /* one exercise prepared with an AI: the coach tells it, copies the request, pastes the answer back */
+/* ---------- a whole lesson (12-week day or own-programme session) rewritten with an AI ---------- */
+function dayAiSrc(t){
+  if(t.kind==='w'){ const D = PD(t.w,t.d), B = dayBlocks(t.w,t.d), seq = t.d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
+    return {title:plainTxt(D.title), obj:plainTxt(D.obj||''), where:`Settimana ${t.w} · ${W(t.w).name} · ${DAYS[t.d]}`,
+      phases: seq.map(k=>({k, n:phInfo(k)[0], ex:(B[k]||[]).map(exById).filter(Boolean)}))}; }
+  const g = t.g, d = ownOf(g.id).weeks[t.w-1].days[t.d], its = ownItems(g, d), ks = workPhases(g).map(p=>p.k);
+  const keys = ks.length ? ks : [...new Set(its.map(x=>x.ph))];
+  return {title:d.title||'', obj:d.note||'', where:`${g.name} · settimana ${t.w} · ${dayLab(g,t.d)}`, phases: keys.map(k=>({k, n:phInfo(k)[0], ex:its.filter(x=>x.ph===k).map(x=>x.e)}))};
+}
+function dayAiPrompt(t){
+  const src = dayAiSrc(t), notes = (U.aiNotes && U.aiNotes.day) || '';
+  const exJ = e => ({titolo: e.custom ? e.t : plainTxt(e.t), etichetta: e.custom ? (e.chip||'') : plainTxt(e.chip||''), righe:(e.lines||[]).map(l=>e.custom?l:plainTxt(l)), campo:e.els||[]});
+  const now = {titolo:src.title, obiettivo:src.obj, fasi:src.phases.map(p=>({fase:p.k, nome:p.n, esercizi:p.ex.map(exJ)}))};
+  return `Sei l'assistente di un maestro di tennis. Il maestro vuole RIFARE una lezione già pronta nell'app Tennis Smart Coach (${src.where}). Qui sotto c'è la lezione com'è adesso e, in fondo, gli appunti del maestro con quello che vuole cambiare. Riscrivi la lezione applicando gli appunti.
+
+COME RISPONDERE
+- Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Rimanda SOLO le fasi che cambiano: quelle che non metti restano come sono. Una fase che rimandi viene sostituita per intero, quindi mettici tutti i suoi esercizi (anche quelli che restano uguali).
+- In "fase" usa esattamente una di queste sigle: ${src.phases.map(p=>`"${p.k}" (${p.n})`).join(', ')}.
+- Non inventare contenuti: cambia quello che dicono gli appunti, il resto lo tieni. L'unica eccezione è il campetto.
+- Gli atleti non vanno nominati: nel campetto usa lettere (A, B, C…).
+
+FORMATO
+{"tipo":"tennis-smart-coach","versione":2,"lezione":{"titolo":"…","obiettivo":"…","fasi":[{"fase":"sigla","esercizi":[{"titolo":"…","etichetta":"organizzazione","righe":["svolgimento","varianti, punteggio, serie"],"campo":[…]}]}]}}
+
+LA LEZIONE COM'È ADESSO
+${JSON.stringify(now)}
+
+${AI_CAMPO}
+
+APPUNTI DEL MAESTRO
+${notes.trim() || '(scrivi qui gli appunti)'}`;
+}
+function dayAiParse(txt, t){
+  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
+  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'}; }
+  const L = d && (d.lezione || d.seduta); if(!L) return {err:'Nel testo non c\u2019è una lezione. Controlla di aver copiato la risposta giusta.'};
+  const src = dayAiSrc(t), ks = src.phases.map(p=>p.k), byName = n => (src.phases.find(p=>impNorm(p.n)===impNorm(n))||{}).k;
+  const fasi = (L.fasi||[]).map(f=>({k: ks.includes(f.fase) ? f.fase : (f.fase==='pr'&&ks.includes('ri') ? 'ri' : f.fase==='ri'&&ks.includes('pr') ? 'pr' : byName(f.fase||f.nome||'')), ex:(f.esercizi||[]).filter(e=>e && (e.titolo||(e.righe||[]).length))})).filter(f=>f.k);
+  if(!fasi.length && !L.titolo && !L.obiettivo) return {err:'La risposta non contiene fasi che l\u2019app riconosce. Riprova chiedendo all\u2019IA di usare le sigle delle fasi.'};
+  return {title:String(L.titolo||''), obj:String(L.obiettivo||''), fasi, src};
+}
+function dayAiView(t){
+  const R = U.dayAiData, src = dayAiSrc(t);
+  return `<button class="btn ghost" data-a="dayai" data-k="0" style="align-self:flex-start">‹ Torna alla lezione</button>
+    <h1>Rifai la lezione con l'IA</h1>
+    <p class="small muted" style="margin-top:-6px">${esc(src.where)} · <b>${esc(src.title||'Seduta da definire')}</b></p>
+    ${!R ? `<section class="card" style="border-color:var(--clay)"><h3>1 · Cosa vuoi cambiare?</h3><p class="small muted">Scrivi o detta come parleresti a un collega: quali fasi rifare, quali esercizi tenere, togliere o aggiungere, dove stanno maestro e atleti. La richiesta contiene già tutta la lezione com'è adesso.</p>
+      <textarea id="ai-notes" class="input" rows="6" data-c="ainotes" placeholder="Es.: tieni l'attivazione; la parte centrale falla tutta sul cambio di direzione, io a fondo e loro a turno; alla fine un tie-break con arma dichiarata…">${esc((U.aiNotes&&U.aiNotes.day)||'')}</textarea>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ${U.recOn?'danger':'ghost'}" data-a="aidict">${U.recOn?'■ Ferma la dettatura':'🎙 Detta'}</button><button class="btn clay" data-a="aicopy">Copia la richiesta per l'IA</button></div>
+      ${U.aiCopied?`<p class="small"><b>Copiata.</b> Incollala in Claude (o un'altra IA) e invia; poi copia la risposta e incollala qui sotto.</p><a class="btn ghost" style="text-decoration:none;align-self:flex-start" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a>`:''}
+      ${U.aiShow?`<p class="small muted">Il telefono non ha permesso di copiare da solo: tieni premuto qui sotto, "Seleziona tutto" e "Copia".</p><textarea class="input" rows="5" readonly onfocus="this.select()">${esc(dayAiPrompt(t))}</textarea>`:''}</section>
+      <section class="card"><h3>2 · Incolla la risposta dell'IA</h3><textarea id="dayai-txt" class="input" rows="5" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
+      <button class="btn clay" data-a="dayaipaste" style="align-self:flex-start">Leggi il testo</button>
+      ${U.dayAiErr?`<p class="small" style="color:var(--ko)">${esc(U.dayAiErr)}</p>`:''}</section>`
+    : `<section class="card"><h3>La lezione nuova</h3>
+      ${R.title?`<p><b>${esc(R.title)}</b></p>`:''}${R.obj?`<p class="small"><b>Obiettivo:</b> ${esc(R.obj)}</p>`:''}
+      ${src.phases.map(p=>{ const f = R.fasi.find(x=>x.k===p.k); return `<div><span class="eyebrow">${esc(p.n)}${f?'':' · resta com\'è'}</span><ul class="small" style="margin:4px 0 0;padding-left:18px">${(f ? f.ex.map(e=>`<li>${esc(e.titolo||'Esercizio')}${(e.campo||[]).length?' <span class="tag">campetto</span>':''}</li>`) : p.ex.map(e=>`<li class="muted">${e.custom?esc(e.t):e.t}</li>`)).join('') || '<li class="muted">nessun esercizio</li>'}</ul></div>`; }).join('')}
+      <p class="small muted">${t.kind==='w'?'Puoi sempre tornare indietro con "Ripristina l\'originale" nella lezione.':'La seduta di prima viene sostituita.'}</p></section>
+      <button class="btn clay block" data-a="dayaido">Conferma e sostituisci</button>
+      <button class="btn ghost block" data-a="dayaireset">Incolla un altro testo</button>`}`;
+}
+function dayAiApply(t, R){
+  S.customEx = S.customEx || [];
+  const mk = (e, k) => { const x = {id:'c'+uid(), custom:true, hidden:true, ph: k==='ri' ? 'pr' : (['att','pr','sr','ap'].includes(k) ? k : 'pr'), t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]}; S.customEx.push(x); return x.id; };
+  if(t.kind==='w'){ const B = editableBlocks(t.w, t.d); R.fasi.forEach(f=>{ B[f.k] = f.ex.map(e=>mk(e, f.k)); });
+    if(R.title || R.obj){ const k = dayKey(t.w,t.d)+':txt', o = Object.assign({}, S.plan[k]||{}); if(R.title) o.title = R.title; if(R.obj) o.obj = esc(R.obj); S.plan[k] = o; }
+    return; }
+  const g = t.g, d = ownSync(g, ownOf(g.id).weeks[t.w-1].days[t.d]), its = ownItems(g, d), keep = its.filter(x=>!R.fasi.some(f=>f.k===x.ph));
+  const order = R.src.phases.map(p=>p.k), list = [];
+  order.forEach(k=>{ const f = R.fasi.find(x=>x.k===k); if(f) f.ex.forEach(e=>list.push([mk(e,k), k])); else keep.filter(x=>x.ph===k).forEach(x=>list.push([x.id, k])); });
+  keep.filter(x=>!order.includes(x.ph)).forEach(x=>list.push([x.id, x.ph]));
+  d.ex = list.map(x=>x[0]); d.exPh = list.map(x=>x[1]); if(R.title) d.title = R.title; if(R.obj) d.note = R.obj;
+}
 function exAiPrompt(E){
   const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
   const cur = (E.t||'').trim() ? `
