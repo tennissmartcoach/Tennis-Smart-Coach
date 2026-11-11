@@ -580,6 +580,11 @@ const isStaff = r => r==='coach' || r==='fit' || r==='mind';
 const ROLE_NAME = {fit:'Preparatore atletico', mind:'Preparatore mentale'};
 /* sessions are numbered 1–5: the coach ticks each one when it is done, so a missed day can be made up on any other day */
 const gwk = g => isOwnG(g) ? 'o'+ownOf(g.id).cur : String(g.week);
+// 12 weeks done in any order: after going back to an earlier week, "next" continues from the furthest week reached (g.maxWeek)
+const nextWeekNo = g => Math.min(12, Math.max(g.week, g.maxWeek||0) + 1);
+function gotoWeek(g, n){ n = +n; const old = (g.sdone||{})[n];
+  if(old && Object.keys(old).length){ g.past = g.past||[]; g.past.push({end:todayISO(), week:String(n), cycle:g.cycle||1, sdone:{[n]:old}}); delete g.sdone[n]; g.cycle = (g.cycle||1)+1; }
+  g.maxWeek = Math.max(g.maxWeek||0, g.week); g.week = n; }
 const sDone = g => ((g && g.sdone) || {})[gwk(g)] || {};
 const doneDate = (g,di) => sDone(g)[di] || '';
 /* how many sessions a week the group trains: with the 12-week programme fewer sessions keep the first and the last (the comparison of the prova) */
@@ -593,7 +598,9 @@ function nextFree(g){ const m = sDone(g); for(const i of pickOf(g)) if(!m[i]) re
 function todayIdx(g){ if(g){ const i = curIdx(g), pk = pickOf(g); return i<0 ? pk[pk.length-1] : i; } const d = new Date().getDay(); return d>=1 && d<=5 ? d-1 : 4; }
 function sessDots(g){ const m = sDone(g), pk = pickOf(g); return `<span class="sdots" aria-label="${pk.filter(i=>m[i]).length} allenamenti su ${pk.length} fatti">${pk.map((i,k)=>`<i class="${m[i]?'on':''}">${k+1}</i>`).join('')}</span>`; }
 function sessBtns(g, di){ if(S.session.role!=='coach' || !g) return '';
-  if(nextFree(g)<0) return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.</div><button class="btn clay" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:Math.min(12,g.week+1)}</button>`;
+  if(nextFree(g)<0){ const endC = !isOwnG(g) && (g.week===6 || g.week===12), st = g.week<=6 ? 1 : 7;
+    return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.${endC?` È finito il ciclo delle settimane ${st}–${st+5}.`:''}</div>${endC?`<button class="btn clay" data-a="cyclerep" data-k="${g.id}:${st}">Ripeti il ciclo (torna alla settimana ${st})</button>`:''}<button class="btn ghost" data-a="weekrep" data-k="${g.id}">Ripeti questa settimana</button>${(isOwnG(g) || Math.max(g.week,g.maxWeek||0)<12)?`<button class="btn ${endC?'ghost':'clay'}" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:nextWeekNo(g)}</button>`:''}
+      ${isOwnG(g)?'':`<div class="row" style="gap:8px"><select id="f-goto-${g.id}" class="input" style="flex:1;min-width:0" aria-label="Rifai una settimana">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===g.week?'selected':''}>Rifai la sett. ${n} · ${esc(W(n).name)}</option>`).join('')}</select><button class="btn ghost" data-a="gotoweek" data-k="${g.id}">Vai</button></div>`}`; }
   const dd = doneDate(g,di), nx = nextFree(g);
   return dd ? `<div class="row"><button class="btn ghost" data-a="sessdone" data-k="${g.id}:${di}" style="flex:1">✓ Fatto ${dd===todayISO()?'oggi':fdate(dd)} · annulla</button>${nx>=0?`<button class="btn ghost" data-a="sessdone" data-k="${g.id}:${nx}" style="flex:1">Oggi anche il ${sNo(g,nx)} (recupero)</button>`:''}</div>` : `<button class="btn" data-a="sessdone" data-k="${g.id}:${di}">Segna l'allenamento ${sNo(g,di)} come fatto</button>`; }
 const sessHead = (g, di, title) => nextFree(g)<0 ? 'Settimana completata ✓' : `${sLabel(g,di)}: ${title}`;
@@ -881,7 +888,7 @@ function provaForm(w,d){
 }
 function provaResults(w,d){
   const gs = teamGroups().filter(g=>g.week===w); if(!gs.length || PV(w,d).k==='test') return '';
-  return gs.map(g=>{ const as = S.athletes.filter(a=>a.groupId===g.id); const rows = as.map(a=>{ const rs = S.results.filter(r=>r.athleteId===a.id && r.week===w && r.day===d); return {a, r:rs[rs.length-1]}; });
+  return gs.map(g=>{ const as = S.athletes.filter(a=>a.groupId===g.id); const rows = as.map(a=>{ const rs = S.results.filter(r=>r.athleteId===a.id && r.week===w && r.day===d && (r.cycle||1)===(g.cycle||1)); return {a, r:rs[rs.length-1]}; });
     const done = rows.filter(x=>x.r).length;
     return `<details class="pres"><summary><b>Risultati della prova · ${esc(g.name)}</b> <span class="muted small">${done} su ${as.length}</span></summary><div class="list small">${rows.map(({a,r})=>`<div class="row between"><span>${esc(a.name)}</span><b>${r?resVal(r):'<span class="muted">–</span>'}</b></div>`).join('')}</div></details>`; }).join('');
 }
@@ -890,7 +897,7 @@ function todayView(){
   const a = me(), g = grp(a.groupId), w = W(g.week);
   if(U.day===null) U.day = todayIdx(g);
   const d = U.day, pv = PV(w.n, d);
-  const mine = S.results.filter(r=>r.athleteId===a.id && r.week===g.week && r.day===d);
+  const mine = S.results.filter(r=>r.athleteId===a.id && r.week===g.week && r.day===d && (r.cycle||1)===(g.cycle||1));
   const c = U.cnt;
   let tool = '';
   if(pv.k==='test') tool = `<p>Oggi niente conta personale: i test li registra il maestro.</p>`;
@@ -1071,7 +1078,7 @@ function typeCard(w, full, noHead){
 }
 function weekDays(w, full, g){
   const pk = g ? pickOf(g) : [0,1,2,3,4];
-  return `<section class="card"><h3>Allenamento per allenamento</h3><div class="list">${P.prog[w].map((D,d)=>{ if(!pk.includes(d)) return '';
+  return `<section class="card"><h3>Allenamento per allenamento</h3><div class="list">${P.prog[w].map((_,d)=>{ const D = PD(w,d); if(!pk.includes(d)) return '';
     const B = dayBlocks(w,d), seq = d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
     const ex = full ? seq.map(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`).join('')).join('') : '';
     return `<div><span class="eyebrow">${g?sLabel(g,d):DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}
@@ -1118,7 +1125,9 @@ const blankWeek = () => ({name:'', days:[0,1,2,3,4].map(blankDay)});
 function ownOf(gid){ let o; if(typeof gid==='string' && gid.startsWith('pp_')){ const pv = privOf(gid.slice(3)); o = pv.own = pv.own || {cur:1, weeks:[]}; } else { S.own = S.own || {}; o = S.own[gid] = S.own[gid] || {cur:1, weeks:[]}; } if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length) o.cur = o.weeks.length; return o; }
 const gWeekNo = g => isOwnG(g) ? ownOf(g.id).cur : g.week;
 const gWeekName = g => { if(!isOwnG(g)) return W(g.week).name; const o = ownOf(g.id), w = o.weeks[o.cur-1]; return w.name || `Settimana ${o.cur}`; };
-const gDayTitle = (g,di) => { if(!isOwnG(g)) return P.prog[g.week][di].title; const o = ownOf(g.id), d = o.weeks[o.cur-1].days[di]; return d.title || 'Seduta da definire'; };
+// a 12-week day, with the title and goal the coach may have rewritten (S.plan['w-d:txt'])
+const PD = (w,d) => { const D = P.prog[w][d], o = (S.plan||{})[w+'-'+d+':txt']; return o ? Object.assign({}, D, o) : D; };
+const gDayTitle = (g,di) => { if(!isOwnG(g)) return PD(g.week,di).title; const o = ownOf(g.id), d = o.weeks[o.cur-1].days[di]; return d.title || 'Seduta da definire'; };
 
 /* own programmes: d.ex = exercise ids, d.exPh = the group phase each one is placed in */
 function mapPh(g, e){ const w = lessonOf(g).phases.filter(p=>!p.pause); if(!w.length) return (e && e.ph) || 'pr'; const k = e ? (e.ph==='ri'?'pr':e.ph) : ''; return w.some(p=>p.k===k) ? k : w[0].k; }
@@ -1176,13 +1185,14 @@ function planGroupBar(g){
 function ownPlanView(g){
   const o = ownOf(g.id);
   if(U.oWeek && o.weeks[U.oWeek-1] && U.oDay!==null && U.oDay!==undefined){
+    if(U.dayAi) return dayAiView({kind:'o', g, w:U.oWeek, d:U.oDay});
     CUR_LG = g; const w = o.weeks[U.oWeek-1], d = w.days[U.oDay], exs = d.ex.map(exById);
     return `<button class="btn ghost" data-a="oday" data-k="" style="align-self:flex-start">‹ Settimana ${U.oWeek}</button>
       <section class="card"><span class="eyebrow">${esc(g.name)} · settimana ${U.oWeek} · ${dayLab(g,U.oDay)}</span>
         ${U.oWeek===o.cur && S.session.role==='coach' ? (doneDate(g,U.oDay)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">✓ Fatto ${fdate(doneDate(g,U.oDay))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">Segna come fatto</button>`) : ''}
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
-        ${lessonTL(g)}<button class="chip" data-a="lessonopen" data-k="${g.id}" style="align-self:flex-start">Durata e fasi</button></section>
+        ${lessonTL(g)}<div class="row" style="gap:8px;flex-wrap:wrap"><button class="chip" data-a="lessonopen" data-k="${g.id}">Durata e fasi</button><button class="btn clay" data-a="dayai" data-k="1">Rifai la lezione con l'IA</button></div></section>
       ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="oedit" data-k="${x.i}">✎ Modifica</button><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
         p=>`<div class="row"><button class="btn ghost" data-a="opick" data-k="${p?p.k:''}" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="onewex" data-k="${p?p.k:''}" style="flex:1">+ Scrivi un esercizio</button></div>`)}
       ${LEGEND}`;
@@ -1224,7 +1234,7 @@ function planView(){
           <div class="row"><select id="f-setweek" class="input" style="flex:1">${teamGroups().map(g=>`<option value="${g.id}">${esc(g.name)} (ora sett. ${g.week})</option>`).join('')}</select><button class="btn" data-a="setweek" data-k="${w.n}">Imposta</button></div></div>
       </section>
       <section class="card"><h3>I cinque allenamenti</h3><p class="muted small">Tocca un giorno per vedere e modificare la seduta.</p>
-        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(d)}</b><br><span class="small muted">Prova: ${esc(PV(w.n,i).t)}</span></span><span class="chev">›</span></button>`).join('')}</div>
+        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]||(S.plan||{})[dayKey(w.n,i)+':txt']?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(((S.plan||{})[dayKey(w.n,i)+':txt']||{}).title||d)}</b><br><span class="small muted">Prova: ${esc(PV(w.n,i).t)}</span></span><span class="chev">›</span></button>`).join('')}</div>
       </section>
       <section class="card"><h3>Scelte della partita guidata</h3>
         <div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}${c.u14?' <span class="tag">U14</span>':''}</span></div>`).join('')}</div>
@@ -1487,8 +1497,9 @@ function pauseRow(t, x){ return `<div class="pause"><b>${t}</b><span>${x}</span>
 /* day view (coach, from Programma) */
 function dayView(w, d){
   const pg0 = grp(U.planGroup), LG = (pg0 && !isOwnG(pg0)) ? pg0 : (S.groups.find(x=>x.id!==PRIV_ID && !isOwnG(x) && x.week===w) || pg0); CUR_LG = LG;
-  const D = P.prog[w][d], B = dayBlocks(w,d), wk = W(w), fri = d===4, edit = U.editDay;
-  const custom = !!(S.plan||{})[dayKey(w,d)] || (S.filoEdit||{})[dayKey(w,d)]!==undefined;
+  if(U.dayAi) return dayAiView({kind:'w', w, d});
+  const D = PD(w,d), B = dayBlocks(w,d), wk = W(w), fri = d===4, edit = U.editDay;
+  const custom = !!(S.plan||{})[dayKey(w,d)] || !!(S.plan||{})[dayKey(w,d)+':txt'] || (S.filoEdit||{})[dayKey(w,d)]!==undefined;
   const blockHtml = ph => { CUR_PH = ph; try{
     const ids = B[ph] || [];
     const items = ids.map((id,i)=>{ const e = exById(id); if(!e) return ''; const ex = fri && ph==='ap' && !e.custom ? {...e, lines:e.lines.concat([`<b>Le scelte:</b> ${wk.choices.map((c,j)=>`${j+1} ${esc(c.label)}`).join(' · ')}`])} : e;
@@ -1502,6 +1513,7 @@ function dayView(w, d){
       <h1>${esc(D.title)}</h1>
       ${S.session.role==='coach'?S.groups.filter(g=>g.id!==PRIV_ID && !isOwnG(g) && g.week===w && pickOf(g).includes(d)).map(g=>`<div class="row" style="gap:8px"><span class="small"><b>${esc(g.name)}</b> · ${sLabel(g,d).toLowerCase()}</span>${doneDate(g,d)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">✓ Fatto ${fdate(doneDate(g,d))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">Segna come fatto</button>`}</div>`).join(''):''}
       ${D.obj?`<p><b>Obiettivo:</b> ${D.obj}</p>`:''}
+      ${S.session.role==='coach'?`<button class="btn clay" data-a="dayai" data-k="1" style="align-self:flex-start">Rifai la lezione con l'IA</button>`:''}
       ${U.editProva ? provaForm(w,d) : provaBox(w, d) + `<div class="row"><button class="chip" data-a="editprova">Modifica la prova</button>${(S.provaEdit||{})[w+'-'+d]?'<span class="tag teal">prova modificata</span>':''}</div>`}
       ${provaResults(w,d)}
       ${D.kw?`<p class="small"><span class="muted">Parola chiave:</span> <b>${esc(D.kw)}</b></p>`:''}
@@ -1540,6 +1552,81 @@ function libraryView(){
 /* new / edit exercise with court drawing */
 const TOOLS = [['A','Giocatore A'],['B','Giocatore B'],['M','Maestro'],['a','Colpo di A'],['b','Colpo di B'],['f','Palla del maestro'],['ma','Spostamento'],['z','Zona bersaglio'],['c','Cono'],['n','Numero']];
 /* one exercise prepared with an AI: the coach tells it, copies the request, pastes the answer back */
+/* ---------- a whole lesson (12-week day or own-programme session) rewritten with an AI ---------- */
+function dayAiSrc(t){
+  if(t.kind==='w'){ const D = PD(t.w,t.d), B = dayBlocks(t.w,t.d), seq = t.d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
+    return {title:plainTxt(D.title), obj:plainTxt(D.obj||''), where:`Settimana ${t.w} · ${W(t.w).name} · ${DAYS[t.d]}`,
+      phases: seq.map(k=>({k, n:phInfo(k)[0], ex:(B[k]||[]).map(exById).filter(Boolean)}))}; }
+  const g = t.g, d = ownOf(g.id).weeks[t.w-1].days[t.d], its = ownItems(g, d), ks = workPhases(g).map(p=>p.k);
+  const keys = ks.length ? ks : [...new Set(its.map(x=>x.ph))];
+  return {title:d.title||'', obj:d.note||'', where:`${g.name} · settimana ${t.w} · ${dayLab(g,t.d)}`, phases: keys.map(k=>({k, n:phInfo(k)[0], ex:its.filter(x=>x.ph===k).map(x=>x.e)}))};
+}
+function dayAiPrompt(t){
+  const src = dayAiSrc(t), notes = (U.aiNotes && U.aiNotes.day) || '';
+  const exJ = e => ({titolo: e.custom ? e.t : plainTxt(e.t), etichetta: e.custom ? (e.chip||'') : plainTxt(e.chip||''), righe:(e.lines||[]).map(l=>e.custom?l:plainTxt(l)), campo:e.els||[]});
+  const now = {titolo:src.title, obiettivo:src.obj, fasi:src.phases.map(p=>({fase:p.k, nome:p.n, esercizi:p.ex.map(exJ)}))};
+  return `Sei l'assistente di un maestro di tennis. Il maestro vuole RIFARE una lezione già pronta nell'app Tennis Smart Coach (${src.where}). Qui sotto c'è la lezione com'è adesso e, in fondo, gli appunti del maestro con quello che vuole cambiare. Riscrivi la lezione applicando gli appunti.
+
+COME RISPONDERE
+- Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Rimanda SOLO le fasi che cambiano: quelle che non metti restano come sono. Una fase che rimandi viene sostituita per intero, quindi mettici tutti i suoi esercizi (anche quelli che restano uguali).
+- In "fase" usa esattamente una di queste sigle: ${src.phases.map(p=>`"${p.k}" (${p.n})`).join(', ')}.
+- Non inventare contenuti: cambia quello che dicono gli appunti, il resto lo tieni. L'unica eccezione è il campetto.
+- Gli atleti non vanno nominati: nel campetto usa lettere (A, B, C…).
+
+FORMATO
+{"tipo":"tennis-smart-coach","versione":2,"lezione":{"titolo":"…","obiettivo":"…","fasi":[{"fase":"sigla","esercizi":[{"titolo":"…","etichetta":"organizzazione","righe":["svolgimento","varianti, punteggio, serie"],"campo":[…]}]}]}}
+
+LA LEZIONE COM'È ADESSO
+${JSON.stringify(now)}
+
+${AI_CAMPO}
+
+APPUNTI DEL MAESTRO
+${notes.trim() || '(scrivi qui gli appunti)'}`;
+}
+function dayAiParse(txt, t){
+  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
+  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'}; }
+  const L = d && (d.lezione || d.seduta); if(!L) return {err:'Nel testo non c\u2019è una lezione. Controlla di aver copiato la risposta giusta.'};
+  const src = dayAiSrc(t), ks = src.phases.map(p=>p.k), byName = n => (src.phases.find(p=>impNorm(p.n)===impNorm(n))||{}).k;
+  const fasi = (L.fasi||[]).map(f=>({k: ks.includes(f.fase) ? f.fase : (f.fase==='pr'&&ks.includes('ri') ? 'ri' : f.fase==='ri'&&ks.includes('pr') ? 'pr' : byName(f.fase||f.nome||'')), ex:(f.esercizi||[]).filter(e=>e && (e.titolo||(e.righe||[]).length))})).filter(f=>f.k);
+  if(!fasi.length && !L.titolo && !L.obiettivo) return {err:'La risposta non contiene fasi che l\u2019app riconosce. Riprova chiedendo all\u2019IA di usare le sigle delle fasi.'};
+  return {title:String(L.titolo||''), obj:String(L.obiettivo||''), fasi, src};
+}
+function dayAiView(t){
+  const R = U.dayAiData, src = dayAiSrc(t);
+  return `<button class="btn ghost" data-a="dayai" data-k="0" style="align-self:flex-start">‹ Torna alla lezione</button>
+    <h1>Rifai la lezione con l'IA</h1>
+    <p class="small muted" style="margin-top:-6px">${esc(src.where)} · <b>${esc(src.title||'Seduta da definire')}</b></p>
+    ${!R ? `<section class="card" style="border-color:var(--clay)"><h3>1 · Cosa vuoi cambiare?</h3><p class="small muted">Scrivi o detta come parleresti a un collega: quali fasi rifare, quali esercizi tenere, togliere o aggiungere, dove stanno maestro e atleti. La richiesta contiene già tutta la lezione com'è adesso.</p>
+      <textarea id="ai-notes" class="input" rows="6" data-c="ainotes" placeholder="Es.: tieni l'attivazione; la parte centrale falla tutta sul cambio di direzione, io a fondo e loro a turno; alla fine un tie-break con arma dichiarata…">${esc((U.aiNotes&&U.aiNotes.day)||'')}</textarea>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ${U.recOn?'danger':'ghost'}" data-a="aidict">${U.recOn?'■ Ferma la dettatura':'🎙 Detta'}</button><button class="btn clay" data-a="aicopy">Copia la richiesta per l'IA</button></div>
+      ${U.aiCopied?`<p class="small"><b>Copiata.</b> Incollala in Claude (o un'altra IA) e invia; poi copia la risposta e incollala qui sotto.</p><a class="btn ghost" style="text-decoration:none;align-self:flex-start" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a>`:''}
+      ${U.aiShow?`<p class="small muted">Il telefono non ha permesso di copiare da solo: tieni premuto qui sotto, "Seleziona tutto" e "Copia".</p><textarea class="input" rows="5" readonly onfocus="this.select()">${esc(dayAiPrompt(t))}</textarea>`:''}</section>
+      <section class="card"><h3>2 · Incolla la risposta dell'IA</h3><textarea id="dayai-txt" class="input" rows="5" placeholder="Tieni premuto qui e scegli Incolla"></textarea>
+      <button class="btn clay" data-a="dayaipaste" style="align-self:flex-start">Leggi il testo</button>
+      ${U.dayAiErr?`<p class="small" style="color:var(--ko)">${esc(U.dayAiErr)}</p>`:''}</section>`
+    : `<section class="card"><h3>La lezione nuova</h3>
+      ${R.title?`<p><b>${esc(R.title)}</b></p>`:''}${R.obj?`<p class="small"><b>Obiettivo:</b> ${esc(R.obj)}</p>`:''}
+      ${src.phases.map(p=>{ const f = R.fasi.find(x=>x.k===p.k); return `<div><span class="eyebrow">${esc(p.n)}${f?'':' · resta com\'è'}</span><ul class="small" style="margin:4px 0 0;padding-left:18px">${(f ? f.ex.map(e=>`<li>${esc(e.titolo||'Esercizio')}${(e.campo||[]).length?' <span class="tag">campetto</span>':''}</li>`) : p.ex.map(e=>`<li class="muted">${e.custom?esc(e.t):e.t}</li>`)).join('') || '<li class="muted">nessun esercizio</li>'}</ul></div>`; }).join('')}
+      <p class="small muted">${t.kind==='w'?'Puoi sempre tornare indietro con "Ripristina l\'originale" nella lezione.':'La seduta di prima viene sostituita.'}</p></section>
+      <button class="btn clay block" data-a="dayaido">Conferma e sostituisci</button>
+      <button class="btn ghost block" data-a="dayaireset">Incolla un altro testo</button>`}`;
+}
+function dayAiApply(t, R){
+  S.customEx = S.customEx || [];
+  const mk = (e, k) => { const x = {id:'c'+uid(), custom:true, hidden:true, ph: k==='ri' ? 'pr' : (['att','pr','sr','ap'].includes(k) ? k : 'pr'), t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]}; S.customEx.push(x); return x.id; };
+  if(t.kind==='w'){ const B = editableBlocks(t.w, t.d); R.fasi.forEach(f=>{ B[f.k] = f.ex.map(e=>mk(e, f.k)); });
+    if(R.title || R.obj){ const k = dayKey(t.w,t.d)+':txt', o = Object.assign({}, S.plan[k]||{}); if(R.title) o.title = R.title; if(R.obj) o.obj = esc(R.obj); S.plan[k] = o; }
+    return; }
+  const g = t.g, d = ownSync(g, ownOf(g.id).weeks[t.w-1].days[t.d]), its = ownItems(g, d), keep = its.filter(x=>!R.fasi.some(f=>f.k===x.ph));
+  const order = R.src.phases.map(p=>p.k), list = [];
+  order.forEach(k=>{ const f = R.fasi.find(x=>x.k===k); if(f) f.ex.forEach(e=>list.push([mk(e,k), k])); else keep.filter(x=>x.ph===k).forEach(x=>list.push([x.id, k])); });
+  keep.filter(x=>!order.includes(x.ph)).forEach(x=>list.push([x.id, x.ph]));
+  d.ex = list.map(x=>x[0]); d.exPh = list.map(x=>x[1]); if(R.title) d.title = R.title; if(R.obj) d.note = R.obj;
+}
 function exAiPrompt(E){
   const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
   const cur = (E.t||'').trim() ? `
@@ -2007,7 +2094,7 @@ function impParse(txt, forId){
     return {x, ex, card:!!x.scheda, goals:(x.obiettivi||[]).filter(g=>g && g.testo && !have.has(impNorm(g.testo))).length, sheets:SH.length, shex:SE, shc:SC, weeks:W.length, lessons:L, exs:E, diary:(x.diario||[]).length, cal:(x.calendario||[]).length}; });
   return {d, rows, forId:forId||null};
 }
-const aiKey = () => U.ed && U.ed.ai ? 'ex' : U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
+const aiKey = () => U.ed && U.ed.ai ? 'ex' : U.dayAi ? 'day' : U.gImp ? 'g:'+U.gImp : (U.impFor||'_');
 const AI_EX = '[["z",176,22,30,20],["t",191,19,"4×1\'"],["A",24,40,"S"],["M",204,76],["f","M198 72Q120 22 31 36"],["a","M30 45Q110 84 186 76"],["c",12,66],["n",70,46,"1"],["ma","M16 82C4 78 6 66 12 72"]]';
 const AI_CAMPO = `IL CAMPETTO ("campo"): mettilo SEMPRE, in OGNI esercizio di OGNI fase (anche attivazione e servizio), anche se il maestro non lo chiede.
 Se gli appunti non dicono dove stanno i giocatori, usa la disposizione più normale per quell'esercizio (allievo a fondo campo al centro; maestro dall'altra parte a fondo campo, a metà campo se gioca palle facili, a rete se si parla di volée) e disegna almeno: i giocatori, la palla del maestro, il colpo dell'allievo con la direzione detta (diagonale, lungolinea, centro), le zone bersaglio e i coni se nominati, un numero per ogni passaggio di una sequenza. Il maestro lo potrà correggere nell'app.
@@ -2929,7 +3016,7 @@ function fitTypeAtl(g){ if(isOwnG(g) || g.pp) return null; const pf = PROF[g.wee
 function tennisDayList(g, di){
   if(isOwnG(g)){ const d = ownOf(g.id).weeks[ownOf(g.id).cur-1].days[di]; if(!d) return {title:'', obj:'', ex:[]};
     return {title:d.title||'', obj:esc(d.note||''), ex:ownItems(g, d).map(x=>`<li><b>${esc(phInfo(x.ph)[0])}:</b> ${x.e.custom?esc(x.e.t):x.e.t}</li>`)}; }
-  const w = g.week, D = P.prog[w][di], B = dayBlocks(w, di), seq = di===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
+  const w = g.week, D = PD(w, di), B = dayBlocks(w, di), seq = di===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
   return {title:D.title||'', obj:D.obj||'', ex:seq.flatMap(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`))};
 }
 function fitTennisCard(g, di, open){
@@ -3513,6 +3600,8 @@ function backupView(){
 
 </script>
 <script>
+/* the lesson being rewritten with the AI: an own-programme session if one is open, otherwise the open 12-week day */
+function dayAiTarget(){ const g = grp(U.planGroup); if(g && isOwnG(g) && U.oWeek && U.oDay!==null && U.oDay!==undefined) return {kind:'o', g, w:U.oWeek, d:U.oDay}; return {kind:'w', w:+U.weekOpen, d:+U.dayOpen}; }
 /* Button actions (ACT), event listeners and app start: must be loaded last */
 /* ---------- actions ---------- */
 function genCode(name){ const base = (name.match(/U\d{2}/i)?.[0] || name.replace(/[^A-Za-z]/g,'').slice(0,3) || 'GRP').toUpperCase(); let c; do { c = base + '-' + Math.random().toString(36).slice(2,5).toUpperCase(); } while(S.groups.some(g=>g.code===c)); return c; }
@@ -3526,7 +3615,7 @@ const ACT = {
     if(U.pin.length===4){ const a = ath(U.athlete); if((U.role==='parent'?a.ppin:a.pin)===U.pin){ S.session={role:U.role, athleteId:a.id}; U.tab=null; U.step='role'; U.pin=''; U.setup=null; save(); } else { U.err='PIN sbagliato. Riprova o chiedi al maestro.'; U.pin=''; } } },
   coachin(){ const v = document.getElementById('f-coach').value.trim().toUpperCase(); if(v!==S.coachCode.toUpperCase()){ U.err='Codice maestro sbagliato.'; return; } S.session={role:'coach'}; U.tab=null; U.err=''; U.step='role'; U.setup=null; save(); },
   logout(){ if(HOOK.logout){ HOOK.logout(); return; } S.session=null; Object.assign(U,{athMode:null,testAth:null,privOpen:null,profEdit:null,form:null,testWeek:null,tab:null,step:'role',weekOpen:null,athleteOpen:null,matchOpen:null,setup:null,day:null,cnt:{ok:0,tot:0},confirm:null}); save(); },
-  tab(k){ if(k==='plan' && String(U.planGroup||'').startsWith('pp_')){ U.planGroup=null; U.oWeek=null; U.oDay=null; } U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
+  tab(k){ U.dayAi=false; U.dayAiData=null; if(k==='plan' && String(U.planGroup||'').startsWith('pp_')){ U.planGroup=null; U.oWeek=null; U.oDay=null; } U.tab=k; if(k==='fprog'){ U.fpWeek=null; } if(k==='mprog'){ U.mcOpen=null; } if(k==='mschede'){ U.mEd=null; U.mfOpen=null; U.biEd=null; U.biOpen=null; U.mrAth=''; } U.mfill=null; if(k==='prog'){ U.athTab=null; U.tOpen=null; } U.confirm=null; U.form=null; U.testAth=null; U.finalView=null; if(k==='home'||k==='fhome'||k==='mhome'){ U.homeView=null; } if(k==='tour'||k==='stours'){ U.tWeek=null; U.tOpen=null; U.tNew=null; U.mEdit=null; } if(k==='plan'){ U.ed=null; U.pick=null; U.oWeek=null; U.oDay=null; } if(k!=='ath') U.athleteOpen=null; U.privOpen=null; U.athPriv=null; U.newAth=false; U.profEdit=null; window.scrollTo(0,0); },
   day(k){ U.day=+k; U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); },
   cnt(k){ const pv=PV(grp(me().groupId).week,U.day); if(U.cnt.tot>=pv.n) return; U.cnt.tot++; if(k==='1') U.cnt.ok++; U.cnt.hist=(U.cnt.hist||[]).concat(k==='1'); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
   cntmin(){ U.cnt.ok++; U.cnt.tot++; U.cnt.hist=(U.cnt.hist||[]).concat(true); if(navigator.vibrate) try{navigator.vibrate(15)}catch(e){} },
@@ -3536,10 +3625,11 @@ const ACT = {
     let ok = U.cnt.ok, tot = pv.k==='su' ? pv.n : null;
     if(!mv){ toast('Scrivi il tuo risultato'); return; }
     ok = Math.max(0, Math.round(+mv)); if(isNaN(ok)){ toast('Scrivi un numero'); return; } if(pv.k==='su' && ok>pv.n){ toast(`Al massimo ${pv.n}`); return; }
-    S.results.push({id:uid(), athleteId:a.id, groupId:g.id, week:g.week, day:U.day, kind:pv.k, ok, tot, date:new Date().toISOString()});
+    S.results.push(Object.assign({id:uid(), athleteId:a.id, groupId:g.id, week:g.week, day:U.day, kind:pv.k, ok, tot, date:new Date().toISOString()}, g.cycle>1?{cycle:g.cycle}:{}));
     U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); save(); toast('Prova salvata'); },
   openweek(k){ U.weekOpen=+k; U.dayOpen=null; window.scrollTo(0,0); }, closeweek(){ U.weekOpen=null; U.dayOpen=null; },
-  setweek(k){ const g=grp(document.getElementById('f-setweek').value); g.week=+k; save(); toast(g.name+': settimana '+k); },
+  setweek(k){ const g=grp(document.getElementById('f-setweek').value); gotoWeek(g, k); save(); toast(g.name+': settimana '+k); },
+  gotoweek(k){ const g=grp(k), el=document.getElementById('f-goto-'+k); if(!g||!el) return; gotoWeek(g, el.value); save(); toast(g.name+': settimana '+g.week+' · '+W(g.week).name); },
   resgroup(k){ U.resGroup=k; U.resWeek=grp(k).week; }, resweek(k){ U.resWeek=Math.min(12,Math.max(1,U.resWeek+ +k)); },
   openath(k,d){ U.athleteOpen=k; U.athTab=d&&d.t?d.t:null; U.showInbox=false; S.seen=new Date().toISOString(); save(); window.scrollTo(0,0); },
   lessonopen(k){ U.lessonUndo=[]; U.lessonEd=k; U.planGroup=k; U.tab='plan'; window.scrollTo(0,0); },
@@ -3554,7 +3644,7 @@ const ACT = {
   setfreq(k){ const g=grp(U.planGroup); if(!g) return; g.freq=+k; save(); toast(`${k} allenamenti a settimana per ${g.name}`); },
   setprog(k){ const g=grp(U.planGroup); if(!g) return; g.prog=k; if(k==='own') ownOf(g.id); U.oWeek=null; U.oDay=null; save(); toast(k==='own'?'Programma personale per '+g.name:'Le 12 settimane per '+g.name); },
   oweek(k){ U.oWeek = k?+k:null; U.oDay=null; U.confirm=null; window.scrollTo(0,0); },
-  oday(k){ U.oDay = k===''?null:+k; window.scrollTo(0,0); },
+  oday(k){ U.dayAi=false; U.dayAiData=null; U.oDay = k===''?null:+k; window.scrollTo(0,0); },
   owadd(){ const o=ownOf(U.planGroup); o.weeks.push(blankWeek()); save(); U.oWeek=o.weeks.length; U.oDay=null; window.scrollTo(0,0); },
   owcopy(){ const o=ownOf(U.planGroup); o.weeks.push(JSON.parse(JSON.stringify(o.weeks[U.oWeek-1]))); save(); U.oWeek=o.weeks.length; toast('Settimana duplicata'); window.scrollTo(0,0); },
   owdel(){ const o=ownOf(U.planGroup); o.weeks.splice(U.oWeek-1,1); if(o.cur>o.weeks.length) o.cur=o.weeks.length; U.oWeek=null; U.confirm=null; save(); toast('Settimana eliminata'); },
@@ -3620,8 +3710,12 @@ const ACT = {
   impclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.impErr=''; window.scrollTo(0,0); },
   impreset(){ U.impData=null; U.impErr=''; },
   aidict(){ dictate(); },
-  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.ed&&U.ed.ai?'Prima scrivi o detta l\'esercizio':U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.ed&&U.ed.ai?exAiPrompt(U.ed):U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
+  aicopy(){ const ta=document.getElementById('ai-notes'); U.aiNotes=U.aiNotes||{}; if(ta) U.aiNotes[aiKey()]=ta.value; if(!(U.aiNotes[aiKey()]||'').trim()){ toast(U.ed&&U.ed.ai?'Prima scrivi o detta l\'esercizio':U.dayAi?'Prima scrivi o detta cosa cambiare':U.gImp?'Prima scrivi o detta il programma':'Prima scrivi o detta la lezione'); return; } const txt=U.ed&&U.ed.ai?exAiPrompt(U.ed):U.dayAi?dayAiPrompt(dayAiTarget()):U.gImp?gAiPrompt(grp(U.gImp)):aiPrompt(U.impFor||null);
     try{ navigator.clipboard.writeText(txt).then(()=>{ U.aiCopied=true; U.aiShow=false; render(); toast('Richiesta copiata'); }, ()=>{ U.aiShow=true; U.aiCopied=true; render(); }); }catch(e){ U.aiShow=true; U.aiCopied=true; } },
+  dayai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.dayAi = k==='1'; U.dayAiData=null; U.dayAiErr=''; U.aiCopied=false; U.aiShow=false; U.editDay=false; window.scrollTo(0,0); },
+  dayaipaste(){ const r=dayAiParse(document.getElementById('dayai-txt').value||'', dayAiTarget()); if(r.err){ U.dayAiErr=r.err; U.dayAiData=null; } else { U.dayAiErr=''; U.dayAiData=r; } window.scrollTo(0,0); },
+  dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
+  dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
   exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
@@ -3832,7 +3926,12 @@ const ACT = {
   homeatt(k){ U.homeView='att'; U.attGroup=k; U.attKind=attKindOf(); U.attDate=todayISO(); window.scrollTo(0,0); },
   sessdone(k){ const [gid,di]=k.split(':'), g=grp(gid); if(!g) return; g.sdone=g.sdone||{}; const key=gwk(g), m=g.sdone[key]=g.sdone[key]||{};
     if(m[di]) delete m[di]; else m[di]=todayISO(); save(); toast(m[di]?`${sLabel(g,+di)} fatto`:'Segno tolto'); },
-  weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(g.week>=12){ toast('Il programma di 12 settimane è finito'); return; } g.week++; } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
+  // repeat weeks st..st+5: the ticks of the past round are kept apart (g.past) and the week starts again from st
+  cyclerep(k){ const [gid,st]=k.split(':'), g=grp(gid); if(!g) return; const s0=+st; g.past=g.past||[]; const old={}; for(let w=s0; w<s0+6; w++){ if(g.sdone&&g.sdone[w]){ old[w]=g.sdone[w]; delete g.sdone[w]; } }
+    g.past.push({end:todayISO(), from:s0, cycle:g.cycle||1, sdone:old}); g.cycle=(g.cycle||1)+1; g.week=s0; g.maxWeek=s0; save(); toast(g.name+': si ricomincia dalla settimana '+s0+' (giro '+g.cycle+')'); },
+  // the same week once more: its ticks go to g.past, and a new round (g.cycle) keeps the new test results apart from the old ones
+  weekrep(k){ const g=grp(k); if(!g) return; const wk=gwk(g); g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:(g.sdone||{})[wk]||{}}}); if(g.sdone) delete g.sdone[wk]; g.cycle=(g.cycle||1)+1; save(); toast(g.name+': si ripete la settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
+  weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(Math.max(g.week, g.maxWeek||0)>=12){ toast('Il programma di 12 settimane è finito'); return; } gotoWeek(g, nextWeekNo(g)); } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d,gid]=k.split(':'); if(gid) U.planGroup=gid; U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },
   homelib(){ U.tab='plan'; U.planMode='lib'; U.libOpen=null; window.scrollTo(0,0); },
   attset(k,d){ S.att=S.att||{}; const g=grp(U.attGroup)||teamGroups()[0], key=attKey(U.attDate||todayISO(), g.id, U.attKind??attKindOf()); const r=S.att[key]=S.att[key]||{}; if(r[k]===d.v) delete r[k]; else r[k]=d.v; save(); },
@@ -3902,9 +4001,9 @@ const ACT = {
     const onlyLink = /^\s*https?:\/\/\S+\s*$/.test(U.tPaste||'');
     U.tParsed = onlyLink ? 'Dal solo link posso ricavare il nome. Per date e scadenza copia anche il testo della pagina, insieme al link.' : got.length ? `Trovati: ${got.join(', ')}.${!p.date?' Le date non le ho trovate: scegli la settimana qui sotto.':''}${!p.deadline?' Scadenza non trovata.':''}` : 'Non ho trovato dati utili: prova a copiare anche le date del torneo.'; if(!got.length) toast('Nessun dato trovato'); },
   planmode(k){ U.planMode=k; U.libOpen=null; window.scrollTo(0,0); },
-  openday(k){ U.dayOpen=+k; U.editDay=false; U.editProva=false; window.scrollTo(0,0); }, closeday(){ U.dayOpen=null; U.editDay=false; },
+  openday(k){ U.dayAi=false; U.dayAiData=null; U.dayOpen=+k; U.editDay=false; U.editProva=false; window.scrollTo(0,0); }, closeday(){ U.dayAi=false; U.dayAiData=null; U.dayOpen=null; U.editDay=false; },
   editday(k){ U.editDay = k==='1'; },
-  resetday(){ delete S.plan[dayKey(U.weekOpen,U.dayOpen)]; if(S.filoEdit) delete S.filoEdit[dayKey(U.weekOpen,U.dayOpen)]; save(); toast('Programma originale ripristinato'); },
+  resetday(){ delete S.plan[dayKey(U.weekOpen,U.dayOpen)]; delete S.plan[dayKey(U.weekOpen,U.dayOpen)+':txt']; if(S.filoEdit) delete S.filoEdit[dayKey(U.weekOpen,U.dayOpen)]; save(); toast('Programma originale ripristinato'); },
   pickex(k){ const [ph,i]=k.split(':'); U.pick={w:U.weekOpen, d:U.dayOpen, ph, i: i==='new'?null:+i}; U.planMode='lib'; U.libPh=ph==='ri'?'pr':(PH[ph]?ph:'all'); U.libOpen=null; U.libQ=''; window.scrollTo(0,0); },
   dropex(k){ const [ph,i]=k.split(':'); const B=editableBlocks(U.weekOpen,U.dayOpen); B[ph].splice(+i,1); save(); },
   upex(k){ const [ph,i]=k.split(':'); const B=editableBlocks(U.weekOpen,U.dayOpen), a=B[ph], j=+i; [a[j-1],a[j]]=[a[j],a[j-1]]; save(); },
@@ -3917,7 +4016,7 @@ const ACT = {
   filoreset(k){ if(S.filoEdit) delete S.filoEdit[k]; save(); },
   dayedex(k){ const [ph,i]=k.split(':'); const id=dayBlocks(U.weekOpen,U.dayOpen)[ph][+i]; U.ed=exToEd(exById(id), {w:U.weekOpen, d:U.dayOpen, ph, i:+i}); window.scrollTo(0,0); },
   daynewex(k){ U.ed={id:null, ph:k==='ri'?'pr':k, t:'', chip:'', x:'', els:[], vis:null, from:null, tool:'A', pend:null, ctx:{w:U.weekOpen, d:U.dayOpen, ph:k, i:null}, lib:true}; window.scrollTo(0,0); },
-  delex(k){ S.customEx=S.customEx.filter(e=>e.id!==k); Object.values(S.plan||{}).forEach(B=>Object.keys(B).forEach(ph=>B[ph]=B[ph].filter(id=>id!==k))); U.libOpen=null; U.confirm=null; save(); toast('Esercizio eliminato'); },
+  delex(k){ S.customEx=S.customEx.filter(e=>e.id!==k); Object.values(S.plan||{}).forEach(B=>Object.keys(B).forEach(ph=>{ if(Array.isArray(B[ph])) B[ph]=B[ph].filter(id=>id!==k); })); U.libOpen=null; U.confirm=null; save(); toast('Esercizio eliminato'); },
   edclose(){ U.ed=null; }, edph(k){ U.ed.ph=k; }, tool(k){ U.ed.tool=k; U.ed.pend=null; },
   edundo(){ U.ed.els.pop(); U.ed.pend=null; }, edclear(){ U.ed.els=[]; U.ed.pend=null; },
   courttap(k,d,ev){ const E=U.ed, svg=ev.target.closest('svg'), r=svg.getBoundingClientRect();
