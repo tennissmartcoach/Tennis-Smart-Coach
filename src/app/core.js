@@ -35,6 +35,11 @@ const isStaff = r => r==='coach' || r==='fit' || r==='mind';
 const ROLE_NAME = {fit:'Preparatore atletico', mind:'Preparatore mentale'};
 /* sessions are numbered 1–5: the coach ticks each one when it is done, so a missed day can be made up on any other day */
 const gwk = g => isOwnG(g) ? 'o'+ownOf(g.id).cur : String(g.week);
+// 12 weeks done in any order: after going back to an earlier week, "next" continues from the furthest week reached (g.maxWeek)
+const nextWeekNo = g => Math.min(12, Math.max(g.week, g.maxWeek||0) + 1);
+function gotoWeek(g, n){ n = +n; const old = (g.sdone||{})[n];
+  if(old && Object.keys(old).length){ g.past = g.past||[]; g.past.push({end:todayISO(), week:String(n), cycle:g.cycle||1, sdone:{[n]:old}}); delete g.sdone[n]; g.cycle = (g.cycle||1)+1; }
+  g.maxWeek = Math.max(g.maxWeek||0, g.week); g.week = n; }
 const sDone = g => ((g && g.sdone) || {})[gwk(g)] || {};
 const doneDate = (g,di) => sDone(g)[di] || '';
 /* how many sessions a week the group trains: with the 12-week programme fewer sessions keep the first and the last (the comparison of the prova) */
@@ -49,7 +54,8 @@ function todayIdx(g){ if(g){ const i = curIdx(g), pk = pickOf(g); return i<0 ? p
 function sessDots(g){ const m = sDone(g), pk = pickOf(g); return `<span class="sdots" aria-label="${pk.filter(i=>m[i]).length} allenamenti su ${pk.length} fatti">${pk.map((i,k)=>`<i class="${m[i]?'on':''}">${k+1}</i>`).join('')}</span>`; }
 function sessBtns(g, di){ if(S.session.role!=='coach' || !g) return '';
   if(nextFree(g)<0){ const endC = !isOwnG(g) && (g.week===6 || g.week===12), st = g.week<=6 ? 1 : 7;
-    return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.${endC?` È finito il ciclo delle settimane ${st}–${st+5}.`:''}</div>${endC?`<button class="btn clay" data-a="cyclerep" data-k="${g.id}:${st}">Ripeti il ciclo (torna alla settimana ${st})</button>`:''}<button class="btn ghost" data-a="weekrep" data-k="${g.id}">Ripeti questa settimana</button>${g.week<12||isOwnG(g)?`<button class="btn ${endC?'ghost':'clay'}" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:g.week+1}</button>`:''}`; }
+    return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.${endC?` È finito il ciclo delle settimane ${st}–${st+5}.`:''}</div>${endC?`<button class="btn clay" data-a="cyclerep" data-k="${g.id}:${st}">Ripeti il ciclo (torna alla settimana ${st})</button>`:''}<button class="btn ghost" data-a="weekrep" data-k="${g.id}">Ripeti questa settimana</button>${(isOwnG(g) || Math.max(g.week,g.maxWeek||0)<12)?`<button class="btn ${endC?'ghost':'clay'}" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:nextWeekNo(g)}</button>`:''}
+      ${isOwnG(g)?'':`<div class="row" style="gap:8px"><select id="f-goto-${g.id}" class="input" style="flex:1;min-width:0" aria-label="Rifai una settimana">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===g.week?'selected':''}>Rifai la sett. ${n} · ${esc(W(n).name)}</option>`).join('')}</select><button class="btn ghost" data-a="gotoweek" data-k="${g.id}">Vai</button></div>`}`; }
   const dd = doneDate(g,di), nx = nextFree(g);
   return dd ? `<div class="row"><button class="btn ghost" data-a="sessdone" data-k="${g.id}:${di}" style="flex:1">✓ Fatto ${dd===todayISO()?'oggi':fdate(dd)} · annulla</button>${nx>=0?`<button class="btn ghost" data-a="sessdone" data-k="${g.id}:${nx}" style="flex:1">Oggi anche il ${sNo(g,nx)} (recupero)</button>`:''}</div>` : `<button class="btn" data-a="sessdone" data-k="${g.id}:${di}">Segna l'allenamento ${sNo(g,di)} come fatto</button>`; }
 const sessHead = (g, di, title) => nextFree(g)<0 ? 'Settimana completata ✓' : `${sLabel(g,di)}: ${title}`;

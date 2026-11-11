@@ -26,7 +26,8 @@ const ACT = {
     S.results.push(Object.assign({id:uid(), athleteId:a.id, groupId:g.id, week:g.week, day:U.day, kind:pv.k, ok, tot, date:new Date().toISOString()}, g.cycle>1?{cycle:g.cycle}:{}));
     U.cnt={ok:0,tot:0}; U.timer=null; clearInterval(U.tick); save(); toast('Prova salvata'); },
   openweek(k){ U.weekOpen=+k; U.dayOpen=null; window.scrollTo(0,0); }, closeweek(){ U.weekOpen=null; U.dayOpen=null; },
-  setweek(k){ const g=grp(document.getElementById('f-setweek').value); g.week=+k; save(); toast(g.name+': settimana '+k); },
+  setweek(k){ const g=grp(document.getElementById('f-setweek').value); gotoWeek(g, k); save(); toast(g.name+': settimana '+k); },
+  gotoweek(k){ const g=grp(k), el=document.getElementById('f-goto-'+k); if(!g||!el) return; gotoWeek(g, el.value); save(); toast(g.name+': settimana '+g.week+' · '+W(g.week).name); },
   resgroup(k){ U.resGroup=k; U.resWeek=grp(k).week; }, resweek(k){ U.resWeek=Math.min(12,Math.max(1,U.resWeek+ +k)); },
   openath(k,d){ U.athleteOpen=k; U.athTab=d&&d.t?d.t:null; U.showInbox=false; S.seen=new Date().toISOString(); save(); window.scrollTo(0,0); },
   lessonopen(k){ U.lessonUndo=[]; U.lessonEd=k; U.planGroup=k; U.tab='plan'; window.scrollTo(0,0); },
@@ -325,10 +326,10 @@ const ACT = {
     if(m[di]) delete m[di]; else m[di]=todayISO(); save(); toast(m[di]?`${sLabel(g,+di)} fatto`:'Segno tolto'); },
   // repeat weeks st..st+5: the ticks of the past round are kept apart (g.past) and the week starts again from st
   cyclerep(k){ const [gid,st]=k.split(':'), g=grp(gid); if(!g) return; const s0=+st; g.past=g.past||[]; const old={}; for(let w=s0; w<s0+6; w++){ if(g.sdone&&g.sdone[w]){ old[w]=g.sdone[w]; delete g.sdone[w]; } }
-    g.past.push({end:todayISO(), from:s0, cycle:g.cycle||1, sdone:old}); g.cycle=(g.cycle||1)+1; g.week=s0; save(); toast(g.name+': si ricomincia dalla settimana '+s0+' (giro '+g.cycle+')'); },
+    g.past.push({end:todayISO(), from:s0, cycle:g.cycle||1, sdone:old}); g.cycle=(g.cycle||1)+1; g.week=s0; g.maxWeek=s0; save(); toast(g.name+': si ricomincia dalla settimana '+s0+' (giro '+g.cycle+')'); },
   // the same week once more: its ticks go to g.past, and a new round (g.cycle) keeps the new test results apart from the old ones
   weekrep(k){ const g=grp(k); if(!g) return; const wk=gwk(g); g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:(g.sdone||{})[wk]||{}}}); if(g.sdone) delete g.sdone[wk]; g.cycle=(g.cycle||1)+1; save(); toast(g.name+': si ripete la settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
-  weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(g.week>=12){ toast('Il programma di 12 settimane è finito'); return; } g.week++; } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
+  weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(Math.max(g.week, g.maxWeek||0)>=12){ toast('Il programma di 12 settimane è finito'); return; } gotoWeek(g, nextWeekNo(g)); } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d,gid]=k.split(':'); if(gid) U.planGroup=gid; U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },
   homelib(){ U.tab='plan'; U.planMode='lib'; U.libOpen=null; window.scrollTo(0,0); },
   attset(k,d){ S.att=S.att||{}; const g=grp(U.attGroup)||teamGroups()[0], key=attKey(U.attDate||todayISO(), g.id, U.attKind??attKindOf()); const r=S.att[key]=S.att[key]||{}; if(r[k]===d.v) delete r[k]; else r[k]=d.v; save(); },
