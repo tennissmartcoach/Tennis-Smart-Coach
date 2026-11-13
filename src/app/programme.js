@@ -601,8 +601,9 @@ function taskLive(m){
       <div class="status"><span>vinti–persi nei punti con compito</span></div></section>
     <section class="card">
       <span class="eyebrow">1 · A fine punto: cosa ha fatto?</span>
-      <p class="muted small">Puoi toccarne più di uno. Se non ha fatto nessun compito, non segnare niente.</p>
-      <div class="pick">${m.tasks.map((t,i)=>`<button data-a="tsel" data-k="${i}" aria-pressed="${sel.includes(i)}"><i>${cnt(i)}</i><span>${esc(t)}</span></button>`).join('')}</div>
+      <p class="small"><b>Puoi toccarne più di uno</b> se nello stesso punto ha fatto più cose. <span class="muted">Se non ha fatto nessun compito, non segnare niente.</span></p>
+      <div class="pick multi">${m.tasks.map((t,i)=>`<button data-a="tsel" data-k="${i}" aria-pressed="${sel.includes(i)}"><i>${sel.includes(i)?'✓':cnt(i)}</i><span>${esc(t)}</span></button>`).join('')}</div>
+      ${sel.length?`<p class="small" style="margin-top:-2px">In questo punto: <b>${sel.slice().sort((a,b)=>a-b).map(i=>esc(m.tasks[i])).join(' + ')}</b></p>`:''}
       <span class="eyebrow">2 · Com'è finito il punto?</span>
       <div class="winrow"><button class="win a" data-a="tpoint" data-k="0" ${sel.length?'':'disabled'} style="background:#1E7A4C">Vinto</button><button class="win b" data-a="tpoint" data-k="1" ${sel.length?'':'disabled'} style="background:#B0372B">Perso</button></div>
       <button class="btn ghost block" data-a="tpoint" data-k="x" ${sel.length?'':'disabled'}>Salva senza esito</button>

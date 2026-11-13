@@ -107,6 +107,8 @@ select.input{appearance:auto}
 .pick button.none{grid-column:1/-1;justify-content:center;min-height:44px;color:var(--muted)}
 .exrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .exrow button.ng[aria-pressed="true"]{border-color:var(--muted);background:var(--surface-2,rgba(127,127,127,.12));color:var(--ink)}
+.pick.multi button[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
+.pick.multi button[aria-pressed="true"] i{background:#fff;color:var(--pri);border-radius:8px;padding:0 7px;font-size:18px;line-height:1.4}
 .quickrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-items:center}
 .quickrow button{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 14px;font-weight:700;color:var(--ink)}
 .quickrow span{grid-column:1/-1}
