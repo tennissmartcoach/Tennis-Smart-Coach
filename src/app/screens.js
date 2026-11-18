@@ -16,7 +16,7 @@ function renderInner(){
     : role==='coach'
     ? [['home','Home',IC.home],['plan','Programma',IC.plan],['match','Match Analysis',IC.match],['ath','Gruppi e atleti',IC.people],['tour','Tornei',IC.trophy]]
     : role==='parent'
-    ? (isPriv ? [['phome','Home',IC.home],['pprog','Programma',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]] : [['phome','Home',IC.home],['pweek','Settimana',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]])
+    ? (isPriv ? [['phome','Home',IC.home],['pprog','Programma',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]] : [['phome','Home',IC.home],['pweek','Settimana',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]])
     : (isPriv ? [['shome','Home',IC.home],['pprog','Programma',IC.today],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]
               : [['shome','Home',IC.home],['week','Settimana',IC.plan],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]);
   if(!U.tab) U.tab = tabs[0][0];

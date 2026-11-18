@@ -300,7 +300,7 @@ function parentHome(){
     ${mindNextCard(id)}
     ${tr?`<section class="card">${tr}</section>`:''}
     ${tourHomeCard(id,true)}
-    ${isPriv?'':`<section class="card"><h3>Incontro con il maestro</h3><p class="small muted">La scheda da compilare prima dell'incontro con le famiglie.</p><button class="btn ghost block" data-a="tab" data-k="meet">Apri</button></section>`}
+    <section class="card"><h3>Incontro con il maestro</h3><p class="small muted">La scheda da compilare prima dell'incontro con le famiglie.</p><button class="btn ghost block" data-a="tab" data-k="meet">Apri</button></section>
     <button class="btn ghost block" data-a="sprog" data-k="prof">Il profilo: progressi e partite ›</button>`;
 }
 function attBtnLab(g, kind){ const rec = (S.att||{})[attKey(todayISO(), g.id, kind)] || {}, n = S.athletes.filter(a=>a.groupId===g.id).length; return 'Presenze' + (Object.keys(rec).length ? ' '+Object.values(rec).filter(attPresent).length+'/'+n : ''); }
