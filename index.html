@@ -758,7 +758,7 @@ function renderInner(){
     : role==='coach'
     ? [['home','Home',IC.home],['plan','Programma',IC.plan],['match','Match Analysis',IC.match],['ath','Gruppi e atleti',IC.people],['tour','Tornei',IC.trophy]]
     : role==='parent'
-    ? (isPriv ? [['phome','Home',IC.home],['pprog','Programma',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]] : [['phome','Home',IC.home],['pweek','Settimana',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]])
+    ? (isPriv ? [['phome','Home',IC.home],['pprog','Programma',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]] : [['phome','Home',IC.home],['pweek','Settimana',IC.today],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user],['meet','Incontro',IC.chat]])
     : (isPriv ? [['shome','Home',IC.home],['pprog','Programma',IC.today],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]
               : [['shome','Home',IC.home],['week','Settimana',IC.plan],['match','Match Analysis',IC.match],['stours','Tornei',IC.trophy],['prog','Profilo',IC.user]]);
   if(!U.tab) U.tab = tabs[0][0];
@@ -3490,7 +3490,7 @@ function parentHome(){
     ${mindNextCard(id)}
     ${tr?`<section class="card">${tr}</section>`:''}
     ${tourHomeCard(id,true)}
-    ${isPriv?'':`<section class="card"><h3>Incontro con il maestro</h3><p class="small muted">La scheda da compilare prima dell'incontro con le famiglie.</p><button class="btn ghost block" data-a="tab" data-k="meet">Apri</button></section>`}
+    <section class="card"><h3>Incontro con il maestro</h3><p class="small muted">La scheda da compilare prima dell'incontro con le famiglie.</p><button class="btn ghost block" data-a="tab" data-k="meet">Apri</button></section>
     <button class="btn ghost block" data-a="sprog" data-k="prof">Il profilo: progressi e partite ›</button>`;
 }
 function attBtnLab(g, kind){ const rec = (S.att||{})[attKey(todayISO(), g.id, kind)] || {}, n = S.athletes.filter(a=>a.groupId===g.id).length; return 'Presenze' + (Object.keys(rec).length ? ' '+Object.values(rec).filter(attPresent).length+'/'+n : ''); }
