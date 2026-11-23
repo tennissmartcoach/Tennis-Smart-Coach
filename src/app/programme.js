@@ -37,7 +37,17 @@ function ownTodayCard(g, light){
     ${wk&&day.note?`<p>${esc(day.note)}</p>`:''}
     ${wk&&!light?lessonTL(g):''}
     ${wk&&exs.length&&light?`<div class="list small">${exs.map(x=>`<div>${x.e.custom?esc(x.e.t):x.e.t}</div>`).join('')}</div>`:''}</section>
-    ${wk&&exs.length&&!light?ownByPhase(g, day, x=>exCard(x.e,{ph:x.ph})):''}`;
+    ${wk&&exs.length&&!light?ownByPhase(g, day, x=>exCard(x.e,{ph:x.ph})):''}
+    ${wk&&day.ctTipo?ctDayBlock(g, day.ctTipo, false, light):''}`;
+}
+/* a test day inside an own-programme session: the tests of that player type, and (coach) the button to record the scores */
+function ctDayBlock(g, tipo, coach, light){
+  const ts = ctOf(tipo), name = (CT_TIPI().find(x=>x.k===+tipo)||{}).name || '';
+  if(light) return `<section class="card"><span class="eyebrow">Giornata test · ${esc(name)}</span>${ts.length?`<div class="list small">${ts.map(t=>`<div><b>${esc(t.t)}</b> <span class="muted">· ${esc(ctKindLab(t))}</span></div>`).join('')}</div>`:'<p class="small muted">Test da definire.</p>'}</section>`;
+  return `<section class="card" style="border-color:var(--clay)"><span class="eyebrow">Giornata test</span><h2>${esc(name)}</h2>
+    ${ts.length?'':`<p class="small muted">Questa tipologia non ha ancora test.${coach?' Aggiungili in Test del ciclo.':''}</p>`}
+    ${coach?`<div class="row" style="gap:8px;flex-wrap:wrap">${ts.length?`<button class="btn clay" data-a="ctday" data-k="${g.id}:${tipo}">Segna i punteggi</button>`:''}<button class="btn ghost" data-a="ctgo" data-k="${tipo}">${ts.length?'Modifica i test':'Aggiungi i test'}</button></div>`:''}</section>
+    ${ts.map(t=>ctTestCard(t, false)).join('')}`;
 }
 function ownWeekCard(g){
   CUR_LG = g; const o = ownOf(g.id), w = o.weeks[o.cur-1];
@@ -74,9 +84,11 @@ function ownPlanView(g){
         ${U.oWeek===o.cur && S.session.role==='coach' ? (doneDate(g,U.oDay)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">✓ Fatto ${fdate(doneDate(g,U.oDay))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">Segna come fatto</button>`) : ''}
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
-        ${lessonTL(g)}<div class="row" style="gap:8px;flex-wrap:wrap"><button class="chip" data-a="lessonopen" data-k="${g.id}">Durata e fasi</button><button class="btn clay" data-a="dayai" data-k="1">Rifai la lezione con l'IA</button></div></section>
+        ${lessonTL(g)}<div class="row" style="gap:8px;flex-wrap:wrap"><button class="chip" data-a="lessonopen" data-k="${g.id}">Durata e fasi</button><button class="btn clay" data-a="dayai" data-k="1">Rifai la lezione con l'IA</button></div>
+        ${g.pp?'':`<div class="field"><label>Giornata test</label><div class="chips"><button class="chip" data-a="octipo" data-k="0" aria-pressed="${!d.ctTipo}">No</button>${CT_TIPI().map(x=>`<button class="chip" data-a="octipo" data-k="${x.k}" aria-pressed="${d.ctTipo===x.k}">${esc(x.name)}</button>`).join('')}</div><span class="small muted">In una giornata test, sotto la seduta compaiono i test della tipologia e il pulsante per segnare i punteggi.</span></div>`}</section>
       ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="oedit" data-k="${x.i}">✎ Modifica</button><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
         p=>`<div class="row"><button class="btn ghost" data-a="opick" data-k="${p?p.k:''}" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="onewex" data-k="${p?p.k:''}" style="flex:1">+ Scrivi un esercizio</button></div>`)}
+      ${d.ctTipo ? ctDayBlock(g, d.ctTipo, true) : ''}
       ${LEGEND}`;
   }
   if(U.oWeek && o.weeks[U.oWeek-1]){
@@ -85,7 +97,7 @@ function ownPlanView(g){
       <section class="card"><span class="eyebrow">Settimana ${n}${o.cur===n?' · in corso':''}</span>
         <div class="field"><label for="ow-n">Nome della settimana</label><input id="ow-n" class="input inbig" data-c="owname" value="${esc(w.name)}" placeholder="Es. Costruzione dal fondo"></div>
         ${o.cur===n?'<span class="tag teal" style="align-self:flex-start">Settimana in corso per gli atleti</span>':`<button class="btn" data-a="owcur" style="align-self:flex-start">Imposta come settimana in corso</button>`}</section>
-      <section class="card"><h3>${g.pp?'Le lezioni':'Gli allenamenti'} (${nS(g)} a settimana)</h3><div class="list">${w.days.slice(0, nS(g)).map((d,i)=>`<button class="item" data-a="oday" data-k="${i}"><span class="grow"><span class="eyebrow">${dayLab(g,i)}</span><br><b style="font-size:17px">${esc(d.title||'Da definire')}</b><br><span class="small muted">${d.ex.length} esercizi</span></span><span class="chev">›</span></button>`).join('')}</div></section>
+      <section class="card"><h3>${g.pp?'Le lezioni':'Gli allenamenti'} (${nS(g)} a settimana)</h3><div class="list">${w.days.slice(0, nS(g)).map((d,i)=>`<button class="item" data-a="oday" data-k="${i}"><span class="grow"><span class="eyebrow">${dayLab(g,i)}${d.ctTipo?' · test '+esc((CT_TIPI().find(x=>x.k===d.ctTipo)||{}).name||''):''}</span><br><b style="font-size:17px">${esc(d.title||'Da definire')}</b><br><span class="small muted">${d.ex.length} esercizi</span></span><span class="chev">›</span></button>`).join('')}</div></section>
       <div class="row"><button class="btn ghost" data-a="owcopy">Duplica questa settimana</button>${o.weeks.length>1?(U.confirm==='ow'?`<button class="btn danger" data-a="owdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button>`:`<button class="btn danger" data-a="askdel" data-k="ow">Elimina settimana</button>`):''}</div>`;
   }
   return `<h1>Programma di ${esc(g.name)}</h1>
@@ -123,7 +135,7 @@ function ctRecView(tipo){
   const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
   const ts = ctOf(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
   const cur = aid => ctRecs(aid, tipo).filter(x=>(x.cycle||1)===cy).pop();
-  return `<button class="btn ghost" data-a="ctrec" data-k="0" style="align-self:flex-start">‹ Test del ciclo</button>
+  return `<button class="btn ghost" data-a="ctrec" data-k="0" style="align-self:flex-start">‹ ${U.ctBack?'Seduta':'Test del ciclo'}</button>
     <h1>Settimana dei test</h1><p class="small muted" style="margin-top:-6px">${esc((CT_TIPI().find(x=>x.k===tipo)||{}).name)} · giro ${cy}</p>
     <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
