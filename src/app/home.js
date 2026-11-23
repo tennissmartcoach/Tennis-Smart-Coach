@@ -84,7 +84,7 @@ function fitHome(){
     <section class="card" style="padding:4px 16px"><div class="list">
       ${notifTool()}
       ${toolRow('tab','fprog',IC.plan,'Programma atletico','settimane e sedute dei gruppi')}
-      ${toolRow('tab','stest',IC.test,'Test','test atletici e test del programma')}
+      ${toolRow('tab','stest',IC.test,'Test','test del ciclo e segna i risultati')}
       ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
     </div></section>`;
 }

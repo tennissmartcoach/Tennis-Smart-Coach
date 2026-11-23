@@ -28,7 +28,8 @@ function renderInner(){
     case 'fhome': body = fitHome(); break;
     case 'mhome': body = mindHome(); break;
     case 'sath': body = U.athleteOpen && ath(U.athleteOpen) ? athleteView(U.athleteOpen) : staffAthList(); break;
-    case 'stest': body = `<h1>Test</h1><div class="seg" role="group"><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode!=='prog'}">Test atletici</button><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode==='prog'}">Test del programma</button></div>` + (U.ftMode==='prog' ? testsView() : fitTestsView()); break;
+    case 'stest': { const top = `<div class="seg" role="group"><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode!=='fit'}">Test del ciclo</button><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode==='fit'}">Test atletici liberi</button></div>`;
+      body = U.ed ? editorView() : U.ftMode==='fit' ? `<h1>Test</h1>${top}${fitTestsView()}` : ctestView(top); break; }
     case 'mschede': body = mindSchede(); break;
     case 'mprog': body = mprogView(); break;
     case 'fprog': body = fitProgView(); break;
@@ -227,7 +228,7 @@ function athleteView(id, self){
       <p class="muted small">Ogni prova con i suoi risultati nel tempo: quando una prova torna, si vede se il numero cresce.</p>
       ${Object.keys(groups).length?Object.values(groups).map(gp=>{ const mx = gp.kind==='min' ? Math.max(...gp.rows.map(r=>r.ok),1) : null;
         return `<div class="field"><b>${esc(gp.t)}</b><div class="bars">${gp.rows.map(r=>{ const v = gp.kind==='min' ? r.ok/mx*100 : pct(r.ok,r.tot); return `<div class="bar"><div class="lab"><span>Sett. ${r.week} · ${DAYS_S[r.day]}</span><span>${resVal(r)}${gp.kind==='min'?' in 1 minuto':''}</span></div><div class="track"><div class="fill" style="width:${v}%;background:${wcol(r.week)}"></div></div></div>`; }).join('')}</div></div>`; }).join(''):`<p class="muted">Ancora nessuna prova salvata.</p>`}
-      </section>` + ctCard(id) + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'') + ((role==='coach'||role==='fit') ? testEntry(id) : `<section class="card"><h3>Test</h3>${testTable(id)}</section>`);
+      </section>` + ctCard(id) + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){

@@ -108,7 +108,7 @@ function ctestView(top){
     <div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
     <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?' · '+ctOf(x.k).length:''}</button>`).join('')}</div>
     <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):'Ancora nessun test.'}</p>
-      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn clay" data-a="ctnew">+ Nuovo test</button>${ts.length?`<button class="btn" data-a="ctrec" data-k="1">Settimana dei test: segna i risultati</button>`:''}</div></section>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-a="ctnew">+ Nuovo test</button></div>${ts.length?`<button class="btn clay block" data-a="ctrec" data-k="1" style="margin-top:4px">Segna i punteggi degli atleti</button><p class="small muted">Si usa nella settimana dei test: scegli gruppo e giorno e scrivi il punteggio di ogni atleta in ogni test.</p>`:''}</section>
     ${ts.map(t=>ctTestCard(t, true)).join('')}
     ${ts.length?ctGroupTable(tipo):''}`;
 }

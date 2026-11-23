@@ -115,7 +115,7 @@ const ACT = {
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
   dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   cttipo(k){ U.ctTipo=+k; },
-  ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
+  ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.ctRec=false; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
   ctnew(){ U.ed={id:null, ph:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null, ct:{tipo:+U.ctTipo, id:null}, area:'ten', kind:'pts', max:''}; window.scrollTo(0,0); },
   ctedit(k){ const t=ctAll().find(x=>x.id===k); if(!t) return; U.ed={id:null, ph:'pr', t:t.t, chip:t.chip||'', x:(t.lines||[]).join('\n'), els:JSON.parse(JSON.stringify(t.els||[])), tool:'A', pend:null, ct:{tipo:t.tipo, id:t.id}, area:t.area, kind:t.kind, max:t.max||''}; U.confirm=null; window.scrollTo(0,0); },
   edctset(k){ const [f,v]=k.split(':'); U.ed[f]=v; },
