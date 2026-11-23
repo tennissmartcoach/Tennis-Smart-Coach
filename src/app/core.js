@@ -5,6 +5,15 @@ const DAYS_S = ['1','2','3','4','5'];
 const TYPE_COL = ['#3B6FD8','#C4622D','#1F8A7A','#9A7400','#7A4FB0','#5A6270'];
 const wcol = n => TYPE_COL[(n-1)%6];
 const tcol = k => TYPE_COL[TYPES.findIndex(t=>t[0]===k)];
+/* ---------- cycle tests: one set per player type; trained in the "filo fisso" of that type's weeks, recorded only in the test week ----------
+   definitions live in S.ftests as {id:'ctests', ctests:[...]} (athletes can read ftests online); results in S.tests as {ct:tipo, cycle, date, v:{testId:value}} */
+const CT_TIPI = () => WEEKS.slice(0,6).map(w=>({k:w.n, name:w.name}));
+const ctTipoOfWeek = w => ((+w-1)%6)+1;
+const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
+const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
+function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
+const ctKindLab = t => t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?');
+const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteId===aid).sort((a,b)=>(a.cycle||1)-(b.cycle||1) || String(a.date).localeCompare(String(b.date)));
 const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const W = n => WEEKS[n-1];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

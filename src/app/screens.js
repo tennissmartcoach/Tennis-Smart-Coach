@@ -227,7 +227,7 @@ function athleteView(id, self){
       <p class="muted small">Ogni prova con i suoi risultati nel tempo: quando una prova torna, si vede se il numero cresce.</p>
       ${Object.keys(groups).length?Object.values(groups).map(gp=>{ const mx = gp.kind==='min' ? Math.max(...gp.rows.map(r=>r.ok),1) : null;
         return `<div class="field"><b>${esc(gp.t)}</b><div class="bars">${gp.rows.map(r=>{ const v = gp.kind==='min' ? r.ok/mx*100 : pct(r.ok,r.tot); return `<div class="bar"><div class="lab"><span>Sett. ${r.week} · ${DAYS_S[r.day]}</span><span>${resVal(r)}${gp.kind==='min'?' in 1 minuto':''}</span></div><div class="track"><div class="fill" style="width:${v}%;background:${wcol(r.week)}"></div></div></div>`; }).join('')}</div></div>`; }).join(''):`<p class="muted">Ancora nessuna prova salvata.</p>`}
-      </section>` + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'') + ((role==='coach'||role==='fit') ? testEntry(id) : `<section class="card"><h3>Test</h3>${testTable(id)}</section>`);
+      </section>` + ctCard(id) + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'') + ((role==='coach'||role==='fit') ? testEntry(id) : `<section class="card"><h3>Test</h3>${testTable(id)}</section>`);
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -342,7 +342,7 @@ function weekDays(w, full, g){
     const B = dayBlocks(w,d), seq = d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
     const ex = full ? seq.map(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`).join('')).join('') : '';
     return `<div><span class="eyebrow">${g?sLabel(g,d):DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}
-      ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul><p class="small" style="margin-top:6px"><span class="tag">Prova</span> ${esc(PV(w,d).t)}</p>`:''}</div>`; }).join('')}</div></section>`;
+      ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul><p class="small" style="margin-top:6px"><span class="tag">Prova</span> ${esc(PV(w,d).t)}</p>${d!==4&&ctOf(ctTipoOfWeek(w)).length?`<p class="small" style="margin-top:4px"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(w)).map(t=>esc(t.t)).join(' · ')}</p>`:''}`:''}</div>`; }).join('')}</div></section>`;
 }
 function studentWeek(){
   const a = me(), g = grp(a.groupId), w = W(g.week);

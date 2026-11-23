@@ -92,14 +92,70 @@ function ownPlanView(g){
     <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="oweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.slice(0,nS(g)).filter(d=>d.title||d.ex.length).length} di ${nS(g)} ${g.pp?'lezioni':'allenamenti'} preparati</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="owadd">+ Aggiungi settimana</button>`;
 }
+/* ---------- coach: tests of the cycle ---------- */
+function ctTestCard(t, edit){
+  return `<article class="ex" style="border-left-color:${t.area==='atl'?'#F2994A':'#8A6200'}"><div class="row between"><span class="phase" style="background:${t.area==='atl'?'#F2994A':'#8A6200'}">${t.area==='atl'?'Atletica':'Tennis'}</span><span class="tag">${esc(ctKindLab(t))}</span></div>
+    <h3>${esc(t.t)}</h3>${t.chip?`<p class="chipline">${esc(t.chip)}</p>`:''}
+    ${(t.els||[]).length?`<div class="vis">${'<svg viewBox="0 0 220 110" role="img" aria-label="Campo">'+courtSVG(t.els)+'</svg>'}</div>`:''}
+    ${(t.lines||[]).length?`<div class="exl">${t.lines.map(l=>`<p>${esc(l)}</p>`).join('')}</div>`:''}
+    ${edit?`<button class="chip" data-a="ctedit" data-k="${t.id}" style="align-self:flex-start">✎ Modifica</button>`:''}</article>`;
+}
+function ctestView(top){
+  const tipi = CT_TIPI(), pg = grp(U.planGroup); if(!U.ctTipo) U.ctTipo = pg && !isOwnG(pg) ? ctTipoOfWeek(pg.week) : 1;
+  const tipo = +U.ctTipo, ts = ctOf(tipo), name = (tipi.find(x=>x.k===tipo)||{}).name || '';
+  if(U.ctRec) return ctRecView(tipo);
+  return `${top}<h1>Test del ciclo</h1>
+    <div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
+    <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?' · '+ctOf(x.k).length:''}</button>`).join('')}</div>
+    <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):'Ancora nessun test.'}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn clay" data-a="ctnew">+ Nuovo test</button>${ts.length?`<button class="btn" data-a="ctrec" data-k="1">Settimana dei test: segna i risultati</button>`:''}</div></section>
+    ${ts.map(t=>ctTestCard(t, true)).join('')}
+    ${ts.length?ctGroupTable(tipo):''}`;
+}
+function ctGroupTable(tipo){
+  const g = grp(U.ctGroup || U.planGroup); if(!g) return '';
+  const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctOf(tipo), cy = g.cycle||1;
+  const rows = as.map(a=>{ const r = ctRecs(a.id, tipo).filter(x=>(x.cycle||1)===cy).pop(); return r ? {a, r} : null; }).filter(Boolean);
+  if(!rows.length) return '';
+  return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${r.v[t.id]??'–'}${t.kind==='pts'&&r.v[t.id]!=null?'/'+t.max:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+}
+function ctRecView(tipo){
+  const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
+  const ts = ctOf(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
+  const cur = aid => ctRecs(aid, tipo).filter(x=>(x.cycle||1)===cy).pop();
+  return `<button class="btn ghost" data-a="ctrec" data-k="0" style="align-self:flex-start">‹ Test del ciclo</button>
+    <h1>Settimana dei test</h1><p class="small muted" style="margin-top:-6px">${esc((CT_TIPI().find(x=>x.k===tipo)||{}).name)} · giro ${cy}</p>
+    <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+      <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
+      <p class="small muted">${ts.map((t,i)=>`<b>${i+1}.</b> ${esc(t.t)} <span class="muted">(${esc(ctKindLab(t))})</span>`).join(' · ')}</p></section>
+    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">${ts.map((t,i)=>`<div class="field"><label for="ct-${a.id}-${t.id}">${i+1}. ${esc(t.t)}</label><input id="ct-${a.id}-${t.id}" class="input inbig" inputmode="decimal" placeholder="${t.kind==='pts'?'su '+t.max:t.kind==='sec'?'sec':'n.'}" value="${r&&r.v[t.id]!=null?r.v[t.id]:''}"></div>`).join('')}</div></section>`; }).join('')}
+    <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
+}
+/* athlete: the test sheet, by player type */
+function ctCard(id){
+  const a = ath(id); if(!a) return '';
+  const tipi = CT_TIPI().filter(x=>ctRecs(id, x.k).length); if(!tipi.length) return '';
+  const g = grp(a.groupId), mates = S.athletes.filter(x=>x.groupId===a.groupId).map(x=>x.id);
+  const block = x => { const rs = ctRecs(id, x.k), last = rs[rs.length-1], prev = rs.filter(r=>(r.cycle||1)<(last.cycle||1)).pop();
+    return `<div class="field"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${last.date?fdate(last.date+'T12:00'):''}</span></div>
+      <div class="bars">${ctOf(x.k).map(t=>{ const v = last.v[t.id]; if(v==null||v==='') return '';
+        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); return r && r.v[t.id]!=null && r.v[t.id]!=='' ? +r.v[t.id] : null; }).filter(z=>z!==null);
+        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = t.kind==='sec' ? Math.min(...all,+v) : Math.max(...all,+v,1);
+        const w = t.kind==='pts' ? Math.min(100, +v/(+t.max||1)*100) : t.kind==='sec' ? Math.min(100, best/(+v||1)*100) : Math.min(100, +v/best*100);
+        const pv = prev && prev.v[t.id]!=null && prev.v[t.id]!=='' ? +prev.v[t.id] : null, up = pv===null ? '' : (t.kind==='sec' ? +v<pv : +v>pv) ? ' <span style="color:var(--ok)">▲</span>' : +v===pv ? ' =' : ' <span style="color:var(--ko)">▼</span>';
+        const fmt = z => (Math.round(z*10)/10).toString().replace('.',',');
+        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span><b>${fmt(+v)}</b>${t.kind==='pts'?'/'+t.max:t.kind==='sec'?' s':''}${up}</span></div><div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pv!==null?'Ciclo prima: '+fmt(pv)+(t.kind==='sec'?' s':'')+' · ':''}${avg!==null?'Media del gruppo: '+fmt(avg):''}</div></div>`; }).join('')}</div></div>`; };
+  return `<section class="card"><h3>Test di fine ciclo</h3><p class="small muted">Per tipologia di giocatore: la barra piena è il massimo (o il migliore del gruppo). ▲ migliorato rispetto al ciclo prima.</p>${tipi.map(block).join('')}</section>`;
+}
 /* coach: programme */
 function planView(){
   CUR_LG = null;
   if(U.ed) return editorView();
   if(U.lessonEd && grp(U.lessonEd)) return lessonEditor(grp(U.lessonEd));
   const tg = teamGroups(); if(!U.planGroup || !grp(U.planGroup) || U.planGroup===PRIV_ID) U.planGroup = tg[0]?.id; const pg = grp(U.planGroup);
-  const top = `<div class="seg" role="group" aria-label="Sezione"><button data-a="planmode" data-k="weeks" aria-pressed="${U.planMode!=='lib'}">Programma</button><button data-a="planmode" data-k="lib" aria-pressed="${U.planMode==='lib'}">Libreria esercizi</button></div>`;
+  const top = `<div class="seg" role="group" aria-label="Sezione"><button data-a="planmode" data-k="weeks" aria-pressed="${U.planMode!=='lib'&&U.planMode!=='ctest'}">Programma</button><button data-a="planmode" data-k="ctest" aria-pressed="${U.planMode==='ctest'}">Test del ciclo</button><button data-a="planmode" data-k="lib" aria-pressed="${U.planMode==='lib'}">Libreria esercizi</button></div>`;
   if(U.planMode==='lib') return (U.pick?'':top) + libraryView();
+  if(U.planMode==='ctest') return ctestView(top);
   if(pg && pg.pp) return (U.oWeek?'':ppBar(pg)) + ownPlanView(pg);
   if(pg && U.gImp===pg.id) return gImportView(pg);
   if(isOwnG(pg)) return (U.oWeek?'':top + planGroupBar(pg) + aiGroupCard(pg)) + ownPlanView(pg);
@@ -405,6 +461,9 @@ function dayView(w, d){
     </section>
     ${(()=>{ let np = 0; const lp = lessonOf(LG).phases; return (lp.length ? lp : NEUTRAL()).map(fp=>{
       if(fp.pause){ np++; return pauseRow(`${esc(fp.n)} · ${fp.m}'`, np===1 ? (fri ? 'Acqua. Il maestro spiega come funziona il match guidato e le scelte della settimana.' : `Acqua. Il maestro spiega il tema del giorno${D.kw?` e la parola chiave: <b>${esc(D.kw)}</b>`:''}.`) : np===2 ? (fri ? 'Acqua, poi servizio e risposta.' : 'Acqua, poi si passa al servizio.') : 'Acqua e recupero.'); }
+      if(fp.k==='filo' && !fri && ctOf(ctTipoOfWeek(w)).length){ const cts = ctOf(ctTipoOfWeek(w));
+        return `<article class="ex" style="border-left-color:#8A6200"><div class="row between"><span class="phase" style="background:#8A6200">${esc(fp.n)} · ${fp.m}'</span><span class="tag">Test · ${esc(W(ctTipoOfWeek(w)).name)}</span></div>
+          <p class="small muted">Si allenano i test della tipologia. I risultati si segnano solo nella settimana dei test.</p></article>${cts.map(t=>ctTestCard(t, false)).join('')}${S.session.role==='coach'?`<button class="chip" data-a="ctgo" data-k="${ctTipoOfWeek(w)}" style="align-self:flex-start">Gestisci i test</button>`:''}`; }
       if(fp.k==='filo') return !fri ? (()=>{ const fk = dayKey(w,d), ov = (S.filoEdit||{})[fk], txt = ov!==undefined ? ov : D.filo; if(!edit && !txt) return '';
       return `<article class="ex" style="border-left-color:#8A6200"><div class="row between"><span class="phase" style="background:#8A6200">${esc(fp.n)} · ${fp.m}'</span>${ov!==undefined&&!edit?'<span class="tag teal">modificato</span>':''}</div>${edit?`<textarea class="input" rows="4" data-c="filo" data-k="${fk}" placeholder="Il lavoro fisso di 10' di questa seduta">${esc(ov!==undefined?ov:plainTxt(D.filo||''))}</textarea>${ov!==undefined?`<button class="chip" data-a="filoreset" data-k="${fk}" style="align-self:flex-start">Ripristina l'originale</button>`:''}`:`<div class="exl">${ov!==undefined?`<p style="white-space:pre-line">${esc(ov)}</p>`:`<p>${D.filo}</p>`}</div>`}</article>`; })() : '';
       if(fp.k==='pr') return blockHtml(fri ? 'ri' : 'pr');
@@ -510,7 +569,7 @@ function dayAiApply(t, R){
   d.ex = list.map(x=>x[0]); d.exPh = list.map(x=>x[1]); if(R.title) d.title = R.title; if(R.obj) d.note = R.obj;
 }
 function exAiPrompt(E){
-  const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
+  const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.ct ? `TEST di valutazione per la tipologia "${W(E.ct.tipo).name}" (si allena nel filo fisso e si misura a fine ciclo: scrivi con precisione come si conta il punteggio)` : E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
   const cur = (E.t||'').trim() ? `
 ESERCIZIO DI PARTENZA (il maestro vuole cambiarlo come dice negli appunti)
 ${JSON.stringify({titolo:E.t, etichetta:E.chip, righe:String(E.x||'').split('\n').filter(Boolean), campo:E.els||[]})}
@@ -524,7 +583,7 @@ COME RISPONDERE
 
 FORMATO
 {"tipo":"tennis-smart-coach","versione":2,"esercizio":{"titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, attenzione a…"],"min":10,"serie":"…","obiettivo":"…","campo":[…]}}
-("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)
+("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)${E.ct?'\nPer un test aggiungi anche "misura": "punti" (con "massimo", il punteggio più alto possibile), "numero" oppure "secondi".':''}
 ${cur}
 ${AI_CAMPO}
 
@@ -557,12 +616,15 @@ function exAiCard(E){
 function editorView(){
   const E = U.ed;
   return `
-    <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
-    <h1>${E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
+    <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.ct?'Test del ciclo':E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
+    <h1>${E.ct?(E.ct.id?'Modifica test':'Nuovo test · '+esc(W(E.ct.tipo).name)):E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
     ${exAiCard(E)}
     <section class="card">
-      ${E.sheet?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
+      ${E.ct?`<div class="field"><label>Area</label><div class="seg" role="group"><button data-a="edctset" data-k="area:ten" aria-pressed="${E.area!=='atl'}">Tennis</button><button data-a="edctset" data-k="area:atl" aria-pressed="${E.area==='atl'}">Atletica</button></div></div>
+      <div class="field"><label>Come si misura</label><div class="seg" role="group"><button data-a="edctset" data-k="kind:pts" aria-pressed="${E.kind==='pts'}">Punti su un massimo</button><button data-a="edctset" data-k="kind:num" aria-pressed="${E.kind==='num'}">Numero</button><button data-a="edctset" data-k="kind:sec" aria-pressed="${E.kind==='sec'}">Secondi</button></div></div>
+      ${E.kind==='pts'?`<div class="field" style="max-width:160px"><label for="ed-max">Punteggio massimo</label><input id="ed-max" class="input" inputmode="numeric" data-c="ed" data-k="max" value="${esc(String(E.max||''))}" placeholder="Es. 24"></div>`:''}`:''}
+      ${E.sheet||E.ct?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>
       <div class="field"><label for="ed-chip">Organizzazione</label><input id="ed-chip" class="input" data-c="ed" data-k="chip" value="${esc(E.chip)}" placeholder="Es. Maestro al cesto, poi a coppie"></div>
       <div class="field"><label for="ed-x">Descrizione</label><textarea id="ed-x" class="input" rows="4" data-c="ed" data-k="x" placeholder="Una riga per ogni punto: esecuzione, evoluzione, attenzione…">${esc(E.x)}</textarea></div>
@@ -578,8 +640,10 @@ function editorView(){
       <div class="row"><button class="btn ghost" data-a="edundo" ${E.els.length?'':'disabled'} style="flex:1">↩ Annulla l'ultimo</button><button class="btn ghost" data-a="edclear" ${E.els.length?'':'disabled'} style="flex:1">Cancella disegno</button></div>
       ${LEGEND}
     </section>
-    ${E.ctx||E.sheet?`<label class="row small" style="gap:8px;align-items:center"><input type="checkbox" data-c="edlib" ${E.lib?'checked':''}> Salva anche nella libreria esercizi</label>`:''}
-    <button class="btn clay block" data-a="edsave">${E.sheet?'Salva nella lezione':E.ctx?'Salva e metti nella seduta':'Salva nella libreria'}</button>
+    ${(E.ctx||E.sheet)&&!E.ct?`<label class="row small" style="gap:8px;align-items:center"><input type="checkbox" data-c="edlib" ${E.lib?'checked':''}> Salva anche nella libreria esercizi</label>`:''}
+    ${E.ct&&E.ct.id?(U.confirm==='ctx'?`<section class="card"><p>Eliminare questo test? I risultati già segnati restano nello storico.</p><div class="row"><button class="btn danger" data-a="ctdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:''):''}
+    <button class="btn clay block" data-a="edsave">${E.ct?'Salva il test':E.sheet?'Salva nella lezione':E.ctx?'Salva e metti nella seduta':'Salva nella libreria'}</button>
+    ${E.ct&&E.ct.id&&U.confirm!=='ctx'?`<button class="chip" data-a="askdel" data-k="ctx" style="align-self:center">Elimina questo test</button>`:''}
     ${E.sheet && E.sheet.j!==null ? (U.confirm==='shx'?`<section class="card"><p>Togliere questo esercizio dalla lezione?</p><div class="row"><button class="btn danger" data-a="shexdel">Sì, togli</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:`<button class="chip" data-a="askdel" data-k="shx" style="align-self:center">Togli questo esercizio</button>`) : ''}`;
 }
 function arrowPath(x1,y1,x2,y2,curve){

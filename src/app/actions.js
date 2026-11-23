@@ -114,9 +114,22 @@ const ACT = {
   dayaipaste(){ const r=dayAiParse(document.getElementById('dayai-txt').value||'', dayAiTarget()); if(r.err){ U.dayAiErr=r.err; U.dayAiData=null; } else { U.dayAiErr=''; U.dayAiData=r; } window.scrollTo(0,0); },
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
   dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
+  cttipo(k){ U.ctTipo=+k; },
+  ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
+  ctnew(){ U.ed={id:null, ph:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null, ct:{tipo:+U.ctTipo, id:null}, area:'ten', kind:'pts', max:''}; window.scrollTo(0,0); },
+  ctedit(k){ const t=ctAll().find(x=>x.id===k); if(!t) return; U.ed={id:null, ph:'pr', t:t.t, chip:t.chip||'', x:(t.lines||[]).join('\n'), els:JSON.parse(JSON.stringify(t.els||[])), tool:'A', pend:null, ct:{tipo:t.tipo, id:t.id}, area:t.area, kind:t.kind, max:t.max||''}; U.confirm=null; window.scrollTo(0,0); },
+  edctset(k){ const [f,v]=k.split(':'); U.ed[f]=v; },
+  ctdel(){ const E=U.ed; if(!E||!E.ct||!E.ct.id) return; ctSaveAll(ctAll().filter(x=>x.id!==E.ct.id)); save(); U.ed=null; U.confirm=null; toast('Test eliminato'); },
+  ctrec(k){ U.ctRec = k==='1'; window.scrollTo(0,0); },
+  ctsave(){ const g=grp(U.ctGroup), tipo=+U.ctTipo, ts=ctOf(tipo), d=U.ctDate||todayISO(); if(!g) return; S.tests=S.tests||[]; let n=0;
+    S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ const v={}; ts.forEach(t=>{ const el=document.getElementById('ct-'+a.id+'-'+t.id); const x=el?String(el.value).trim().replace(',','.'):''; if(x!=='' && !isNaN(+x)) v[t.id]=+x; });
+      if(!Object.keys(v).length) return; const cy=g.cycle||1, old=S.tests.find(r=>r.ct===tipo && r.athleteId===a.id && (r.cycle||1)===cy);
+      if(old){ Object.assign(old.v, v); old.date=d; } else S.tests.push({id:uid(), athleteId:a.id, groupId:g.id, ct:tipo, cycle:cy, date:d, v}); n++; });
+    save(); U.ctRec=false; toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
   exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
+    if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo); }
     if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
     if(!E.sheet && !E.ctx) E.lib=true;
     E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
@@ -426,6 +439,9 @@ const ACT = {
       if(E.tool==='z') E.els.push(['z',Math.min(x1,x),Math.min(y1,y),Math.abs(x-x1),Math.abs(y-y1)]);
       else E.els.push([E.tool, arrowPath(x1,y1,x,y, E.tool!=='ma')]); } },
   edsave(){ const E=U.ed; if(!E.t.trim()){ toast('Scrivi il titolo'); return; }
+    if(E.ct){ if(E.kind==='pts' && !(+E.max>0)){ toast('Scrivi il punteggio massimo'); return; }
+      const list = ctAll().slice(), t = {id:E.ct.id||('ct'+uid()), tipo:E.ct.tipo, area:E.area||'ten', kind:E.kind||'pts', max:E.kind==='pts'?+E.max:null, t:E.t.trim(), chip:E.chip.trim(), lines:E.x.split('\n').map(l=>l.trim()).filter(Boolean), els:E.els};
+      const i = list.findIndex(x=>x.id===t.id); if(i>=0) list[i]=t; else list.push(t); ctSaveAll(list); save(); U.ed=null; toast(i>=0?'Test modificato':'Test aggiunto'); return; }
     if(E.sheet){ const x=shFind(E.sheet.sid); if(!x){ U.ed=null; return; } const ph=x.phases[E.sheet.pi]; ph.ex=ph.ex||[];
       const ne={t:E.t.trim(), min:String(E.min||'').trim(), x:E.x.split('\n').map(l=>l.trim()).filter(Boolean), obj:String(E.obj||'').trim(), serie:String(E.serie||'').trim(), els:E.els, chip:E.chip.trim()};
       if(E.sheet.j===null) ph.ex.push(ne); else ph.ex[E.sheet.j]=Object.assign(ph.ex[E.sheet.j]||{}, ne);
@@ -513,6 +529,7 @@ document.addEventListener('change', e=>{
   if(c==='tour' && t.type==='date'){ render(); return; }
   if(!c || !U.setup) return;
   const s = U.setup;
+  if(c==='ctgrp'){ U.ctGroup=t.value; render(); return; }
   if(c==='mgroup'){ s.groupId=t.value; const g=grp(t.value); s.a=S.athletes.find(x=>x.groupId===g.id)?.id||''; s.b=''; presetInto(s); render(); }
   if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; presetInto(s); render(); }
   if(c==='mb'){ s.b=t.value; render(); }
@@ -522,6 +539,7 @@ document.addEventListener('input', e=>{
   if(e.target && e.target.dataset && e.target.dataset.c==='phname'){ const L=ensureLesson(grp(U.lessonEd)); L.phases[+e.target.dataset.k].n=e.target.value; save(); return; }
   const t = e.target, c = t.dataset?.c;
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
+  if(c==='ctdate'){ U.ctDate=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
   if(c==='fitnote'){ const g=grp(U.planGroup); if(g){ g.fitNotes=g.fitNotes||{}; g.fitNotes[fitNoteKey(g)]=t.value; save(); } return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
