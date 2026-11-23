@@ -146,3 +146,31 @@ function addExample5(d){
   set(49,0,'esp','2026-11-23',{r1:[]}, 'Torneo di Natale U14 (simulazione)'); W[49].type='comp';
   d.ex5 = true; return d;
 }
+
+/* example cycle tests (two per player type) and a few results, demo only */
+function addCtDemo(d){
+  const T = (id, tipo, area, kind, max, t, chip, lines, els) => ({id, tipo, area, kind, max, t, chip, lines, els});
+  const list = [
+    T('cx1a',1,'ten','pts',24,'Spinta in profondità','Maestro al cesto, 12 palle alternate diritto e rovescio',['12 palle a ritmo medio-alto sulla linea di fondo: si cerca profondità e velocità.','1 punto per ogni palla oltre i 3/4 (tra servizio e fondo).','+1 se colpisce con i piedi dentro la linea di fondo (palla presa presto).'],[['M',204,55],['A',24,55,'A'],['z',164,20,46,70],['t',187,17,'oltre i 3/4'],['f','M198 52Q130 30 30 47'],['f','M198 58Q130 80 30 63'],['a','M30 47Q100 30 188 38'],['a','M30 63Q100 80 188 72']]),
+    T('cx1b',1,'ten','pts',40,'Servizio + primo colpo','10 punti, lato destro e sinistro alternati',['Dichiara il bersaglio (centro o esterno) e serve. Il maestro risponde una palla media al centro.','Prima dentro 1 punto, nel bersaglio dichiarato +1.','Primo colpo nella metà campo aperta 2 punti.'],[['A',12,70,'A'],['M',198,38],['z',146,57,18,30],['a','M15 68Q80 40 154 71'],['n',80,47,'1'],['f','M196 42Q110 52 42 60'],['a','M42 58Q110 20 190 24'],['n',118,32,'2']]),
+    T('cx2a',2,'ten','pts',20,'Difesa lunga e ripartenza','Maestro al cesto, palle profonde negli angoli',['10 palle alternate negli angoli: l’atleta recupera alta e profonda e torna al centro.','2 punti se la palla torna oltre i 3/4, 1 se entra corta, 0 se sbaglia.'],[['M',204,55],['A',30,55,'A'],['ma','M30 55L28 24'],['ma','M30 55L28 86'],['f','M198 52Q120 20 32 22'],['f','M198 58Q120 90 32 88'],['a','M30 24Q110 10 180 40'],['z',164,20,46,70]]),
+    T('cx2b',2,'atl','sec',null,'Spostamenti laterali lunghi','Coni sulle due linee laterali del doppio',['Dal centro della linea di fondo: tocca il cono a destra, poi quello a sinistra, per 4 volte.','Si prende il tempo totale. Due tentativi, vale il migliore.'],[['c',16,10],['c',16,100],['A',16,55,'A'],['ma','M16 52L16 14'],['ma','M16 58L16 96'],['t',44,55,'4 volte']]),
+    T('cx3a',3,'ten','pts',20,'Attacco e chiusura a rete','Maestro al cesto, palla corta poi passante',['Palla corta: attacco lungolinea e avanti a rete; il maestro gioca il passante, l’atleta chiude al volo nel riquadro.','10 sequenze: volée nel riquadro 2 punti, in campo 1.'],[['A',62,40,'A'],['M',204,60],['f','M198 58Q140 40 66 42'],['a','M66 40Q130 18 194 24'],['ma','M62 44L96 52'],['f','M198 30Q150 60 100 54'],['z',150,60,30,28],['n',96,46,'2']]),
+    T('cx3b',3,'ten','num',null,'Servizio e prima volée','Il maestro risponde dalla linea di fondo',['Serve e va avanti: prima volée profonda oltre la linea del servizio.','Si contano le prime volée profonde su 10 servizi.'],[['A',12,40,'A'],['M',200,72],['a','M15 42Q80 60 154 68'],['ma','M16 46L80 50'],['f','M198 70Q140 60 84 52'],['a','M84 50Q140 30 190 35'],['z',164,20,46,70]]),
+    T('cx4a',4,'ten','num',null,'Volée a raffica','Maestro e atleta a rete, 30 secondi',['Volée-volée veloce con il maestro: si contano le volée giocate senza errori in 30 secondi.'],[['A',86,55,'A'],['M',134,55],['a','M90 52L130 52'],['f','M130 58L90 58'],['t',110,40,'30″']]),
+    T('cx4b',4,'ten','pts',10,'Smash dopo pallonetto','Maestro al cesto dal fondo, pallonetti',['Pallonetti a profondità diversa: l’atleta indietreggia e smasha nei due angoli.','10 smash: dentro e vincente 1 punto.'],[['A',84,55,'A'],['M',204,55],['f','M198 55Q140 10 74 50'],['ma','M84 52L70 50'],['a','M74 48Q130 30 196 20'],['z',176,10,34,22],['z',176,78,34,22]]),
+    T('cx5a',5,'ten','pts',20,'Cambio di ritmo','Maestro al cesto, palle alternate',['Alterna una palla alta e lenta in diagonale e una bassa tagliata lungolinea, sempre nella zona indicata.','10 coppie di colpi: 2 punti se le due palle vanno nelle zone giuste.'],[['A',24,55,'A'],['M',204,55],['f','M198 55Q130 55 30 55'],['a','M30 52Q110 0 186 24'],['b','M30 58Q110 80 186 86'],['z',168,12,40,26],['z',168,72,40,26]]),
+    T('cx5b',5,'atl','sec',null,'Spider test','Cinque palline sulle linee, cesto al centro della linea di fondo',['Raccoglie una pallina alla volta e la porta nel cesto, nell’ordine segnato.','Tempo totale. Due tentativi, vale il migliore.'],[['c',10,55],['c',10,21],['c',56,21],['c',56,55],['c',56,89],['c',10,89],['A',16,55,'A'],['n',10,15,'1'],['n',56,15,'2'],['n',62,55,'3'],['n',56,95,'4'],['n',4,95,'5']]),
+    T('cx6a',6,'ten','pts',10,'Punti con l’arma','Punti a tema contro il maestro o un compagno',['10 punti: l’atleta deve vincerli usando la sua arma dichiarata.','1 punto per ogni punto vinto con l’arma.'],[['A',24,55,'A'],['B',196,55,'B'],['a','M30 52Q110 20 186 24'],['t',110,98,'arma dichiarata']]),
+    T('cx6b',6,'ten','pts',20,'Risposta profonda','Il maestro serve dalla linea di servizio',['10 risposte: 2 punti oltre i 3/4, 1 in campo, 0 errore.'],[['A',20,30,'A'],['M',140,72],['f','M140 70Q100 50 26 34'],['a','M26 32Q110 10 190 40'],['z',164,20,46,70]])
+  ];
+  const mine = ((d.ftests||[]).find(t=>t.ctests)||{}).ctests || [];   // tests the coach already made stay, the examples are added
+  d.ftests = (d.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:mine.concat(list.filter(x=>!mine.some(m=>m.id===x.id)))});
+  const g = (d.groups||[]).find(x=>x.id!=='priv'), as = (d.athletes||[]).filter(a=>g && a.groupId===g.id).slice(0,4);
+  const R = [[18,15,16,6.4],[21,22,14,6.1],[14,12,11,7.0],[19,26,17,6.6]];
+  d.tests = d.tests || [];
+  as.forEach((a,i)=>{ const r = R[i%R.length];
+    d.tests.push({id:'ctd1'+a.id, athleteId:a.id, groupId:g.id, ct:1, cycle:1, date:'2026-11-24', v:{cx1a:r[0], cx1b:r[1]+8}});
+    d.tests.push({id:'ctd2'+a.id, athleteId:a.id, groupId:g.id, ct:2, cycle:1, date:'2026-11-23', v:{cx2a:r[2], cx2b:r[3]}}); });
+  d.ct1 = true; return d;
+}
