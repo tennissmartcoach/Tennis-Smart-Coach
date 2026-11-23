@@ -543,6 +543,34 @@ function addExample5(d){
   set(49,0,'esp','2026-11-23',{r1:[]}, 'Torneo di Natale U14 (simulazione)'); W[49].type='comp';
   d.ex5 = true; return d;
 }
+
+/* example cycle tests (two per player type) and a few results, demo only */
+function addCtDemo(d){
+  const T = (id, tipo, area, kind, max, t, chip, lines, els) => ({id, tipo, area, kind, max, t, chip, lines, els});
+  const list = [
+    T('cx1a',1,'ten','pts',24,'Spinta in profondità','Maestro al cesto, 12 palle alternate diritto e rovescio',['12 palle a ritmo medio-alto sulla linea di fondo: si cerca profondità e velocità.','1 punto per ogni palla oltre i 3/4 (tra servizio e fondo).','+1 se colpisce con i piedi dentro la linea di fondo (palla presa presto).'],[['M',204,55],['A',24,55,'A'],['z',164,20,46,70],['t',187,17,'oltre i 3/4'],['f','M198 52Q130 30 30 47'],['f','M198 58Q130 80 30 63'],['a','M30 47Q100 30 188 38'],['a','M30 63Q100 80 188 72']]),
+    T('cx1b',1,'ten','pts',40,'Servizio + primo colpo','10 punti, lato destro e sinistro alternati',['Dichiara il bersaglio (centro o esterno) e serve. Il maestro risponde una palla media al centro.','Prima dentro 1 punto, nel bersaglio dichiarato +1.','Primo colpo nella metà campo aperta 2 punti.'],[['A',12,70,'A'],['M',198,38],['z',146,57,18,30],['a','M15 68Q80 40 154 71'],['n',80,47,'1'],['f','M196 42Q110 52 42 60'],['a','M42 58Q110 20 190 24'],['n',118,32,'2']]),
+    T('cx2a',2,'ten','pts',20,'Difesa lunga e ripartenza','Maestro al cesto, palle profonde negli angoli',['10 palle alternate negli angoli: l’atleta recupera alta e profonda e torna al centro.','2 punti se la palla torna oltre i 3/4, 1 se entra corta, 0 se sbaglia.'],[['M',204,55],['A',30,55,'A'],['ma','M30 55L28 24'],['ma','M30 55L28 86'],['f','M198 52Q120 20 32 22'],['f','M198 58Q120 90 32 88'],['a','M30 24Q110 10 180 40'],['z',164,20,46,70]]),
+    T('cx2b',2,'atl','sec',null,'Spostamenti laterali lunghi','Coni sulle due linee laterali del doppio',['Dal centro della linea di fondo: tocca il cono a destra, poi quello a sinistra, per 4 volte.','Si prende il tempo totale. Due tentativi, vale il migliore.'],[['c',16,10],['c',16,100],['A',16,55,'A'],['ma','M16 52L16 14'],['ma','M16 58L16 96'],['t',44,55,'4 volte']]),
+    T('cx3a',3,'ten','pts',20,'Attacco e chiusura a rete','Maestro al cesto, palla corta poi passante',['Palla corta: attacco lungolinea e avanti a rete; il maestro gioca il passante, l’atleta chiude al volo nel riquadro.','10 sequenze: volée nel riquadro 2 punti, in campo 1.'],[['A',62,40,'A'],['M',204,60],['f','M198 58Q140 40 66 42'],['a','M66 40Q130 18 194 24'],['ma','M62 44L96 52'],['f','M198 30Q150 60 100 54'],['z',150,60,30,28],['n',96,46,'2']]),
+    T('cx3b',3,'ten','num',null,'Servizio e prima volée','Il maestro risponde dalla linea di fondo',['Serve e va avanti: prima volée profonda oltre la linea del servizio.','Si contano le prime volée profonde su 10 servizi.'],[['A',12,40,'A'],['M',200,72],['a','M15 42Q80 60 154 68'],['ma','M16 46L80 50'],['f','M198 70Q140 60 84 52'],['a','M84 50Q140 30 190 35'],['z',164,20,46,70]]),
+    T('cx4a',4,'ten','num',null,'Volée a raffica','Maestro e atleta a rete, 30 secondi',['Volée-volée veloce con il maestro: si contano le volée giocate senza errori in 30 secondi.'],[['A',86,55,'A'],['M',134,55],['a','M90 52L130 52'],['f','M130 58L90 58'],['t',110,40,'30″']]),
+    T('cx4b',4,'ten','pts',10,'Smash dopo pallonetto','Maestro al cesto dal fondo, pallonetti',['Pallonetti a profondità diversa: l’atleta indietreggia e smasha nei due angoli.','10 smash: dentro e vincente 1 punto.'],[['A',84,55,'A'],['M',204,55],['f','M198 55Q140 10 74 50'],['ma','M84 52L70 50'],['a','M74 48Q130 30 196 20'],['z',176,10,34,22],['z',176,78,34,22]]),
+    T('cx5a',5,'ten','pts',20,'Cambio di ritmo','Maestro al cesto, palle alternate',['Alterna una palla alta e lenta in diagonale e una bassa tagliata lungolinea, sempre nella zona indicata.','10 coppie di colpi: 2 punti se le due palle vanno nelle zone giuste.'],[['A',24,55,'A'],['M',204,55],['f','M198 55Q130 55 30 55'],['a','M30 52Q110 0 186 24'],['b','M30 58Q110 80 186 86'],['z',168,12,40,26],['z',168,72,40,26]]),
+    T('cx5b',5,'atl','sec',null,'Spider test','Cinque palline sulle linee, cesto al centro della linea di fondo',['Raccoglie una pallina alla volta e la porta nel cesto, nell’ordine segnato.','Tempo totale. Due tentativi, vale il migliore.'],[['c',10,55],['c',10,21],['c',56,21],['c',56,55],['c',56,89],['c',10,89],['A',16,55,'A'],['n',10,15,'1'],['n',56,15,'2'],['n',62,55,'3'],['n',56,95,'4'],['n',4,95,'5']]),
+    T('cx6a',6,'ten','pts',10,'Punti con l’arma','Punti a tema contro il maestro o un compagno',['10 punti: l’atleta deve vincerli usando la sua arma dichiarata.','1 punto per ogni punto vinto con l’arma.'],[['A',24,55,'A'],['B',196,55,'B'],['a','M30 52Q110 20 186 24'],['t',110,98,'arma dichiarata']]),
+    T('cx6b',6,'ten','pts',20,'Risposta profonda','Il maestro serve dalla linea di servizio',['10 risposte: 2 punti oltre i 3/4, 1 in campo, 0 errore.'],[['A',20,30,'A'],['M',140,72],['f','M140 70Q100 50 26 34'],['a','M26 32Q110 10 190 40'],['z',164,20,46,70]])
+  ];
+  const mine = ((d.ftests||[]).find(t=>t.ctests)||{}).ctests || [];   // tests the coach already made stay, the examples are added
+  d.ftests = (d.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:mine.concat(list.filter(x=>!mine.some(m=>m.id===x.id)))});
+  const g = (d.groups||[]).find(x=>x.id!=='priv'), as = (d.athletes||[]).filter(a=>g && a.groupId===g.id).slice(0,4);
+  const R = [[18,15,16,6.4],[21,22,14,6.1],[14,12,11,7.0],[19,26,17,6.6]];
+  d.tests = d.tests || [];
+  as.forEach((a,i)=>{ const r = R[i%R.length];
+    d.tests.push({id:'ctd1'+a.id, athleteId:a.id, groupId:g.id, ct:1, cycle:1, date:'2026-11-24', v:{cx1a:r[0], cx1b:r[1]+8}});
+    d.tests.push({id:'ctd2'+a.id, athleteId:a.id, groupId:g.id, ct:2, cycle:1, date:'2026-11-23', v:{cx2a:r[2], cx2b:r[3]}}); });
+  d.ct1 = true; return d;
+}
 </script>
 <script>
 /* Basic tools, local storage, interface state, icons, dates */
@@ -552,6 +580,15 @@ const DAYS_S = ['1','2','3','4','5'];
 const TYPE_COL = ['#3B6FD8','#C4622D','#1F8A7A','#9A7400','#7A4FB0','#5A6270'];
 const wcol = n => TYPE_COL[(n-1)%6];
 const tcol = k => TYPE_COL[TYPES.findIndex(t=>t[0]===k)];
+/* ---------- cycle tests: one set per player type; trained in the "filo fisso" of that type's weeks, recorded only in the test week ----------
+   definitions live in S.ftests as {id:'ctests', ctests:[...]} (athletes can read ftests online); results in S.tests as {ct:tipo, cycle, date, v:{testId:value}} */
+const CT_TIPI = () => WEEKS.slice(0,6).map(w=>({k:w.n, name:w.name}));
+const ctTipoOfWeek = w => ((+w-1)%6)+1;
+const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
+const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
+function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
+const ctKindLab = t => t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?');
+const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteId===aid).sort((a,b)=>(a.cycle||1)-(b.cycle||1) || String(a.date).localeCompare(String(b.date)));
 const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const W = n => WEEKS[n-1];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -564,9 +601,10 @@ const HOOK = {};
 const KEY = 'smartcoach.v3';
 let S;
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
-function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return addTourDemo(addStaffDemo(addPlDemo(seed())));
+function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return addCtDemo(addTourDemo(addStaffDemo(addPlDemo(seed()))));
   if(d.roster!==6){ const n = seed(); d = Object.assign(n, {coachCode:d.coachCode||'MAESTRO', customEx:d.customEx||[], plan:d.plan||{}, provaEdit:d.provaEdit||{}}); }
   ['forms','tests','results','matches','customEx'].forEach(k=>d[k]=d[k]||[]); d.profiles=d.profiles||{}; d.priv=d.priv||{}; d.att=d.att||{}; d.notes=d.notes||[]; d.well=d.well||[]; d.notices=d.notices||[]; d.season=d.season||{}; if(!d.season[2026]) d.season[2026]=JSON.parse(JSON.stringify(SEASON2026)); if(!d.groups.some(g=>g.id==='priv')) d.groups.push({id:'priv', name:'Lezioni private', code:'PRIV', week:1}); if(d.roster!==3){ addExample(d); d.roster=3; } if(!d.ex4) addExample4(d); if(!d.ex5) addExample5(d); d.plan=d.plan||{}; d.provaEdit=d.provaEdit||{};
+  if(!d.ct1) addCtDemo(d);
   return addTourDemo(addStaffDemo(addPlDemo(d))); }
 
 
@@ -770,7 +808,8 @@ function renderInner(){
     case 'fhome': body = fitHome(); break;
     case 'mhome': body = mindHome(); break;
     case 'sath': body = U.athleteOpen && ath(U.athleteOpen) ? athleteView(U.athleteOpen) : staffAthList(); break;
-    case 'stest': body = `<h1>Test</h1><div class="seg" role="group"><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode!=='prog'}">Test atletici</button><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode==='prog'}">Test del programma</button></div>` + (U.ftMode==='prog' ? testsView() : fitTestsView()); break;
+    case 'stest': { const top = `<div class="seg" role="group"><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode!=='fit'}">Test del ciclo</button><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode==='fit'}">Test atletici liberi</button></div>`;
+      body = U.ed ? editorView() : U.ftMode==='fit' ? `<h1>Test</h1>${top}${fitTestsView()}` : ctestView(top); break; }
     case 'mschede': body = mindSchede(); break;
     case 'mprog': body = mprogView(); break;
     case 'fprog': body = fitProgView(); break;
@@ -917,15 +956,9 @@ function todayView(){
       <div class="row"><div class="wk" style="background:${wcol(w.n)}"><small>SETT</small>${w.n}</div><div class="grow" style="min-width:0"><span class="eyebrow">Settimana ${w.n} di 12</span><h2>${esc(w.name)}</h2></div></div>
       <div class="seg" role="group" aria-label="Allenamento">${pickOf(g).map((i,k)=>`<button data-a="day" data-k="${i}" aria-pressed="${i===d}">${k+1}${doneDate(g,i)?' ✓':''}</button>`).join('')}</div>
       <div><span class="eyebrow">${sLabel(g,d)}${doneDate(g,d)?' · fatto '+(doneDate(g,d)===todayISO()?'oggi':fdate(doneDate(g,d))):''}</span><h3 style="font-size:24px">${esc(w.days[d])}</h3></div>
-      ${provaBox(w.n, d, true)}
+      ${d!==4&&ctOf(ctTipoOfWeek(w.n)).length?`<div class="count-box"><div class="eyebrow">Filo fisso · i test da allenare</div>${ctOf(ctTipoOfWeek(w.n)).map(t=>`<p style="font-weight:700">${esc(t.t)} <span class="tag">${esc(ctKindLab(t))}</span></p>${t.chip?`<p class="small muted">${esc(t.chip)}</p>`:''}`).join('')}<p class="small muted">Si allenano durante il ciclo. Il risultato si misura nella settimana dei test.</p></div>`:''}
     </section>
-    ${pv.k!=='test'?`<section class="card">
-      <h3>Il tuo risultato</h3>
-      <div class="field"><label for="f-manual">${pv.k==='su'?`Quante riuscite su ${pv.n}?`:'Il tuo numero in 1 minuto'}</label>
-        <div class="row" style="flex-wrap:nowrap"><input id="f-manual" class="input inbig" type="number" inputmode="numeric" min="0" ${pv.k==='su'?`max="${pv.n}"`:''} placeholder="${pv.k==='su'?'Es. 7':'Es. 18'}" style="flex:1;min-width:0;font-size:24px">${pv.k==='su'?`<span class="muted" style="font-family:var(--f-disp);font-size:22px;font-weight:700">/ ${pv.n}</span>`:''}</div></div>
-      <button class="btn clay block" data-a="cntsave">Salva</button>
-      ${mine.length?`<div class="list small">${mine.map(r=>`<div class="row between"><span>Salvata alle ${new Date(r.date).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</span><b>${resVal(r)}</b></div>`).join('')}</div>`:''}
-    </section>`:`<section class="card"><p>Oggi i test li registra il maestro.</p></section>`}
+
     ${wellToday()}`;
 }
 
@@ -965,11 +998,7 @@ function athleteView(id, self){
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
-    body = `<section class="card"><h3>Prove del giorno</h3>
-      <p class="muted small">Ogni prova con i suoi risultati nel tempo: quando una prova torna, si vede se il numero cresce.</p>
-      ${Object.keys(groups).length?Object.values(groups).map(gp=>{ const mx = gp.kind==='min' ? Math.max(...gp.rows.map(r=>r.ok),1) : null;
-        return `<div class="field"><b>${esc(gp.t)}</b><div class="bars">${gp.rows.map(r=>{ const v = gp.kind==='min' ? r.ok/mx*100 : pct(r.ok,r.tot); return `<div class="bar"><div class="lab"><span>Sett. ${r.week} · ${DAYS_S[r.day]}</span><span>${resVal(r)}${gp.kind==='min'?' in 1 minuto':''}</span></div><div class="track"><div class="fill" style="width:${v}%;background:${wcol(r.week)}"></div></div></div>`; }).join('')}</div></div>`; }).join(''):`<p class="muted">Ancora nessuna prova salvata.</p>`}
-      </section>` + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'') + ((role==='coach'||role==='fit') ? testEntry(id) : `<section class="card"><h3>Test</h3>${testTable(id)}</section>`);
+    body = (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -986,8 +1015,7 @@ function athleteView(id, self){
       <div class="row between"><span class="eyebrow">${esc(g.name)}</span>${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff">${tname(lt)}</span>`:''}</div>
       <h1>${esc(a.name)}</h1>
       <div class="kpis">
-        <div class="kpi"><b>${res.length}</b><span>prove del giorno</span></div>
-        <div class="kpi"><b>${tw.length?tw.join(' · '):'–'}</b><span>test fatti (settimane)</span></div>
+        <div class="kpi"><b>${CT_TIPI().filter(x=>ctRecs(id,x.k).length).length}</b><span>tipologie testate</span></div>
         <div class="kpi"><b>${ms.length}</b><span>partite analizzate</span></div>
       </div>
     </section>
@@ -1048,8 +1076,7 @@ function athList(){
     return `<button class="acard" data-a="openath" data-k="${a.id}">
       <div class="row between" style="flex-wrap:nowrap"><b style="font-size:18px;font-family:var(--f-disp)">${esc(a.name)}</b>${nf?`<span class="tag">${nf} ${nf===1?'nuova':'nuove'}</span>`:''}</div>
       ${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff;align-self:flex-start">${tname(lt)}</span>`:'<span class="small muted">Tipologia: questionario da fare</span>'}
-      <span class="small">${lr?`Ultima prova: <b>${resVal(lr)}</b> · ${esc(PV(lr.week,lr.day).t)}`:'<span class="muted">Nessuna prova salvata</span>'}</span>
-      <span class="small muted">Test ${TEST_WEEKS.map(n=>`${n} ${S.tests.some(x=>x.athleteId===a.id&&x.week===n)?'✓':'–'}`).join(' · ')}</span>
+      <span class="small muted">Test di fine ciclo: ${(n=>n?n+' '+(n===1?'tipologia':'tipologie'):'ancora nessuno')(CT_TIPI().filter(x=>ctRecs(a.id,x.k).length).length)}</span>
     </button>`; };
   return head + `
     ${recent.length?`<button class="news" data-a="toggleinbox"><span>${fresh.length?`<b>${fresh.length} ${fresh.length===1?'scheda nuova':'schede nuove'}</b>`:'Schede ricevute'}</span><span class="chev">${U.showInbox?'⌃':'⌄'}</span></button>
@@ -1084,7 +1111,7 @@ function weekDays(w, full, g){
     const B = dayBlocks(w,d), seq = d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
     const ex = full ? seq.map(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`).join('')).join('') : '';
     return `<div><span class="eyebrow">${g?sLabel(g,d):DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}
-      ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul><p class="small" style="margin-top:6px"><span class="tag">Prova</span> ${esc(PV(w,d).t)}</p>`:''}</div>`; }).join('')}</div></section>`;
+      ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul>${d!==4&&ctOf(ctTipoOfWeek(w)).length?`<p class="small" style="margin-top:4px"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(w)).map(t=>esc(t.t)).join(' · ')}</p>`:''}`:''}</div>`; }).join('')}</div></section>`;
 }
 function studentWeek(){
   const a = me(), g = grp(a.groupId), w = W(g.week);
@@ -1178,7 +1205,7 @@ function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
     <div class="field"><label>Programma assegnato</label><div class="seg" role="group"><button data-a="setprog" data-k="12w" aria-pressed="${!isOwnG(g)}">Le 12 settimane</button><button data-a="setprog" data-k="own" aria-pressed="${isOwnG(g)}">Programma personale</button></div></div>
-    <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p>
+    <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con i test della tipologia nel filo fisso e partita guidata.'}</p>
     <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
     <div class="field"><label>Allenamenti a settimana</label><div class="seg" role="group">${[2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
     ${fitNoteField(g)}
@@ -1212,14 +1239,70 @@ function ownPlanView(g){
     <section class="card"><div class="list">${o.weeks.map((w,i)=>`<button class="item" data-a="oweek" data-k="${i+1}"><div class="wk" style="background:var(--pri)"><small>SETT</small>${i+1}</div><span class="grow"><b style="font-size:17px">${esc(w.name||'Senza nome')}</b><br><span class="small muted">${w.days.slice(0,nS(g)).filter(d=>d.title||d.ex.length).length} di ${nS(g)} ${g.pp?'lezioni':'allenamenti'} preparati</span></span>${o.cur===i+1?'<span class="tag teal">In corso</span>':''}<span class="chev">›</span></button>`).join('')}</div></section>
     <button class="btn clay block" data-a="owadd">+ Aggiungi settimana</button>`;
 }
+/* ---------- coach: tests of the cycle ---------- */
+function ctTestCard(t, edit){
+  return `<article class="ex" style="border-left-color:${t.area==='atl'?'#F2994A':'#8A6200'}"><div class="row between"><span class="phase" style="background:${t.area==='atl'?'#F2994A':'#8A6200'}">${t.area==='atl'?'Atletica':'Tennis'}</span><span class="tag">${esc(ctKindLab(t))}</span></div>
+    <h3>${esc(t.t)}</h3>${t.chip?`<p class="chipline">${esc(t.chip)}</p>`:''}
+    ${(t.els||[]).length?`<div class="vis">${'<svg viewBox="0 0 220 110" role="img" aria-label="Campo">'+courtSVG(t.els)+'</svg>'}</div>`:''}
+    ${(t.lines||[]).length?`<div class="exl">${t.lines.map(l=>`<p>${esc(l)}</p>`).join('')}</div>`:''}
+    ${edit?`<button class="chip" data-a="ctedit" data-k="${t.id}" style="align-self:flex-start">✎ Modifica</button>`:''}</article>`;
+}
+function ctestView(top){
+  const tipi = CT_TIPI(), pg = grp(U.planGroup); if(!U.ctTipo) U.ctTipo = pg && !isOwnG(pg) ? ctTipoOfWeek(pg.week) : 1;
+  const tipo = +U.ctTipo, ts = ctOf(tipo), name = (tipi.find(x=>x.k===tipo)||{}).name || '';
+  if(U.ctRec) return ctRecView(tipo);
+  return `${top}<h1>Test del ciclo</h1>
+    <div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
+    <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?' · '+ctOf(x.k).length:''}</button>`).join('')}</div>
+    <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):'Ancora nessun test.'}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-a="ctnew">+ Nuovo test</button></div>${ts.length?`<button class="btn clay block" data-a="ctrec" data-k="1" style="margin-top:4px">Segna i punteggi degli atleti</button><p class="small muted">Si usa nella settimana dei test: scegli gruppo e giorno e scrivi il punteggio di ogni atleta in ogni test.</p>`:''}</section>
+    ${ts.map(t=>ctTestCard(t, true)).join('')}
+    ${ts.length?ctGroupTable(tipo):''}`;
+}
+function ctGroupTable(tipo){
+  const g = grp(U.ctGroup || U.planGroup); if(!g) return '';
+  const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctOf(tipo), cy = g.cycle||1;
+  const rows = as.map(a=>{ const r = ctRecs(a.id, tipo).filter(x=>(x.cycle||1)===cy).pop(); return r ? {a, r} : null; }).filter(Boolean);
+  if(!rows.length) return '';
+  return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${r.v[t.id]??'–'}${t.kind==='pts'&&r.v[t.id]!=null?'/'+t.max:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+}
+function ctRecView(tipo){
+  const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
+  const ts = ctOf(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
+  const cur = aid => ctRecs(aid, tipo).filter(x=>(x.cycle||1)===cy).pop();
+  return `<button class="btn ghost" data-a="ctrec" data-k="0" style="align-self:flex-start">‹ Test del ciclo</button>
+    <h1>Settimana dei test</h1><p class="small muted" style="margin-top:-6px">${esc((CT_TIPI().find(x=>x.k===tipo)||{}).name)} · giro ${cy}</p>
+    <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+      <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
+      <p class="small muted">${ts.map((t,i)=>`<b>${i+1}.</b> ${esc(t.t)} <span class="muted">(${esc(ctKindLab(t))})</span>`).join(' · ')}</p></section>
+    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">${ts.map((t,i)=>`<div class="field"><label for="ct-${a.id}-${t.id}">${i+1}. ${esc(t.t)}</label><input id="ct-${a.id}-${t.id}" class="input inbig" inputmode="decimal" placeholder="${t.kind==='pts'?'su '+t.max:t.kind==='sec'?'sec':'n.'}" value="${r&&r.v[t.id]!=null?r.v[t.id]:''}"></div>`).join('')}</div></section>`; }).join('')}
+    <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
+}
+/* athlete: the test sheet, by player type */
+function ctCard(id){
+  const a = ath(id); if(!a) return '';
+  const tipi = CT_TIPI().filter(x=>ctRecs(id, x.k).length); if(!tipi.length) return '';
+  const g = grp(a.groupId), mates = S.athletes.filter(x=>x.groupId===a.groupId).map(x=>x.id);
+  const block = x => { const rs = ctRecs(id, x.k), last = rs[rs.length-1], prev = rs.filter(r=>(r.cycle||1)<(last.cycle||1)).pop();
+    return `<div class="field"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${last.date?fdate(last.date+'T12:00'):''}</span></div>
+      <div class="bars">${ctOf(x.k).map(t=>{ const v = last.v[t.id]; if(v==null||v==='') return '';
+        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); return r && r.v[t.id]!=null && r.v[t.id]!=='' ? +r.v[t.id] : null; }).filter(z=>z!==null);
+        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = t.kind==='sec' ? Math.min(...all,+v) : Math.max(...all,+v,1);
+        const w = t.kind==='pts' ? Math.min(100, +v/(+t.max||1)*100) : t.kind==='sec' ? Math.min(100, best/(+v||1)*100) : Math.min(100, +v/best*100);
+        const pv = prev && prev.v[t.id]!=null && prev.v[t.id]!=='' ? +prev.v[t.id] : null, up = pv===null ? '' : (t.kind==='sec' ? +v<pv : +v>pv) ? ' <span style="color:var(--ok)">▲</span>' : +v===pv ? ' =' : ' <span style="color:var(--ko)">▼</span>';
+        const fmt = z => (Math.round(z*10)/10).toString().replace('.',',');
+        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span><b>${fmt(+v)}</b>${t.kind==='pts'?'/'+t.max:t.kind==='sec'?' s':''}${up}</span></div><div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pv!==null?'Ciclo prima: '+fmt(pv)+(t.kind==='sec'?' s':'')+' · ':''}${avg!==null?'Media del gruppo: '+fmt(avg):''}</div></div>`; }).join('')}</div></div>`; };
+  return `<section class="card"><h3>Test di fine ciclo</h3><p class="small muted">Per tipologia di giocatore: la barra piena è il massimo (o il migliore del gruppo). ▲ migliorato rispetto al ciclo prima.</p>${tipi.map(block).join('')}</section>`;
+}
 /* coach: programme */
 function planView(){
   CUR_LG = null;
   if(U.ed) return editorView();
   if(U.lessonEd && grp(U.lessonEd)) return lessonEditor(grp(U.lessonEd));
   const tg = teamGroups(); if(!U.planGroup || !grp(U.planGroup) || U.planGroup===PRIV_ID) U.planGroup = tg[0]?.id; const pg = grp(U.planGroup);
-  const top = `<div class="seg" role="group" aria-label="Sezione"><button data-a="planmode" data-k="weeks" aria-pressed="${U.planMode!=='lib'}">Programma</button><button data-a="planmode" data-k="lib" aria-pressed="${U.planMode==='lib'}">Libreria esercizi</button></div>`;
+  const top = `<div class="seg" role="group" aria-label="Sezione"><button data-a="planmode" data-k="weeks" aria-pressed="${U.planMode!=='lib'&&U.planMode!=='ctest'}">Programma</button><button data-a="planmode" data-k="ctest" aria-pressed="${U.planMode==='ctest'}">Test del ciclo</button><button data-a="planmode" data-k="lib" aria-pressed="${U.planMode==='lib'}">Libreria esercizi</button></div>`;
   if(U.planMode==='lib') return (U.pick?'':top) + libraryView();
+  if(U.planMode==='ctest') return ctestView(top);
   if(pg && pg.pp) return (U.oWeek?'':ppBar(pg)) + ownPlanView(pg);
   if(pg && U.gImp===pg.id) return gImportView(pg);
   if(isOwnG(pg)) return (U.oWeek?'':top + planGroupBar(pg) + aiGroupCard(pg)) + ownPlanView(pg);
@@ -1236,7 +1319,7 @@ function planView(){
           <div class="row"><select id="f-setweek" class="input" style="flex:1">${teamGroups().map(g=>`<option value="${g.id}">${esc(g.name)} (ora sett. ${g.week})</option>`).join('')}</select><button class="btn" data-a="setweek" data-k="${w.n}">Imposta</button></div></div>
       </section>
       <section class="card"><h3>I cinque allenamenti</h3><p class="muted small">Tocca un giorno per vedere e modificare la seduta.</p>
-        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]||(S.plan||{})[dayKey(w.n,i)+':txt']?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(((S.plan||{})[dayKey(w.n,i)+':txt']||{}).title||d)}</b><br><span class="small muted">Prova: ${esc(PV(w.n,i).t)}</span></span><span class="chev">›</span></button>`).join('')}</div>
+        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]||(S.plan||{})[dayKey(w.n,i)+':txt']?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(((S.plan||{})[dayKey(w.n,i)+':txt']||{}).title||d)}</b>${i!==4&&ctOf(ctTipoOfWeek(w.n)).length?`<br><span class="small muted">Filo fisso: ${ctOf(ctTipoOfWeek(w.n)).map(t=>esc(t.t)).join(' · ')}</span>`:''}</span><span class="chev">›</span></button>`).join('')}</div>
       </section>
       <section class="card"><h3>Scelte della partita guidata</h3>
         <div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}${c.u14?' <span class="tag">U14</span>':''}</span></div>`).join('')}</div>
@@ -1516,8 +1599,6 @@ function dayView(w, d){
       ${S.session.role==='coach'?S.groups.filter(g=>g.id!==PRIV_ID && !isOwnG(g) && g.week===w && pickOf(g).includes(d)).map(g=>`<div class="row" style="gap:8px"><span class="small"><b>${esc(g.name)}</b> · ${sLabel(g,d).toLowerCase()}</span>${doneDate(g,d)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">✓ Fatto ${fdate(doneDate(g,d))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">Segna come fatto</button>`}</div>`).join(''):''}
       ${D.obj?`<p><b>Obiettivo:</b> ${D.obj}</p>`:''}
       ${S.session.role==='coach'?`<button class="btn clay" data-a="dayai" data-k="1" style="align-self:flex-start">Rifai la lezione con l'IA</button>`:''}
-      ${U.editProva ? provaForm(w,d) : provaBox(w, d) + `<div class="row"><button class="chip" data-a="editprova">Modifica la prova</button>${(S.provaEdit||{})[w+'-'+d]?'<span class="tag teal">prova modificata</span>':''}</div>`}
-      ${provaResults(w,d)}
       ${D.kw?`<p class="small"><span class="muted">Parola chiave:</span> <b>${esc(D.kw)}</b></p>`:''}
       ${LG?`<div class="row between" style="gap:6px"><span class="small muted">Struttura di ${esc(LG.name)}</span>${S.session.role==='coach'?`<button class="chip" data-a="lessonopen" data-k="${LG.id}">Durata e fasi</button>`:''}</div>`:''}
       ${lessonTL(LG, fri)}
@@ -1525,6 +1606,9 @@ function dayView(w, d){
     </section>
     ${(()=>{ let np = 0; const lp = lessonOf(LG).phases; return (lp.length ? lp : NEUTRAL()).map(fp=>{
       if(fp.pause){ np++; return pauseRow(`${esc(fp.n)} · ${fp.m}'`, np===1 ? (fri ? 'Acqua. Il maestro spiega come funziona il match guidato e le scelte della settimana.' : `Acqua. Il maestro spiega il tema del giorno${D.kw?` e la parola chiave: <b>${esc(D.kw)}</b>`:''}.`) : np===2 ? (fri ? 'Acqua, poi servizio e risposta.' : 'Acqua, poi si passa al servizio.') : 'Acqua e recupero.'); }
+      if(fp.k==='filo' && !fri && ctOf(ctTipoOfWeek(w)).length){ const cts = ctOf(ctTipoOfWeek(w));
+        return `<article class="ex" style="border-left-color:#8A6200"><div class="row between"><span class="phase" style="background:#8A6200">${esc(fp.n)} · ${fp.m}'</span><span class="tag">Test · ${esc(W(ctTipoOfWeek(w)).name)}</span></div>
+          <p class="small muted">Si allenano i test della tipologia. I risultati si segnano solo nella settimana dei test.</p></article>${cts.map(t=>ctTestCard(t, false)).join('')}${S.session.role==='coach'?`<button class="chip" data-a="ctgo" data-k="${ctTipoOfWeek(w)}" style="align-self:flex-start">Gestisci i test</button>`:''}`; }
       if(fp.k==='filo') return !fri ? (()=>{ const fk = dayKey(w,d), ov = (S.filoEdit||{})[fk], txt = ov!==undefined ? ov : D.filo; if(!edit && !txt) return '';
       return `<article class="ex" style="border-left-color:#8A6200"><div class="row between"><span class="phase" style="background:#8A6200">${esc(fp.n)} · ${fp.m}'</span>${ov!==undefined&&!edit?'<span class="tag teal">modificato</span>':''}</div>${edit?`<textarea class="input" rows="4" data-c="filo" data-k="${fk}" placeholder="Il lavoro fisso di 10' di questa seduta">${esc(ov!==undefined?ov:plainTxt(D.filo||''))}</textarea>${ov!==undefined?`<button class="chip" data-a="filoreset" data-k="${fk}" style="align-self:flex-start">Ripristina l'originale</button>`:''}`:`<div class="exl">${ov!==undefined?`<p style="white-space:pre-line">${esc(ov)}</p>`:`<p>${D.filo}</p>`}</div>`}</article>`; })() : '';
       if(fp.k==='pr') return blockHtml(fri ? 'ri' : 'pr');
@@ -1630,7 +1714,7 @@ function dayAiApply(t, R){
   d.ex = list.map(x=>x[0]); d.exPh = list.map(x=>x[1]); if(R.title) d.title = R.title; if(R.obj) d.note = R.obj;
 }
 function exAiPrompt(E){
-  const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
+  const notes = (U.aiNotes && U.aiNotes.ex) || '', where = E.ct ? `TEST di valutazione per la tipologia "${W(E.ct.tipo).name}" (si allena nel filo fisso e si misura a fine ciclo: scrivi con precisione come si conta il punteggio)` : E.sheet ? 'una lezione privata' : (phInfo(E.ph)[0] || 'allenamento');
   const cur = (E.t||'').trim() ? `
 ESERCIZIO DI PARTENZA (il maestro vuole cambiarlo come dice negli appunti)
 ${JSON.stringify({titolo:E.t, etichetta:E.chip, righe:String(E.x||'').split('\n').filter(Boolean), campo:E.els||[]})}
@@ -1644,7 +1728,7 @@ COME RISPONDERE
 
 FORMATO
 {"tipo":"tennis-smart-coach","versione":2,"esercizio":{"titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, attenzione a…"],"min":10,"serie":"…","obiettivo":"…","campo":[…]}}
-("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)
+("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)${E.ct?'\nPer un test aggiungi anche "misura": "punti" (con "massimo", il punteggio più alto possibile), "numero" oppure "secondi".':''}
 ${cur}
 ${AI_CAMPO}
 
@@ -1677,12 +1761,15 @@ function exAiCard(E){
 function editorView(){
   const E = U.ed;
   return `
-    <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
-    <h1>${E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
+    <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.ct?'Test del ciclo':E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
+    <h1>${E.ct?(E.ct.id?'Modifica test':'Nuovo test · '+esc(W(E.ct.tipo).name)):E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
     ${exAiCard(E)}
     <section class="card">
-      ${E.sheet?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
+      ${E.ct?`<div class="field"><label>Area</label><div class="seg" role="group"><button data-a="edctset" data-k="area:ten" aria-pressed="${E.area!=='atl'}">Tennis</button><button data-a="edctset" data-k="area:atl" aria-pressed="${E.area==='atl'}">Atletica</button></div></div>
+      <div class="field"><label>Come si misura</label><div class="seg" role="group"><button data-a="edctset" data-k="kind:pts" aria-pressed="${E.kind==='pts'}">Punti su un massimo</button><button data-a="edctset" data-k="kind:num" aria-pressed="${E.kind==='num'}">Numero</button><button data-a="edctset" data-k="kind:sec" aria-pressed="${E.kind==='sec'}">Secondi</button></div></div>
+      ${E.kind==='pts'?`<div class="field" style="max-width:160px"><label for="ed-max">Punteggio massimo</label><input id="ed-max" class="input" inputmode="numeric" data-c="ed" data-k="max" value="${esc(String(E.max||''))}" placeholder="Es. 24"></div>`:''}`:''}
+      ${E.sheet||E.ct?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>
       <div class="field"><label for="ed-chip">Organizzazione</label><input id="ed-chip" class="input" data-c="ed" data-k="chip" value="${esc(E.chip)}" placeholder="Es. Maestro al cesto, poi a coppie"></div>
       <div class="field"><label for="ed-x">Descrizione</label><textarea id="ed-x" class="input" rows="4" data-c="ed" data-k="x" placeholder="Una riga per ogni punto: esecuzione, evoluzione, attenzione…">${esc(E.x)}</textarea></div>
@@ -1698,8 +1785,10 @@ function editorView(){
       <div class="row"><button class="btn ghost" data-a="edundo" ${E.els.length?'':'disabled'} style="flex:1">↩ Annulla l'ultimo</button><button class="btn ghost" data-a="edclear" ${E.els.length?'':'disabled'} style="flex:1">Cancella disegno</button></div>
       ${LEGEND}
     </section>
-    ${E.ctx||E.sheet?`<label class="row small" style="gap:8px;align-items:center"><input type="checkbox" data-c="edlib" ${E.lib?'checked':''}> Salva anche nella libreria esercizi</label>`:''}
-    <button class="btn clay block" data-a="edsave">${E.sheet?'Salva nella lezione':E.ctx?'Salva e metti nella seduta':'Salva nella libreria'}</button>
+    ${(E.ctx||E.sheet)&&!E.ct?`<label class="row small" style="gap:8px;align-items:center"><input type="checkbox" data-c="edlib" ${E.lib?'checked':''}> Salva anche nella libreria esercizi</label>`:''}
+    ${E.ct&&E.ct.id?(U.confirm==='ctx'?`<section class="card"><p>Eliminare questo test? I risultati già segnati restano nello storico.</p><div class="row"><button class="btn danger" data-a="ctdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:''):''}
+    <button class="btn clay block" data-a="edsave">${E.ct?'Salva il test':E.sheet?'Salva nella lezione':E.ctx?'Salva e metti nella seduta':'Salva nella libreria'}</button>
+    ${E.ct&&E.ct.id&&U.confirm!=='ctx'?`<button class="chip" data-a="askdel" data-k="ctx" style="align-self:center">Elimina questo test</button>`:''}
     ${E.sheet && E.sheet.j!==null ? (U.confirm==='shx'?`<section class="card"><p>Togliere questo esercizio dalla lezione?</p><div class="row"><button class="btn danger" data-a="shexdel">Sì, togli</button><button class="btn ghost" data-a="nodel">No</button></div></section>`:`<button class="chip" data-a="askdel" data-k="shx" style="align-self:center">Togli questo esercizio</button>`) : ''}`;
 }
 function arrowPath(x1,y1,x2,y2,curve){
@@ -2958,7 +3047,7 @@ function finalProfile(id){
       ${last?`<p>Tipologia più vicina: <b style="color:${tcol(tipoOf(last).first)}">${tname(tipoOf(last).first)}</b>, poi ${tname(tipoOf(last).second)}.</p>${first&&first!==last?`<p class="small muted">All'inizio: ${tname(tipoOf(first).first)}.</p>`:''}`:'<p class="muted">Questionario non compilato.</p>'}
       ${la?`<p>La sua arma: <b>${esc(la.ans.arma||'–')}</b>${la.ans.evito?` · evita: ${esc(la.ans.evito)}`:''}</p>`:''}</section>
     <section class="card"><h3>Punti di forza e da migliorare</h3>${PAREAS.some(([k])=>pr[k+'f']||pr[k+'m'])?`<div class="list">${PAREAS.map(([k,l])=>`<div><span class="tag pri">${l}</span><p class="small" style="margin-top:4px"><b style="color:var(--ok)">+</b> ${esc(pr[k+'f']||'–')}</p><p class="small"><b style="color:var(--clay)">→</b> ${esc(pr[k+'m']||'–')}</p></div>`).join('')}</div>`:'<p class="muted">Scheda atleta da compilare.</p>'}</section>
-    <section class="card"><h3>Test</h3>${testTable(id)}</section>
+    ${ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato.</p></section>'}
     <section class="card"><h3>In partita</h3>${cs.length?`<p class="small muted">Le scelte che hanno funzionato di più (almeno 3 volte).</p>${choiceBars(cs.slice(0,4))}`:'<p class="muted">Poche partite analizzate.</p>'}</section>
     <section class="card"><div class="kpis"><div class="kpi"><b>${st.month.length?pct(st.p,st.month.length)+'%':'–'}</b><span>presenze questo mese</span></div><div class="kpi"><b>${goals.length?done+'/'+goals.length:'–'}</b><span>obiettivi raggiunti</span></div><div class="kpi"><b>${ms.length}</b><span>partite analizzate</span></div></div></section>
     <div class="note"><b>Da usare all'incontro individuale:</b> prima quello che va bene, poi una sola cosa da migliorare.</div>`;
@@ -3052,7 +3141,7 @@ function fitHome(){
     <section class="card" style="padding:4px 16px"><div class="list">
       ${notifTool()}
       ${toolRow('tab','fprog',IC.plan,'Programma atletico','settimane e sedute dei gruppi')}
-      ${toolRow('tab','stest',IC.test,'Test','test atletici e test del programma')}
+      ${toolRow('tab','stest',IC.test,'Test','test del ciclo e segna i risultati')}
       ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
     </div></section>`;
 }
@@ -3113,7 +3202,7 @@ function fitTestsView(){
       ${U.confirm==='ft'?`<div class="confirm"><span>Eliminare il test e tutti i suoi risultati?</span><div class="row"><button class="btn danger" data-a="ftdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askdel" data-k="ft" style="align-self:flex-start">Elimina test</button>`}`;
   }
   return `<button class="btn clay block" data-a="ftnew">+ Nuovo test atletico</button>
-    ${S.ftests.filter(t=>!t.tdef).length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.filter(t=>!t.tdef).map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
+    ${S.ftests.filter(t=>!t.tdef&&!t.ctests).length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.filter(t=>!t.tdef&&!t.ctests).map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
 }
 function fitTestsCard(id){
   const ts = (S.ftests||[]).filter(t=>ftRes(t.id,id).length); if(!ts.length) return '';
@@ -3461,7 +3550,7 @@ function staffNotesCard(id){
 function studentHome(){
   const a = me(), id = a.id, isPriv = a.groupId===PRIV_ID, now = todayISO();
   const todo = allTournaments().filter(x=>x.date<=now && (x.t.players||[]).includes(id) && !hasRes((x.t.results||{})[id]));
-  const tr = provaTrend(id);
+  const tr = null;   // the daily test is gone: tests are recorded only at the end of the cycle
   return `${homeHero('Ciao '+esc((a.name||'').split(' ')[0]))}
     ${noticesFor('student', a.groupId)}
     ${todo.length?`<section class="card" style="border-color:var(--clay)"><h3>Come è andata?</h3><p class="small muted">Inserisci turno e incontri giocati.</p><div class="list">${todo.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b><br><span class="small muted">${dRange(x.date,x.end)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:''}
@@ -3474,14 +3563,14 @@ function studentHome(){
 }
 function parentHome(){
   const a = me(), id = a.id, g = grp(a.groupId), isPriv = a.groupId===PRIV_ID, di = todayIdx(g), wk = curIdx(g)>=0;
-  const tr = provaTrend(id);
+  const tr = null;   // the daily test is gone: tests are recorded only at the end of the cycle
   let today;
   if(isPriv) today = `<section class="card"><h2>Il programma</h2><p class="small muted">Lezioni, obiettivi e lavoro da fare.</p><button class="btn clay block" data-a="tab" data-k="pprog">Apri il programma</button></section>`;
   else { const pv = PV(g.week, di);
     today = `<section class="card"><div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
       ${sessDots(g)}
       <h2>${esc(sessHead(g, di, gDayTitle(g,di)))}</h2>
-      ${wk&&!isOwnG(g)?`<p class="small"><span class="tag">Prova del giorno</span> ${esc(pv.t)}</p>`:''}
+      ${wk&&!isOwnG(g)&&di!==4&&ctOf(ctTipoOfWeek(g.week)).length?`<p class="small"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(g.week)).map(t=>esc(t.t)).join(' · ')}</p>`:''}
       <button class="btn ghost block" data-a="tab" data-k="pweek">Cosa fa questa settimana</button></section>`; }
   return `${homeHero('La settimana di '+esc((a.name||'').split(' ')[0]))}
     ${noticesFor('parent', a.groupId)}
@@ -3558,7 +3647,7 @@ function coachHome(){
       <div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
       ${sessDots(g)}
       <h2>${esc(sessHead(g, di, gDayTitle(g,di)))}</h2>
-      ${wk&&!isOwnG(g)?`<p class="small"><span class="tag">Prova</span> ${esc(pv.t)}</p>`:''}
+      ${wk&&!isOwnG(g)&&di!==4&&ctOf(ctTipoOfWeek(g.week)).length?`<p class="small"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(g.week)).map(t=>esc(t.t)).join(' · ')}</p>`:''}
       <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">Presenze ${Object.keys(rec).length?np+'/'+n:''}</button>${wk?`<button class="btn ghost" data-a="homeday" data-k="${isOwnG(g)?'o:'+g.id:g.week}:${di}:${g.id}" style="flex:1">Apri l'allenamento</button>`:''}</div>
       ${sessBtns(g, di)}
       ${groupStaffStrip(g)}</section>`; }
@@ -3719,9 +3808,22 @@ const ACT = {
   dayaipaste(){ const r=dayAiParse(document.getElementById('dayai-txt').value||'', dayAiTarget()); if(r.err){ U.dayAiErr=r.err; U.dayAiData=null; } else { U.dayAiErr=''; U.dayAiData=r; } window.scrollTo(0,0); },
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
   dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
+  cttipo(k){ U.ctTipo=+k; },
+  ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.ctRec=false; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
+  ctnew(){ U.ed={id:null, ph:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null, ct:{tipo:+U.ctTipo, id:null}, area:'ten', kind:'pts', max:''}; window.scrollTo(0,0); },
+  ctedit(k){ const t=ctAll().find(x=>x.id===k); if(!t) return; U.ed={id:null, ph:'pr', t:t.t, chip:t.chip||'', x:(t.lines||[]).join('\n'), els:JSON.parse(JSON.stringify(t.els||[])), tool:'A', pend:null, ct:{tipo:t.tipo, id:t.id}, area:t.area, kind:t.kind, max:t.max||''}; U.confirm=null; window.scrollTo(0,0); },
+  edctset(k){ const [f,v]=k.split(':'); U.ed[f]=v; },
+  ctdel(){ const E=U.ed; if(!E||!E.ct||!E.ct.id) return; ctSaveAll(ctAll().filter(x=>x.id!==E.ct.id)); save(); U.ed=null; U.confirm=null; toast('Test eliminato'); },
+  ctrec(k){ U.ctRec = k==='1'; window.scrollTo(0,0); },
+  ctsave(){ const g=grp(U.ctGroup), tipo=+U.ctTipo, ts=ctOf(tipo), d=U.ctDate||todayISO(); if(!g) return; S.tests=S.tests||[]; let n=0;
+    S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ const v={}; ts.forEach(t=>{ const el=document.getElementById('ct-'+a.id+'-'+t.id); const x=el?String(el.value).trim().replace(',','.'):''; if(x!=='' && !isNaN(+x)) v[t.id]=+x; });
+      if(!Object.keys(v).length) return; const cy=g.cycle||1, old=S.tests.find(r=>r.ct===tipo && r.athleteId===a.id && (r.cycle||1)===cy);
+      if(old){ Object.assign(old.v, v); old.date=d; } else S.tests.push({id:uid(), athleteId:a.id, groupId:g.id, ct:tipo, cycle:cy, date:d, v}); n++; });
+    save(); U.ctRec=false; toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
   exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
+    if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo); }
     if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
     if(!E.sheet && !E.ctx) E.lib=true;
     E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
@@ -4031,6 +4133,9 @@ const ACT = {
       if(E.tool==='z') E.els.push(['z',Math.min(x1,x),Math.min(y1,y),Math.abs(x-x1),Math.abs(y-y1)]);
       else E.els.push([E.tool, arrowPath(x1,y1,x,y, E.tool!=='ma')]); } },
   edsave(){ const E=U.ed; if(!E.t.trim()){ toast('Scrivi il titolo'); return; }
+    if(E.ct){ if(E.kind==='pts' && !(+E.max>0)){ toast('Scrivi il punteggio massimo'); return; }
+      const list = ctAll().slice(), t = {id:E.ct.id||('ct'+uid()), tipo:E.ct.tipo, area:E.area||'ten', kind:E.kind||'pts', max:E.kind==='pts'?+E.max:null, t:E.t.trim(), chip:E.chip.trim(), lines:E.x.split('\n').map(l=>l.trim()).filter(Boolean), els:E.els};
+      const i = list.findIndex(x=>x.id===t.id); if(i>=0) list[i]=t; else list.push(t); ctSaveAll(list); save(); U.ed=null; toast(i>=0?'Test modificato':'Test aggiunto'); return; }
     if(E.sheet){ const x=shFind(E.sheet.sid); if(!x){ U.ed=null; return; } const ph=x.phases[E.sheet.pi]; ph.ex=ph.ex||[];
       const ne={t:E.t.trim(), min:String(E.min||'').trim(), x:E.x.split('\n').map(l=>l.trim()).filter(Boolean), obj:String(E.obj||'').trim(), serie:String(E.serie||'').trim(), els:E.els, chip:E.chip.trim()};
       if(E.sheet.j===null) ph.ex.push(ne); else ph.ex[E.sheet.j]=Object.assign(ph.ex[E.sheet.j]||{}, ne);
@@ -4118,6 +4223,7 @@ document.addEventListener('change', e=>{
   if(c==='tour' && t.type==='date'){ render(); return; }
   if(!c || !U.setup) return;
   const s = U.setup;
+  if(c==='ctgrp'){ U.ctGroup=t.value; render(); return; }
   if(c==='mgroup'){ s.groupId=t.value; const g=grp(t.value); s.a=S.athletes.find(x=>x.groupId===g.id)?.id||''; s.b=''; presetInto(s); render(); }
   if(c==='ma'){ s.a=t.value; if(s.b===s.a) s.b=''; presetInto(s); render(); }
   if(c==='mb'){ s.b=t.value; render(); }
@@ -4127,6 +4233,7 @@ document.addEventListener('input', e=>{
   if(e.target && e.target.dataset && e.target.dataset.c==='phname'){ const L=ensureLesson(grp(U.lessonEd)); L.phases[+e.target.dataset.k].n=e.target.value; save(); return; }
   const t = e.target, c = t.dataset?.c;
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
+  if(c==='ctdate'){ U.ctDate=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
   if(c==='fitnote'){ const g=grp(U.planGroup); if(g){ g.fitNotes=g.fitNotes||{}; g.fitNotes[fitNoteKey(g)]=t.value; save(); } return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
