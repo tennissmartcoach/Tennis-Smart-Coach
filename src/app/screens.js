@@ -176,15 +176,9 @@ function todayView(){
       <div class="row"><div class="wk" style="background:${wcol(w.n)}"><small>SETT</small>${w.n}</div><div class="grow" style="min-width:0"><span class="eyebrow">Settimana ${w.n} di 12</span><h2>${esc(w.name)}</h2></div></div>
       <div class="seg" role="group" aria-label="Allenamento">${pickOf(g).map((i,k)=>`<button data-a="day" data-k="${i}" aria-pressed="${i===d}">${k+1}${doneDate(g,i)?' ✓':''}</button>`).join('')}</div>
       <div><span class="eyebrow">${sLabel(g,d)}${doneDate(g,d)?' · fatto '+(doneDate(g,d)===todayISO()?'oggi':fdate(doneDate(g,d))):''}</span><h3 style="font-size:24px">${esc(w.days[d])}</h3></div>
-      ${provaBox(w.n, d, true)}
+      ${d!==4&&ctOf(ctTipoOfWeek(w.n)).length?`<div class="count-box"><div class="eyebrow">Filo fisso · i test da allenare</div>${ctOf(ctTipoOfWeek(w.n)).map(t=>`<p style="font-weight:700">${esc(t.t)} <span class="tag">${esc(ctKindLab(t))}</span></p>${t.chip?`<p class="small muted">${esc(t.chip)}</p>`:''}`).join('')}<p class="small muted">Si allenano durante il ciclo. Il risultato si misura nella settimana dei test.</p></div>`:''}
     </section>
-    ${pv.k!=='test'?`<section class="card">
-      <h3>Il tuo risultato</h3>
-      <div class="field"><label for="f-manual">${pv.k==='su'?`Quante riuscite su ${pv.n}?`:'Il tuo numero in 1 minuto'}</label>
-        <div class="row" style="flex-wrap:nowrap"><input id="f-manual" class="input inbig" type="number" inputmode="numeric" min="0" ${pv.k==='su'?`max="${pv.n}"`:''} placeholder="${pv.k==='su'?'Es. 7':'Es. 18'}" style="flex:1;min-width:0;font-size:24px">${pv.k==='su'?`<span class="muted" style="font-family:var(--f-disp);font-size:22px;font-weight:700">/ ${pv.n}</span>`:''}</div></div>
-      <button class="btn clay block" data-a="cntsave">Salva</button>
-      ${mine.length?`<div class="list small">${mine.map(r=>`<div class="row between"><span>Salvata alle ${new Date(r.date).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</span><b>${resVal(r)}</b></div>`).join('')}</div>`:''}
-    </section>`:`<section class="card"><p>Oggi i test li registra il maestro.</p></section>`}
+
     ${wellToday()}`;
 }
 
@@ -224,11 +218,7 @@ function athleteView(id, self){
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
-    body = `<section class="card"><h3>Prove del giorno</h3>
-      <p class="muted small">Ogni prova con i suoi risultati nel tempo: quando una prova torna, si vede se il numero cresce.</p>
-      ${Object.keys(groups).length?Object.values(groups).map(gp=>{ const mx = gp.kind==='min' ? Math.max(...gp.rows.map(r=>r.ok),1) : null;
-        return `<div class="field"><b>${esc(gp.t)}</b><div class="bars">${gp.rows.map(r=>{ const v = gp.kind==='min' ? r.ok/mx*100 : pct(r.ok,r.tot); return `<div class="bar"><div class="lab"><span>Sett. ${r.week} · ${DAYS_S[r.day]}</span><span>${resVal(r)}${gp.kind==='min'?' in 1 minuto':''}</span></div><div class="track"><div class="fill" style="width:${v}%;background:${wcol(r.week)}"></div></div></div>`; }).join('')}</div></div>`; }).join(''):`<p class="muted">Ancora nessuna prova salvata.</p>`}
-      </section>` + ctCard(id) + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
+    body = (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -245,8 +235,7 @@ function athleteView(id, self){
       <div class="row between"><span class="eyebrow">${esc(g.name)}</span>${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff">${tname(lt)}</span>`:''}</div>
       <h1>${esc(a.name)}</h1>
       <div class="kpis">
-        <div class="kpi"><b>${res.length}</b><span>prove del giorno</span></div>
-        <div class="kpi"><b>${tw.length?tw.join(' · '):'–'}</b><span>test fatti (settimane)</span></div>
+        <div class="kpi"><b>${CT_TIPI().filter(x=>ctRecs(id,x.k).length).length}</b><span>tipologie testate</span></div>
         <div class="kpi"><b>${ms.length}</b><span>partite analizzate</span></div>
       </div>
     </section>
@@ -307,8 +296,7 @@ function athList(){
     return `<button class="acard" data-a="openath" data-k="${a.id}">
       <div class="row between" style="flex-wrap:nowrap"><b style="font-size:18px;font-family:var(--f-disp)">${esc(a.name)}</b>${nf?`<span class="tag">${nf} ${nf===1?'nuova':'nuove'}</span>`:''}</div>
       ${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff;align-self:flex-start">${tname(lt)}</span>`:'<span class="small muted">Tipologia: questionario da fare</span>'}
-      <span class="small">${lr?`Ultima prova: <b>${resVal(lr)}</b> · ${esc(PV(lr.week,lr.day).t)}`:'<span class="muted">Nessuna prova salvata</span>'}</span>
-      <span class="small muted">Test ${TEST_WEEKS.map(n=>`${n} ${S.tests.some(x=>x.athleteId===a.id&&x.week===n)?'✓':'–'}`).join(' · ')}</span>
+      <span class="small muted">Test di fine ciclo: ${(n=>n?n+' '+(n===1?'tipologia':'tipologie'):'ancora nessuno')(CT_TIPI().filter(x=>ctRecs(a.id,x.k).length).length)}</span>
     </button>`; };
   return head + `
     ${recent.length?`<button class="news" data-a="toggleinbox"><span>${fresh.length?`<b>${fresh.length} ${fresh.length===1?'scheda nuova':'schede nuove'}</b>`:'Schede ricevute'}</span><span class="chev">${U.showInbox?'⌃':'⌄'}</span></button>
@@ -343,7 +331,7 @@ function weekDays(w, full, g){
     const B = dayBlocks(w,d), seq = d===4 ? ['att','ri','sr','ap'] : ['att','pr','sr','ap'];
     const ex = full ? seq.map(ph=>(B[ph]||[]).map(id=>exById(id)).filter(Boolean).map(e=>`<li><b>${phInfo(ph)[0]}:</b> ${e.custom?esc(e.t):e.t}</li>`).join('')).join('') : '';
     return `<div><span class="eyebrow">${g?sLabel(g,d):DAYS[d]}</span><p style="font-weight:700;font-size:17px">${esc(D.title)}</p>${D.obj?`<p class="small">${D.obj}</p>`:''}
-      ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul><p class="small" style="margin-top:6px"><span class="tag">Prova</span> ${esc(PV(w,d).t)}</p>${d!==4&&ctOf(ctTipoOfWeek(w)).length?`<p class="small" style="margin-top:4px"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(w)).map(t=>esc(t.t)).join(' · ')}</p>`:''}`:''}</div>`; }).join('')}</div></section>`;
+      ${full?`<ul class="small" style="margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">${ex}</ul>${d!==4&&ctOf(ctTipoOfWeek(w)).length?`<p class="small" style="margin-top:4px"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(w)).map(t=>esc(t.t)).join(' · ')}</p>`:''}`:''}</div>`; }).join('')}</div></section>`;
 }
 function studentWeek(){
   const a = me(), g = grp(a.groupId), w = W(g.week);

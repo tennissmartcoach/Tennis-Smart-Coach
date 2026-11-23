@@ -58,7 +58,7 @@ function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
     <div class="field"><label>Programma assegnato</label><div class="seg" role="group"><button data-a="setprog" data-k="12w" aria-pressed="${!isOwnG(g)}">Le 12 settimane</button><button data-a="setprog" data-k="own" aria-pressed="${isOwnG(g)}">Programma personale</button></div></div>
-    <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con prove del giorno e partita guidata.'}</p>
+    <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con i test della tipologia nel filo fisso e partita guidata.'}</p>
     <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
     <div class="field"><label>Allenamenti a settimana</label><div class="seg" role="group">${[2,3,4,5].map(n=>`<button data-a="setfreq" data-k="${n}" aria-pressed="${nS(g)===n}">${n}</button>`).join('')}</div></div>
     ${fitNoteField(g)}
@@ -172,7 +172,7 @@ function planView(){
           <div class="row"><select id="f-setweek" class="input" style="flex:1">${teamGroups().map(g=>`<option value="${g.id}">${esc(g.name)} (ora sett. ${g.week})</option>`).join('')}</select><button class="btn" data-a="setweek" data-k="${w.n}">Imposta</button></div></div>
       </section>
       <section class="card"><h3>I cinque allenamenti</h3><p class="muted small">Tocca un giorno per vedere e modificare la seduta.</p>
-        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]||(S.plan||{})[dayKey(w.n,i)+':txt']?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(((S.plan||{})[dayKey(w.n,i)+':txt']||{}).title||d)}</b><br><span class="small muted">Prova: ${esc(PV(w.n,i).t)}</span></span><span class="chev">›</span></button>`).join('')}</div>
+        <div class="list">${w.days.map((d,i)=>`<button class="item" data-a="openday" data-k="${i}"><span class="grow"><span class="eyebrow">${DAYS[i]}</span>${(S.plan||{})[dayKey(w.n,i)]||(S.plan||{})[dayKey(w.n,i)+':txt']?' <span class="tag teal">modificato</span>':''}<br><b style="font-size:17px">${esc(((S.plan||{})[dayKey(w.n,i)+':txt']||{}).title||d)}</b>${i!==4&&ctOf(ctTipoOfWeek(w.n)).length?`<br><span class="small muted">Filo fisso: ${ctOf(ctTipoOfWeek(w.n)).map(t=>esc(t.t)).join(' · ')}</span>`:''}</span><span class="chev">›</span></button>`).join('')}</div>
       </section>
       <section class="card"><h3>Scelte della partita guidata</h3>
         <div class="choices">${w.choices.map((c,i)=>`<div class="choice"><i>${i+1}</i><span>${esc(c.label)}${c.u14?' <span class="tag">U14</span>':''}</span></div>`).join('')}</div>
@@ -452,8 +452,6 @@ function dayView(w, d){
       ${S.session.role==='coach'?S.groups.filter(g=>g.id!==PRIV_ID && !isOwnG(g) && g.week===w && pickOf(g).includes(d)).map(g=>`<div class="row" style="gap:8px"><span class="small"><b>${esc(g.name)}</b> · ${sLabel(g,d).toLowerCase()}</span>${doneDate(g,d)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">✓ Fatto ${fdate(doneDate(g,d))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${d}">Segna come fatto</button>`}</div>`).join(''):''}
       ${D.obj?`<p><b>Obiettivo:</b> ${D.obj}</p>`:''}
       ${S.session.role==='coach'?`<button class="btn clay" data-a="dayai" data-k="1" style="align-self:flex-start">Rifai la lezione con l'IA</button>`:''}
-      ${U.editProva ? provaForm(w,d) : provaBox(w, d) + `<div class="row"><button class="chip" data-a="editprova">Modifica la prova</button>${(S.provaEdit||{})[w+'-'+d]?'<span class="tag teal">prova modificata</span>':''}</div>`}
-      ${provaResults(w,d)}
       ${D.kw?`<p class="small"><span class="muted">Parola chiave:</span> <b>${esc(D.kw)}</b></p>`:''}
       ${LG?`<div class="row between" style="gap:6px"><span class="small muted">Struttura di ${esc(LG.name)}</span>${S.session.role==='coach'?`<button class="chip" data-a="lessonopen" data-k="${LG.id}">Durata e fasi</button>`:''}</div>`:''}
       ${lessonTL(LG, fri)}

@@ -271,7 +271,7 @@ function staffNotesCard(id){
 function studentHome(){
   const a = me(), id = a.id, isPriv = a.groupId===PRIV_ID, now = todayISO();
   const todo = allTournaments().filter(x=>x.date<=now && (x.t.players||[]).includes(id) && !hasRes((x.t.results||{})[id]));
-  const tr = provaTrend(id);
+  const tr = null;   // the daily test is gone: tests are recorded only at the end of the cycle
   return `${homeHero('Ciao '+esc((a.name||'').split(' ')[0]))}
     ${noticesFor('student', a.groupId)}
     ${todo.length?`<section class="card" style="border-color:var(--clay)"><h3>Come è andata?</h3><p class="small muted">Inserisci turno e incontri giocati.</p><div class="list">${todo.map(x=>`<button class="item" data-a="openT" data-k="${tKey(x)}"><span class="grow"><b>${esc(x.t.name)}</b><br><span class="small muted">${dRange(x.date,x.end)}</span></span><span class="chev">›</span></button>`).join('')}</div></section>`:''}
@@ -284,14 +284,14 @@ function studentHome(){
 }
 function parentHome(){
   const a = me(), id = a.id, g = grp(a.groupId), isPriv = a.groupId===PRIV_ID, di = todayIdx(g), wk = curIdx(g)>=0;
-  const tr = provaTrend(id);
+  const tr = null;   // the daily test is gone: tests are recorded only at the end of the cycle
   let today;
   if(isPriv) today = `<section class="card"><h2>Il programma</h2><p class="small muted">Lezioni, obiettivi e lavoro da fare.</p><button class="btn clay block" data-a="tab" data-k="pprog">Apri il programma</button></section>`;
   else { const pv = PV(g.week, di);
     today = `<section class="card"><div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
       ${sessDots(g)}
       <h2>${esc(sessHead(g, di, gDayTitle(g,di)))}</h2>
-      ${wk&&!isOwnG(g)?`<p class="small"><span class="tag">Prova del giorno</span> ${esc(pv.t)}</p>`:''}
+      ${wk&&!isOwnG(g)&&di!==4&&ctOf(ctTipoOfWeek(g.week)).length?`<p class="small"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(g.week)).map(t=>esc(t.t)).join(' · ')}</p>`:''}
       <button class="btn ghost block" data-a="tab" data-k="pweek">Cosa fa questa settimana</button></section>`; }
   return `${homeHero('La settimana di '+esc((a.name||'').split(' ')[0]))}
     ${noticesFor('parent', a.groupId)}
@@ -368,7 +368,7 @@ function coachHome(){
       <div class="row between"><span class="eyebrow">${esc(g.name)} · settimana ${gWeekNo(g)}</span><span class="tag pri">${esc(gWeekName(g))}</span></div>
       ${sessDots(g)}
       <h2>${esc(sessHead(g, di, gDayTitle(g,di)))}</h2>
-      ${wk&&!isOwnG(g)?`<p class="small"><span class="tag">Prova</span> ${esc(pv.t)}</p>`:''}
+      ${wk&&!isOwnG(g)&&di!==4&&ctOf(ctTipoOfWeek(g.week)).length?`<p class="small"><span class="tag">Filo fisso</span> ${ctOf(ctTipoOfWeek(g.week)).map(t=>esc(t.t)).join(' · ')}</p>`:''}
       <div class="row"><button class="btn" data-a="homeatt" data-k="${g.id}" style="flex:1">Presenze ${Object.keys(rec).length?np+'/'+n:''}</button>${wk?`<button class="btn ghost" data-a="homeday" data-k="${isOwnG(g)?'o:'+g.id:g.week}:${di}:${g.id}" style="flex:1">Apri l'allenamento</button>`:''}</div>
       ${sessBtns(g, di)}
       ${groupStaffStrip(g)}</section>`; }
