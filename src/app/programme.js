@@ -131,7 +131,7 @@ function ctGroupTable(tipo){
   const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctOf(tipo), cy = g.cycle||1;
   const rows = as.map(a=>{ const r = ctRecs(a.id, tipo).filter(x=>(x.cycle||1)===cy).pop(); return r ? {a, r} : null; }).filter(Boolean);
   if(!rows.length) return '';
-  return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${r.v[t.id]??'–'}${t.kind==='pts'&&r.v[t.id]!=null?'/'+t.max:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+  return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${ctHas(r,t)?esc(ctFmt(t, ctVals(r,t))):'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
 }
 function ctRecView(tipo){
   const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
@@ -142,7 +142,10 @@ function ctRecView(tipo){
     <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
       <p class="small muted">${ts.map((t,i)=>`<b>${i+1}.</b> ${esc(t.t)} <span class="muted">(${esc(ctKindLab(t))})</span>`).join(' · ')}</p></section>
-    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:flex;flex-direction:column;gap:8px">${ts.map((t,i)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}</span></label><input id="ct-${a.id}-${t.id}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="decimal" placeholder="${t.kind==='pts'?'/'+t.max:t.kind==='sec'?'sec':'n.'}" value="${r&&r.v[t.id]!=null?String(r.v[t.id]).replace('.',','):''}"></div>`).join('')}</div></section>`; }).join('')}
+    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:flex;flex-direction:column;gap:10px">${ts.map((t,i)=>{ const ps = ctParts(t), vs = ctVals(r, t);
+        const box = (p,j) => `<input id="ct-${a.id}-${t.id}-${j}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="${p.kind==='sec'?'text':'decimal'}" placeholder="${p.kind==='sec'?'1:30':+p.max>0?'/'+p.max:'n.'}" value="${vs[j]===null?'':p.kind==='sec'&&vs[j]>=60?ctTime(vs[j]):String(vs[j]).replace('.',',')}" aria-label="${esc(t.t)}${p.nome?' · '+esc(p.nome):''}">`;
+        return ps.length===1 ? `<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-0" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}${ps[0].kind==='sec'?' · anche 1:30':''}</span></label>${box(ps[0],0)}</div>`
+          : `<div><b>${i+1}. ${esc(t.t)}</b>${t.area==='atl'?' <span class="small muted">· Atletica</span>':''}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${ps.map((p,j)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-${j}" style="flex:1;min-width:0;padding-left:14px">${esc(p.nome||'Valore '+(j+1))}<br><span class="small muted">${esc(ctKindLab1(p))}${p.kind==='sec'?' · anche 1:30':''}</span></label>${box(p,j)}</div>`).join('')}</div></div>`; }).join('')}</div></section>`; }).join('')}
     <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
 }
 /* athlete: the test sheet, by player type */
@@ -152,13 +155,16 @@ function ctCard(id){
   const g = grp(a.groupId), mates = S.athletes.filter(x=>x.groupId===a.groupId).map(x=>x.id);
   const block = x => { const rs = ctRecs(id, x.k), last = rs[rs.length-1], prev = rs.filter(r=>(r.cycle||1)<(last.cycle||1)).pop();
     return `<div class="field"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${last.date?fdate(last.date+'T12:00'):''}</span></div>
-      <div class="bars">${ctOf(x.k).map(t=>{ const v = last.v[t.id]; if(v==null||v==='') return '';
-        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); return r && r.v[t.id]!=null && r.v[t.id]!=='' ? +r.v[t.id] : null; }).filter(z=>z!==null);
-        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = t.kind==='sec' ? Math.min(...all,+v) : Math.max(...all,+v,1);
-        const w = t.kind==='pts' ? Math.min(100, +v/(+t.max||1)*100) : t.kind==='sec' ? Math.min(100, best/(+v||1)*100) : Math.min(100, +v/best*100);
-        const pv = prev && prev.v[t.id]!=null && prev.v[t.id]!=='' ? +prev.v[t.id] : null, up = pv===null ? '' : (t.kind==='sec' ? +v<pv : +v>pv) ? ' <span style="color:var(--ok)">▲</span>' : +v===pv ? ' =' : ' <span style="color:var(--ko)">▼</span>';
-        const fmt = z => (Math.round(z*10)/10).toString().replace('.',',');
-        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span><b>${fmt(+v)}</b>${t.kind==='pts'?'/'+t.max:t.kind==='sec'?' s':''}${up}</span></div><div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pv!==null?'Ciclo prima: '+fmt(pv)+(t.kind==='sec'?' s':'')+' · ':''}${avg!==null?'Media del gruppo: '+fmt(avg):''}</div></div>`; }).join('')}</div></div>`; };
+      <div class="bars">${ctOf(x.k).map(t=>{ const vals = ctVals(last, t); if(!vals.some(z=>z!==null)) return '';
+        const sc = ctScore(t, vals); if(!sc) return '';
+        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); const s2 = r && ctHas(r,t) ? ctScore(t, ctVals(r,t)) : null; return s2 && s2.kind===sc.kind ? s2.v : null; }).filter(z=>z!==null);
+        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = sc.kind==='sec' ? Math.min(...all, sc.v) : Math.max(...all, sc.v, 1);
+        const w = sc.kind==='pct' ? Math.min(100, sc.v*100) : sc.kind==='sec' ? Math.min(100, best/(sc.v||1)*100) : sc.max>0 ? Math.min(100, sc.v/sc.max*100) : Math.min(100, sc.v/best*100);
+        const pvals = prev && ctHas(prev, t) ? ctVals(prev, t) : null, ps = pvals ? ctScore(t, pvals) : null;
+        const up = !ps || ps.kind!==sc.kind ? '' : (sc.kind==='sec' ? sc.v<ps.v : sc.v>ps.v) ? ' <span style="color:var(--ok)">▲</span>' : sc.v===ps.v ? ' =' : ' <span style="color:var(--ko)">▼</span>';
+        const avgTxt = avg===null ? '' : 'Media del gruppo: ' + (sc.kind==='pct' ? Math.round(avg*100)+'%' : sc.kind==='sec' ? ctTime(avg) : ctNum(avg));
+        const many = ctParts(t).length>1;
+        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span>${many?'':`<b>${esc(ctFmt(t, vals))}</b>`}${up}</span></div>${many?`<div class="small"><b>${esc(ctFmt(t, vals))}</b></div>`:''}<div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pvals?'Ciclo prima: '+esc(ctFmt(t, pvals))+(avgTxt?' · ':''):''}${avgTxt}</div></div>`; }).join('')}</div></div>`; };
   return `<section class="card"><h3>Test di fine ciclo</h3><p class="small muted">Per tipologia di giocatore: la barra piena è il massimo (o il migliore del gruppo). ▲ migliorato rispetto al ciclo prima.</p>${tipi.map(block).join('')}</section>`;
 }
 /* coach: programme */
@@ -595,7 +601,7 @@ COME RISPONDERE
 
 FORMATO
 {"tipo":"tennis-smart-coach","versione":2,"esercizio":{"titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, attenzione a…"],"min":10,"serie":"…","obiettivo":"…","campo":[…]}}
-("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)${E.ct?'\nPer un test aggiungi anche "misura": "punti" (con "massimo", il punteggio più alto possibile), "numero" oppure "secondi".':''}
+("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)${E.ct?'\nPer un test aggiungi anche "misura": "punti" (con "massimo", il punteggio più alto possibile), "numero" oppure "secondi".\nSe il test ha più risultati (es. palle e tempo, oppure destra e sinistra), usa "misure" con un elemento per ciascuno invece di "misura". Ogni elemento: {"nome":"…","tipo":"punti|numero|secondi","massimo":N} ("massimo" solo per punti e numero). Esempio: "misure":[{"nome":"Destra","tipo":"punti","massimo":15},{"nome":"Sinistra","tipo":"punti","massimo":15}]':''}
 ${cur}
 ${AI_CAMPO}
 
@@ -634,8 +640,13 @@ function editorView(){
     ${exAiCard(E)}
     <section class="card">
       ${E.ct?`<div class="field"><label>Area</label><div class="seg" role="group"><button data-a="edctset" data-k="area:ten" aria-pressed="${E.area!=='atl'}">Tennis</button><button data-a="edctset" data-k="area:atl" aria-pressed="${E.area==='atl'}">Atletica</button></div></div>
-      <div class="field"><label>Come si misura</label><div class="seg" role="group"><button data-a="edctset" data-k="kind:pts" aria-pressed="${E.kind==='pts'}">Punti su un massimo</button><button data-a="edctset" data-k="kind:num" aria-pressed="${E.kind==='num'}">Numero</button><button data-a="edctset" data-k="kind:sec" aria-pressed="${E.kind==='sec'}">Secondi</button></div></div>
-      ${E.kind==='pts'?`<div class="field" style="max-width:160px"><label for="ed-max">Punteggio massimo</label><input id="ed-max" class="input" inputmode="numeric" data-c="ed" data-k="max" value="${esc(String(E.max||''))}" placeholder="Es. 24"></div>`:''}`:''}
+      ${(E.misure||[]).length ? `<div class="field"><label>Risultati del test</label><div style="display:flex;flex-direction:column;gap:8px">${E.misure.map((p,j)=>`<div class="card" style="padding:10px;gap:8px"><div class="row" style="gap:8px;flex-wrap:nowrap"><input class="input" style="flex:1;min-width:0" data-c="edmis" data-k="${j}:nome" value="${esc(p.nome||'')}" placeholder="Nome, es. Destra" aria-label="Nome del risultato ${j+1}"><button class="chip" data-a="edmisdel" data-k="${j}" aria-label="Togli">✕</button></div>
+          <div class="seg" role="group"><button data-a="edmiskind" data-k="${j}:pts" aria-pressed="${p.kind==='pts'}">Punti</button><button data-a="edmiskind" data-k="${j}:num" aria-pressed="${p.kind==='num'}">Numero</button><button data-a="edmiskind" data-k="${j}:sec" aria-pressed="${p.kind==='sec'}">Secondi</button></div>
+          ${p.kind!=='sec'?`<input class="input" inputmode="numeric" data-c="edmis" data-k="${j}:max" value="${esc(String(p.max||''))}" placeholder="${p.kind==='pts'?'Massimo, es. 15':'Massimo (facoltativo)'}" aria-label="Massimo">`:''}</div>`).join('')}</div>
+          <button class="chip" data-a="edmisadd" style="align-self:flex-start">+ Aggiungi un risultato</button></div>`
+        : `<div class="field"><label>Come si misura</label><div class="seg" role="group"><button data-a="edctset" data-k="kind:pts" aria-pressed="${E.kind==='pts'}">Punti su un massimo</button><button data-a="edctset" data-k="kind:num" aria-pressed="${E.kind==='num'}">Numero</button><button data-a="edctset" data-k="kind:sec" aria-pressed="${E.kind==='sec'}">Secondi</button></div></div>
+      ${E.kind==='pts'?`<div class="field" style="max-width:160px"><label for="ed-max">Punteggio massimo</label><input id="ed-max" class="input" inputmode="numeric" data-c="ed" data-k="max" value="${esc(String(E.max||''))}" placeholder="Es. 24"></div>`:''}
+      <button class="chip" data-a="edmisadd" style="align-self:flex-start">+ Più risultati (es. destra e sinistra, palle e tempo)</button>`}`:''}
       ${E.sheet||E.ct?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>
       <div class="field"><label for="ed-chip">Organizzazione</label><input id="ed-chip" class="input" data-c="ed" data-k="chip" value="${esc(E.chip)}" placeholder="Es. Maestro al cesto, poi a coppie"></div>

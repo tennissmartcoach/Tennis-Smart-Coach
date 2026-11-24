@@ -12,7 +12,30 @@ const ctTipoOfWeek = w => ((+w-1)%6)+1;
 const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
 const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
 function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
-const ctKindLab = t => t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?');
+const ctKindLab1 = p => p.kind==='sec' ? 'tempo (meno è meglio)' : p.kind==='num' ? (+p.max>0?'numero su '+p.max:'numero (più è meglio)') : 'punti su '+(p.max||'?');
+const ctKindLab = t => (t.misure||[]).length ? t.misure.map(p=>(p.nome||'')+': '+ctKindLab1(p)).join(' · ') : (t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?'));
+/* a test can record several values ("misure"): t.misure=[{nome, kind:'pts'|'num'|'sec', max}]; old tests have a single t.kind/t.max.
+   A result is a number for a single-value test, an array (one value per measure, null if empty) for a multi-value one. */
+const ctMisIn = ms => ms.map(p=>{ const k=String(p.tipo||p.kind||'').toLowerCase(); const kind=/sec/.test(k)?'sec':/num/.test(k)?'num':'pts'; return {nome:String(p.nome||''), kind, max:kind!=='sec'&&+p.massimo>0?+p.massimo:(kind!=='sec'&&+p.max>0?+p.max:null)}; });
+const ctParts = t => (t.misure||[]).length ? t.misure : [{nome:'', kind:t.kind||'pts', max:t.max}];
+const ctVals = (r, t) => { const v = r && r.v ? r.v[t.id] : undefined; if(v===undefined || v===null || v==='') return ctParts(t).map(()=>null); return Array.isArray(v) ? ctParts(t).map((_,j)=>v[j]==null||v[j]===''?null:+v[j]) : [+v]; };
+const ctHas = (r, t) => ctVals(r, t).some(x=>x!==null);
+const ctNum = z => (Math.round(z*10)/10).toString().replace('.',',');
+const ctTime = s => { s = Math.round(+s*10)/10; if(s<60) return ctNum(s)+' s'; const m = Math.floor(s/60), r = Math.round(s-m*60); return m+':'+String(r).padStart(2,'0'); };
+const ctFmtPart = (p, v) => v===null ? '–' : p.kind==='sec' ? ctTime(v) : (p.kind==='pts' || (p.kind==='num' && +p.max>0)) && +p.max>0 ? ctNum(v)+'/'+p.max : ctNum(v);
+// "Destra 11/15 · Sinistra 9/15 · totale 20/30" or "20/20 in 1:30"
+function ctFmt(t, vals){ const ps = ctParts(t); if(ps.length===1) return ctFmtPart(ps[0], vals[0]);
+  const sec = ps.findIndex(p=>p.kind==='sec'), oth = ps.findIndex(p=>p.kind!=='sec');
+  if(ps.length===2 && sec>=0 && oth>=0 && vals[sec]!==null && vals[oth]!==null) return ctFmtPart(ps[oth], vals[oth])+' in '+ctTime(vals[sec]);
+  const pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
+  return ps.map((p,j)=>(p.nome?p.nome+' ':'')+ctFmtPart(p, vals[j])).join(' · ') + (pts.length>1 ? ` · totale ${ctNum(pts.reduce((s,j)=>s+vals[j],0))}/${pts.reduce((s,j)=>s+ +ps[j].max,0)}` : ''); }
+// one number to draw the bar and compare: share of the points if the test has points, otherwise its first value
+function ctScore(t, vals){ const ps = ctParts(t), pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
+  if(pts.length) return {kind:'pct', v: pts.reduce((s,j)=>s+vals[j],0) / pts.reduce((s,j)=>s+ +ps[j].max,0)};
+  const j = vals.findIndex(x=>x!==null); return j<0 ? null : {kind:ps[j].kind, v:vals[j], max:+ps[j].max||0}; }
+// "1:30" -> 90 for seconds; comma decimals
+const ctParse = (txt, kind) => { const x = String(txt||'').trim().replace(',','.'); if(x==='') return null; if(kind==='sec' && /^\d+:\d{1,2}(\.\d+)?$/.test(x)){ const [m,s] = x.split(':'); return +m*60 + +s; } return isNaN(+x) ? NaN : +x; };
+
 const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteId===aid).sort((a,b)=>(a.cycle||1)-(b.cycle||1) || String(a.date).localeCompare(String(b.date)));
 const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const W = n => WEEKS[n-1];
