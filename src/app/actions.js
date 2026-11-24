@@ -350,6 +350,11 @@ const ACT = {
       w.days.forEach((d,j)=>{ if(j<6){ d.ctTipo=j+1; d.title='Test · '+W(j+1).name; } }); if(blank) o.weeks=[w]; else o.weeks.push(w); i=o.weeks.length-1; }
     o.cur=i+1; const wk='o'+o.cur; if(g.sdone && g.sdone[wk] && Object.keys(g.sdone[wk]).length){ g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:g.sdone[wk]}}); delete g.sdone[wk]; }
     g.testFrom=g.week; g.prog='own'; U.oWeek=null; U.oDay=null; save(); toast(g.name+': settimana dei test · '+(o.weeks[i].name||'settimana '+o.cur)); },
+  wkchgopen(k){ U.wkChg = U.wkChg===k ? null : k; },
+  wkchg(k){ const g=grp(k), el=document.getElementById('f-wkchg-'+k); if(!g||!el) return; const v=el.value; U.wkChg=null;
+    if(v==='T'){ if(!inTestWeek(g)) ACT.tweekgo(k); return; }
+    if(inTestWeek(g)){ delete g.testFrom; g.prog='12w'; }
+    gotoWeek(g, +v); U.oWeek=null; U.oDay=null; save(); toast(g.name+': settimana '+g.week+' · '+W(g.week).name); },
   testend(k){ const g=grp(k); if(!g) return; const from=g.testFrom; delete g.testFrom; g.prog='12w'; U.oWeek=null; U.oDay=null; save(); toast(g.name+': di nuovo alle 12 settimane (settimana '+(from||g.week)+')'); },
   weekrep(k){ const g=grp(k); if(!g) return; const wk=gwk(g); g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:(g.sdone||{})[wk]||{}}}); if(g.sdone) delete g.sdone[wk]; g.cycle=(g.cycle||1)+1; save(); toast(g.name+': si ripete la settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(Math.max(g.week, g.maxWeek||0)>=12){ toast('Il programma di 12 settimane è finito'); return; } gotoWeek(g, nextWeekNo(g)); } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },

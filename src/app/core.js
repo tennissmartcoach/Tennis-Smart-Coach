@@ -65,7 +65,15 @@ function sessDots(g){ const m = sDone(g), pk = pickOf(g); return `<span class="s
 // a group is in its test week when it moved there with the button, or its own current week is a test week (made by hand)
 const inTestWeek = g => !!g && isOwnG(g) && !g.pp && (!!g.testFrom || (w => !!w && (w.days.some(d=>d.ctTipo) || /test/i.test(w.name||'')))(ownOf(g.id).weeks[ownOf(g.id).cur-1]));
 const testEndBtn = g => inTestWeek(g) && S.session.role==='coach' ? `<button class="btn clay block" data-a="testend" data-k="${g.id}">Fine dei test: torna alle 12 settimane</button>` : '';
-function sessBtns(g, di){ if(S.session.role!=='coach' || !g) return '';
+/* any week at any time: 1-12 or the test week (coach, groups on the 12 weeks or in their test week) */
+function weekChanger(g){
+  if(!g || g.pp || S.session.role!=='coach' || (isOwnG(g) && !inTestWeek(g))) return '';
+  if(U.wkChg!==g.id) return `<button class="chip" data-a="wkchgopen" data-k="${g.id}" style="align-self:flex-start">Cambia settimana</button>`;
+  const cur = inTestWeek(g) ? 'T' : String(g.week);
+  return `<div class="row" style="gap:8px"><select id="f-wkchg-${g.id}" class="input" style="flex:1;min-width:0" aria-label="Cambia settimana">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===cur?'selected':''}>Settimana ${n} · ${esc(W(n).name)}</option>`).join('')}<option value="T" ${cur==='T'?'selected':''}>Settimana dei test</option></select><button class="btn clay" data-a="wkchg" data-k="${g.id}">Vai</button></div>`;
+}
+function sessBtns(g, di){ return sessBtns0(g, di) + weekChanger(g); }
+function sessBtns0(g, di){ if(S.session.role!=='coach' || !g) return '';
   if(nextFree(g)<0 && inTestWeek(g)) return `<div class="note"><b>Settimana dei test completata.</b></div>${testEndBtn(g)}`;
   if(nextFree(g)<0){ const endC = !isOwnG(g) && (g.week===6 || g.week===12), st = g.week<=6 ? 1 : 7;
     return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.${endC?` È finito il ciclo delle settimane ${st}–${st+5}.`:''}</div>${endC?`<button class="btn clay" data-a="tweekgo" data-k="${g.id}">Inizia la settimana dei test</button>`:''}${endC?`<button class="btn ghost" data-a="cyclerep" data-k="${g.id}:${st}">Ripeti il ciclo (torna alla settimana ${st})</button>`:''}<button class="btn ghost" data-a="weekrep" data-k="${g.id}">Ripeti questa settimana</button>${(isOwnG(g) || Math.max(g.week,g.maxWeek||0)<12)?`<button class="btn ${endC?'ghost':'clay'}" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:nextWeekNo(g)}</button>`:''}
