@@ -19,6 +19,11 @@ function ownItems(g, d){ return d.ex.map((id,i)=>({i, id, e:exById(id), ph:ownPh
 function ownByPhase(g, d, render, adders){
   const L = lessonOf(g), items = ownItems(g, d);
   if(!L.phases.length) return items.map(x=>render(x)).join('') + (adders ? adders(null) : '');
+  // a test day is only a short warm-up and the tests: show just the phases that have exercises, one "add" row at the end
+  if(d && d.ctTipo){ const work = L.phases.filter(p=>!p.pause), first = work[0];
+    return work.map(p=>{ const its = items.filter(x=>x.ph===p.k); return its.length ? `<p class="small"><b>${esc(p.n)}</b></p>` + its.map(x=>render(x)).join('') : ''; }).join('')
+      + items.filter(x=>!work.some(p=>p.k===x.ph)).map(x=>render(x)).join('')
+      + (adders ? `<p class="small muted">${items.length?'Aggiungi un esercizio':'Aggiungi l\'attivazione'}${first?' (va in '+esc(first.n)+')':''}</p>` + adders(first||null) : ''); }
   const keys = L.phases.filter(p=>!p.pause).map(p=>p.k); let np = 0;
   const out = L.phases.map(p=>{
     if(p.pause){ np++; return pauseRow(`${esc(p.n)}${p.m?' · '+p.m+"'":''}`, 'Acqua e recupero.'); }
@@ -35,7 +40,7 @@ function ownTodayCard(g, light){
     ${sessDots(g)}
     <h2>${esc(sessHead(g, di, day.title||'Seduta da definire'))}</h2>
     ${wk&&day.note?`<p>${esc(day.note)}</p>`:''}
-    ${wk&&!light?lessonTL(g):''}
+    ${wk&&!light&&!day.ctTipo?lessonTL(g):''}
     ${wk&&exs.length&&light?`<div class="list small">${exs.map(x=>`<div>${x.e.custom?esc(x.e.t):x.e.t}</div>`).join('')}</div>`:''}</section>
     ${wk&&exs.length&&!light?ownByPhase(g, day, x=>exCard(x.e,{ph:x.ph})):''}
     ${wk&&day.ctTipo?ctDayBlock(g, day.ctTipo, false, light):''}`;
@@ -86,7 +91,7 @@ function ownPlanView(g){
         ${U.oWeek===o.cur && S.session.role==='coach' ? (doneDate(g,U.oDay)?`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">✓ Fatto ${fdate(doneDate(g,U.oDay))} · annulla</button>`:`<button class="chip" data-a="sessdone" data-k="${g.id}:${U.oDay}" style="align-self:flex-start">Segna come fatto</button>`) : ''}
         <div class="field"><label for="od-t">Titolo della seduta</label><input id="od-t" class="input inbig" data-c="odtitle" value="${esc(d.title)}" placeholder="Es. Diritto in spinta + punti a tema"></div>
         <div class="field"><label for="od-n">Obiettivo e note</label><textarea id="od-n" class="input" rows="3" data-c="odnote" placeholder="Cosa vogliamo ottenere oggi">${esc(d.note)}</textarea></div>
-        ${lessonTL(g)}<div class="row" style="gap:8px;flex-wrap:wrap"><button class="chip" data-a="lessonopen" data-k="${g.id}">Durata e fasi</button><button class="btn clay" data-a="dayai" data-k="1">Rifai la lezione con l'IA</button></div>
+        ${d.ctTipo?'':lessonTL(g)}<div class="row" style="gap:8px;flex-wrap:wrap">${d.ctTipo?'':`<button class="chip" data-a="lessonopen" data-k="${g.id}">Durata e fasi</button>`}<button class="btn clay" data-a="dayai" data-k="1">Rifai la lezione con l'IA</button></div>
         ${g.pp?'':`<div class="field"><label>Giornata test</label><div class="chips"><button class="chip" data-a="octipo" data-k="0" aria-pressed="${!d.ctTipo}">No</button>${CT_TIPI().map(x=>`<button class="chip" data-a="octipo" data-k="${x.k}" aria-pressed="${d.ctTipo===x.k}">${esc(x.name)}</button>`).join('')}</div><span class="small muted">In una giornata test, sotto la seduta compaiono i test della tipologia e il pulsante per segnare i punteggi.</span></div>`}</section>
       ${ownByPhase(g, d, x=>exCard(x.e,{ph:x.ph, html:`<div class="row"><button class="chip" data-a="oedit" data-k="${x.i}">✎ Modifica</button><button class="chip" data-a="odrop" data-k="${x.i}">Togli</button><button class="chip" data-a="oup" data-k="${x.i}" aria-label="Sposta su">↑</button>${workPhases(g).length>1&&!noLesson(g)?`<select class="input" style="flex:1;min-width:0;padding:6px 8px;font-size:14px" data-c="omove" data-k="${x.i}" aria-label="Sposta in un'altra fase">${workPhases(g).map(p=>`<option value="${p.k}" ${p.k===x.ph?'selected':''}>${esc(p.n)}</option>`).join('')}</select>`:''}</div>`}),
         p=>`<div class="row"><button class="btn ghost" data-a="opick" data-k="${p?p.k:''}" style="flex:1">+ Dalla libreria</button><button class="btn ghost" data-a="onewex" data-k="${p?p.k:''}" style="flex:1">+ Scrivi un esercizio</button></div>`)}
