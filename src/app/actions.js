@@ -343,6 +343,14 @@ const ACT = {
   cyclerep(k){ const [gid,st]=k.split(':'), g=grp(gid); if(!g) return; const s0=+st; g.past=g.past||[]; const old={}; for(let w=s0; w<s0+6; w++){ if(g.sdone&&g.sdone[w]){ old[w]=g.sdone[w]; delete g.sdone[w]; } }
     g.past.push({end:todayISO(), from:s0, cycle:g.cycle||1, sdone:old}); g.cycle=(g.cycle||1)+1; g.week=s0; g.maxWeek=s0; save(); toast(g.name+': si ricomincia dalla settimana '+s0+' (giro '+g.cycle+')'); },
   // the same week once more: its ticks go to g.past, and a new round (g.cycle) keeps the new test results apart from the old ones
+  // end of week 6 or 12: the group moves to its test week (kept in its own programme) and comes back afterwards
+  tweekgo(k){ const g=grp(k); if(!g) return; const o=ownOf(g.id);
+    let i=o.weeks.findIndex(w=>w.days.some(d=>d.ctTipo) || /test/i.test(w.name||''));
+    if(i<0){ const blank = o.weeks.length===1 && !o.weeks[0].name && o.weeks[0].days.every(d=>!d.title && !d.ex.length); const w=blankWeek(); w.name='Settimana dei test';
+      w.days.forEach((d,j)=>{ if(j<6){ d.ctTipo=j+1; d.title='Test · '+W(j+1).name; } }); if(blank) o.weeks=[w]; else o.weeks.push(w); i=o.weeks.length-1; }
+    o.cur=i+1; const wk='o'+o.cur; if(g.sdone && g.sdone[wk] && Object.keys(g.sdone[wk]).length){ g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:g.sdone[wk]}}); delete g.sdone[wk]; }
+    g.testFrom=g.week; g.prog='own'; U.oWeek=null; U.oDay=null; save(); toast(g.name+': settimana dei test · '+(o.weeks[i].name||'settimana '+o.cur)); },
+  testend(k){ const g=grp(k); if(!g) return; const from=g.testFrom; delete g.testFrom; g.prog='12w'; U.oWeek=null; U.oDay=null; save(); toast(g.name+': di nuovo alle 12 settimane (settimana '+(from||g.week)+')'); },
   weekrep(k){ const g=grp(k); if(!g) return; const wk=gwk(g); g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:(g.sdone||{})[wk]||{}}}); if(g.sdone) delete g.sdone[wk]; g.cycle=(g.cycle||1)+1; save(); toast(g.name+': si ripete la settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(Math.max(g.week, g.maxWeek||0)>=12){ toast('Il programma di 12 settimane è finito'); return; } gotoWeek(g, nextWeekNo(g)); } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d,gid]=k.split(':'); if(gid) U.planGroup=gid; U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },

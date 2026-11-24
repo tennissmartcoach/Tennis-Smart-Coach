@@ -67,6 +67,7 @@ function fitNoteField(g){ return `<div class="field"><label for="f-fitnote">Per 
 function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+    ${inTestWeek(g) ? `<div class="note">${esc(g.name)} è nella <b>settimana dei test</b>. Finiti i test torna alle 12 settimane, alla settimana ${g.testFrom||g.week}.</div>${testEndBtn(g)}` : ''}
     <div class="field"><label>Programma assegnato</label><div class="seg" role="group"><button data-a="setprog" data-k="12w" aria-pressed="${!isOwnG(g)}">Le 12 settimane</button><button data-a="setprog" data-k="own" aria-pressed="${isOwnG(g)}">Programma personale</button></div></div>
     <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con i test della tipologia nel filo fisso e partita guidata.'}</p>
     <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
