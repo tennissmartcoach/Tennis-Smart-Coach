@@ -587,7 +587,30 @@ const ctTipoOfWeek = w => ((+w-1)%6)+1;
 const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
 const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
 function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
-const ctKindLab = t => t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?');
+const ctKindLab1 = p => p.kind==='sec' ? 'tempo (meno è meglio)' : p.kind==='num' ? (+p.max>0?'numero su '+p.max:'numero (più è meglio)') : 'punti su '+(p.max||'?');
+const ctKindLab = t => (t.misure||[]).length ? t.misure.map(p=>(p.nome||'')+': '+ctKindLab1(p)).join(' · ') : (t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?'));
+/* a test can record several values ("misure"): t.misure=[{nome, kind:'pts'|'num'|'sec', max}]; old tests have a single t.kind/t.max.
+   A result is a number for a single-value test, an array (one value per measure, null if empty) for a multi-value one. */
+const ctMisIn = ms => ms.map(p=>{ const k=String(p.tipo||p.kind||'').toLowerCase(); const kind=/sec/.test(k)?'sec':/num/.test(k)?'num':'pts'; return {nome:String(p.nome||''), kind, max:kind!=='sec'&&+p.massimo>0?+p.massimo:(kind!=='sec'&&+p.max>0?+p.max:null)}; });
+const ctParts = t => (t.misure||[]).length ? t.misure : [{nome:'', kind:t.kind||'pts', max:t.max}];
+const ctVals = (r, t) => { const v = r && r.v ? r.v[t.id] : undefined; if(v===undefined || v===null || v==='') return ctParts(t).map(()=>null); return Array.isArray(v) ? ctParts(t).map((_,j)=>v[j]==null||v[j]===''?null:+v[j]) : [+v]; };
+const ctHas = (r, t) => ctVals(r, t).some(x=>x!==null);
+const ctNum = z => (Math.round(z*10)/10).toString().replace('.',',');
+const ctTime = s => { s = Math.round(+s*10)/10; if(s<60) return ctNum(s)+' s'; const m = Math.floor(s/60), r = Math.round(s-m*60); return m+':'+String(r).padStart(2,'0'); };
+const ctFmtPart = (p, v) => v===null ? '–' : p.kind==='sec' ? ctTime(v) : (p.kind==='pts' || (p.kind==='num' && +p.max>0)) && +p.max>0 ? ctNum(v)+'/'+p.max : ctNum(v);
+// "Destra 11/15 · Sinistra 9/15 · totale 20/30" or "20/20 in 1:30"
+function ctFmt(t, vals){ const ps = ctParts(t); if(ps.length===1) return ctFmtPart(ps[0], vals[0]);
+  const sec = ps.findIndex(p=>p.kind==='sec'), oth = ps.findIndex(p=>p.kind!=='sec');
+  if(ps.length===2 && sec>=0 && oth>=0 && vals[sec]!==null && vals[oth]!==null) return ctFmtPart(ps[oth], vals[oth])+' in '+ctTime(vals[sec]);
+  const pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
+  return ps.map((p,j)=>(p.nome?p.nome+' ':'')+ctFmtPart(p, vals[j])).join(' · ') + (pts.length>1 ? ` · totale ${ctNum(pts.reduce((s,j)=>s+vals[j],0))}/${pts.reduce((s,j)=>s+ +ps[j].max,0)}` : ''); }
+// one number to draw the bar and compare: share of the points if the test has points, otherwise its first value
+function ctScore(t, vals){ const ps = ctParts(t), pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
+  if(pts.length) return {kind:'pct', v: pts.reduce((s,j)=>s+vals[j],0) / pts.reduce((s,j)=>s+ +ps[j].max,0)};
+  const j = vals.findIndex(x=>x!==null); return j<0 ? null : {kind:ps[j].kind, v:vals[j], max:+ps[j].max||0}; }
+// "1:30" -> 90 for seconds; comma decimals
+const ctParse = (txt, kind) => { const x = String(txt||'').trim().replace(',','.'); if(x==='') return null; if(kind==='sec' && /^\d+:\d{1,2}(\.\d+)?$/.test(x)){ const [m,s] = x.split(':'); return +m*60 + +s; } return isNaN(+x) ? NaN : +x; };
+
 const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteId===aid).sort((a,b)=>(a.cycle||1)-(b.cycle||1) || String(a.date).localeCompare(String(b.date)));
 const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const W = n => WEEKS[n-1];
@@ -1010,7 +1033,8 @@ function athleteView(id, self){
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
-    body = (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
+    body = ((role==='coach'||role==='fit') ? (U.ctAth===id ? ctAthEntry(id) : `<button class="btn clay" data-a="ctathrec" data-k="${id}" style="align-self:flex-start">Segna i test di ${esc(ath(id).name)}</button>`) : '')
+      + (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -1290,7 +1314,20 @@ function ctGroupTable(tipo){
   const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctOf(tipo), cy = g.cycle||1;
   const rows = as.map(a=>{ const r = ctRecs(a.id, tipo).filter(x=>(x.cycle||1)===cy).pop(); return r ? {a, r} : null; }).filter(Boolean);
   if(!rows.length) return '';
-  return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${r.v[t.id]??'–'}${t.kind==='pts'&&r.v[t.id]!=null?'/'+t.max:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+  return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${ctHas(r,t)?esc(ctFmt(t, ctVals(r,t))):'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+}
+function ctAthBoxes(a, ts, r){ return `<div style="display:flex;flex-direction:column;gap:10px">${ts.map((t,i)=>{ const ps = ctParts(t), vs = ctVals(r, t);
+        const box = (p,j) => `<input id="ct-${a.id}-${t.id}-${j}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="${p.kind==='sec'?'text':'decimal'}" placeholder="${p.kind==='sec'?'1:30':+p.max>0?'/'+p.max:'n.'}" value="${vs[j]===null?'':p.kind==='sec'&&vs[j]>=60?ctTime(vs[j]):String(vs[j]).replace('.',',')}" aria-label="${esc(t.t)}${p.nome?' · '+esc(p.nome):''}">`;
+        return ps.length===1 ? `<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-0" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}${ps[0].kind==='sec'?' · anche 1:30':''}</span></label>${box(ps[0],0)}</div>`
+          : `<div><b>${i+1}. ${esc(t.t)}</b>${t.area==='atl'?' <span class="small muted">· Atletica</span>':''}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${ps.map((p,j)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-${j}" style="flex:1;min-width:0;padding-left:14px">${esc(p.nome||'Valore '+(j+1))}<br><span class="small muted">${esc(ctKindLab1(p))}${p.kind==='sec'?' · anche 1:30':''}</span></label>${box(p,j)}</div>`).join('')}</div></div>`; }).join('')}</div>`; }
+/* coach or fitness coach inside an athlete's profile: record that athlete's tests for one player type */
+function ctAthEntry(id){
+  const a = ath(id), g = grp(a.groupId); if(!U.ctTipo) U.ctTipo = g && !isOwnG(g) ? ctTipoOfWeek(g.week) : 1; const tipo = +U.ctTipo, ts = ctOf(tipo), cy = (g&&g.cycle)||1;
+  const r = ctRecs(id, tipo).filter(x=>(x.cycle||1)===cy).pop();
+  return `<section class="card" style="border-color:var(--clay)"><div class="row between"><h3>Segna i test di ${esc(a.name)}</h3><button class="chip" data-a="ctathrec" data-k="">Chiudi</button></div>
+    <div class="chips">${CT_TIPI().map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?'':' · nessun test'}</button>`).join('')}</div>
+    <div class="field" style="max-width:200px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${U.ctDate||todayISO()}"></div>
+    ${ts.length ? ctAthBoxes(a, ts, r) + `<button class="btn clay block" data-a="ctsave">Salva</button>` : '<p class="small muted">Questa tipologia non ha ancora test: aggiungili in Test del ciclo.</p>'}</section>`;
 }
 function ctRecView(tipo){
   const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
@@ -1301,7 +1338,7 @@ function ctRecView(tipo){
     <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
       <p class="small muted">${ts.map((t,i)=>`<b>${i+1}.</b> ${esc(t.t)} <span class="muted">(${esc(ctKindLab(t))})</span>`).join(' · ')}</p></section>
-    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:flex;flex-direction:column;gap:8px">${ts.map((t,i)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}</span></label><input id="ct-${a.id}-${t.id}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="decimal" placeholder="${t.kind==='pts'?'/'+t.max:t.kind==='sec'?'sec':'n.'}" value="${r&&r.v[t.id]!=null?String(r.v[t.id]).replace('.',','):''}"></div>`).join('')}</div></section>`; }).join('')}
+    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3>${ctAthBoxes(a, ts, r)}</section>`; }).join('')}
     <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
 }
 /* athlete: the test sheet, by player type */
@@ -1311,13 +1348,16 @@ function ctCard(id){
   const g = grp(a.groupId), mates = S.athletes.filter(x=>x.groupId===a.groupId).map(x=>x.id);
   const block = x => { const rs = ctRecs(id, x.k), last = rs[rs.length-1], prev = rs.filter(r=>(r.cycle||1)<(last.cycle||1)).pop();
     return `<div class="field"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${last.date?fdate(last.date+'T12:00'):''}</span></div>
-      <div class="bars">${ctOf(x.k).map(t=>{ const v = last.v[t.id]; if(v==null||v==='') return '';
-        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); return r && r.v[t.id]!=null && r.v[t.id]!=='' ? +r.v[t.id] : null; }).filter(z=>z!==null);
-        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = t.kind==='sec' ? Math.min(...all,+v) : Math.max(...all,+v,1);
-        const w = t.kind==='pts' ? Math.min(100, +v/(+t.max||1)*100) : t.kind==='sec' ? Math.min(100, best/(+v||1)*100) : Math.min(100, +v/best*100);
-        const pv = prev && prev.v[t.id]!=null && prev.v[t.id]!=='' ? +prev.v[t.id] : null, up = pv===null ? '' : (t.kind==='sec' ? +v<pv : +v>pv) ? ' <span style="color:var(--ok)">▲</span>' : +v===pv ? ' =' : ' <span style="color:var(--ko)">▼</span>';
-        const fmt = z => (Math.round(z*10)/10).toString().replace('.',',');
-        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span><b>${fmt(+v)}</b>${t.kind==='pts'?'/'+t.max:t.kind==='sec'?' s':''}${up}</span></div><div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pv!==null?'Ciclo prima: '+fmt(pv)+(t.kind==='sec'?' s':'')+' · ':''}${avg!==null?'Media del gruppo: '+fmt(avg):''}</div></div>`; }).join('')}</div></div>`; };
+      <div class="bars">${ctOf(x.k).map(t=>{ const vals = ctVals(last, t); if(!vals.some(z=>z!==null)) return '';
+        const sc = ctScore(t, vals); if(!sc) return '';
+        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); const s2 = r && ctHas(r,t) ? ctScore(t, ctVals(r,t)) : null; return s2 && s2.kind===sc.kind ? s2.v : null; }).filter(z=>z!==null);
+        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = sc.kind==='sec' ? Math.min(...all, sc.v) : Math.max(...all, sc.v, 1);
+        const w = sc.kind==='pct' ? Math.min(100, sc.v*100) : sc.kind==='sec' ? Math.min(100, best/(sc.v||1)*100) : sc.max>0 ? Math.min(100, sc.v/sc.max*100) : Math.min(100, sc.v/best*100);
+        const pvals = prev && ctHas(prev, t) ? ctVals(prev, t) : null, ps = pvals ? ctScore(t, pvals) : null;
+        const up = !ps || ps.kind!==sc.kind ? '' : (sc.kind==='sec' ? sc.v<ps.v : sc.v>ps.v) ? ' <span style="color:var(--ok)">▲</span>' : sc.v===ps.v ? ' =' : ' <span style="color:var(--ko)">▼</span>';
+        const avgTxt = avg===null ? '' : 'Media del gruppo: ' + (sc.kind==='pct' ? Math.round(avg*100)+'%' : sc.kind==='sec' ? ctTime(avg) : ctNum(avg));
+        const many = ctParts(t).length>1;
+        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span>${many?'':`<b>${esc(ctFmt(t, vals))}</b>`}${up}</span></div>${many?`<div class="small"><b>${esc(ctFmt(t, vals))}</b></div>`:''}<div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pvals?'Ciclo prima: '+esc(ctFmt(t, pvals))+(avgTxt?' · ':''):''}${avgTxt}</div></div>`; }).join('')}</div></div>`; };
   return `<section class="card"><h3>Test di fine ciclo</h3><p class="small muted">Per tipologia di giocatore: la barra piena è il massimo (o il migliore del gruppo). ▲ migliorato rispetto al ciclo prima.</p>${tipi.map(block).join('')}</section>`;
 }
 /* coach: programme */
@@ -1754,7 +1794,7 @@ COME RISPONDERE
 
 FORMATO
 {"tipo":"tennis-smart-coach","versione":2,"esercizio":{"titolo":"…","etichetta":"organizzazione, es. a coppie, maestro al cesto","righe":["svolgimento","varianti, punteggio, attenzione a…"],"min":10,"serie":"…","obiettivo":"…","campo":[…]}}
-("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)${E.ct?'\nPer un test aggiungi anche "misura": "punti" (con "massimo", il punteggio più alto possibile), "numero" oppure "secondi".':''}
+("min", "serie" e "obiettivo" mettili solo se gli appunti li dicono.)${E.ct?'\nPer un test aggiungi anche "misura": "punti" (con "massimo", il punteggio più alto possibile), "numero" oppure "secondi".\nSe il test ha più risultati (es. palle e tempo, oppure destra e sinistra), usa "misure" con un elemento per ciascuno invece di "misura". Ogni elemento: {"nome":"…","tipo":"punti|numero|secondi","massimo":N} ("massimo" solo per punti e numero). Esempio: "misure":[{"nome":"Destra","tipo":"punti","massimo":15},{"nome":"Sinistra","tipo":"punti","massimo":15}]':''}
 ${cur}
 ${AI_CAMPO}
 
@@ -1793,8 +1833,13 @@ function editorView(){
     ${exAiCard(E)}
     <section class="card">
       ${E.ct?`<div class="field"><label>Area</label><div class="seg" role="group"><button data-a="edctset" data-k="area:ten" aria-pressed="${E.area!=='atl'}">Tennis</button><button data-a="edctset" data-k="area:atl" aria-pressed="${E.area==='atl'}">Atletica</button></div></div>
-      <div class="field"><label>Come si misura</label><div class="seg" role="group"><button data-a="edctset" data-k="kind:pts" aria-pressed="${E.kind==='pts'}">Punti su un massimo</button><button data-a="edctset" data-k="kind:num" aria-pressed="${E.kind==='num'}">Numero</button><button data-a="edctset" data-k="kind:sec" aria-pressed="${E.kind==='sec'}">Secondi</button></div></div>
-      ${E.kind==='pts'?`<div class="field" style="max-width:160px"><label for="ed-max">Punteggio massimo</label><input id="ed-max" class="input" inputmode="numeric" data-c="ed" data-k="max" value="${esc(String(E.max||''))}" placeholder="Es. 24"></div>`:''}`:''}
+      ${(E.misure||[]).length ? `<div class="field"><label>Risultati del test</label><div style="display:flex;flex-direction:column;gap:8px">${E.misure.map((p,j)=>`<div class="card" style="padding:10px;gap:8px"><div class="row" style="gap:8px;flex-wrap:nowrap"><input class="input" style="flex:1;min-width:0" data-c="edmis" data-k="${j}:nome" value="${esc(p.nome||'')}" placeholder="Nome, es. Destra" aria-label="Nome del risultato ${j+1}"><button class="chip" data-a="edmisdel" data-k="${j}" aria-label="Togli">✕</button></div>
+          <div class="seg" role="group"><button data-a="edmiskind" data-k="${j}:pts" aria-pressed="${p.kind==='pts'}">Punti</button><button data-a="edmiskind" data-k="${j}:num" aria-pressed="${p.kind==='num'}">Numero</button><button data-a="edmiskind" data-k="${j}:sec" aria-pressed="${p.kind==='sec'}">Secondi</button></div>
+          ${p.kind!=='sec'?`<input class="input" inputmode="numeric" data-c="edmis" data-k="${j}:max" value="${esc(String(p.max||''))}" placeholder="${p.kind==='pts'?'Massimo, es. 15':'Massimo (facoltativo)'}" aria-label="Massimo">`:''}</div>`).join('')}</div>
+          <button class="chip" data-a="edmisadd" style="align-self:flex-start">+ Aggiungi un risultato</button></div>`
+        : `<div class="field"><label>Come si misura</label><div class="seg" role="group"><button data-a="edctset" data-k="kind:pts" aria-pressed="${E.kind==='pts'}">Punti su un massimo</button><button data-a="edctset" data-k="kind:num" aria-pressed="${E.kind==='num'}">Numero</button><button data-a="edctset" data-k="kind:sec" aria-pressed="${E.kind==='sec'}">Secondi</button></div></div>
+      ${E.kind==='pts'?`<div class="field" style="max-width:160px"><label for="ed-max">Punteggio massimo</label><input id="ed-max" class="input" inputmode="numeric" data-c="ed" data-k="max" value="${esc(String(E.max||''))}" placeholder="Es. 24"></div>`:''}
+      <button class="chip" data-a="edmisadd" style="align-self:flex-start">+ Più risultati (es. destra e sinistra, palle e tempo)</button>`}`:''}
       ${E.sheet||E.ct?'':`<div class="field"><label>Fase</label><div class="seg sub" role="group">${workPhases(getLG()).map(p=>p.k).concat(workPhases(getLG()).some(p=>p.k===E.ph)?[]:[E.ph]).filter(k=>k&&k!=='ri').map(k=>`<button data-a="edph" data-k="${k}" aria-pressed="${E.ph===k}">${esc(phInfo(k)[0].split(' ')[0])}</button>`).join('')}</div></div>`}
       <div class="field"><label for="ed-t">Titolo</label><input id="ed-t" class="input" data-c="ed" data-k="t" value="${esc(E.t)}" placeholder="Es. Smorzata e avanti"></div>
       <div class="field"><label for="ed-chip">Organizzazione</label><input id="ed-chip" class="input" data-c="ed" data-k="chip" value="${esc(E.chip)}" placeholder="Es. Maestro al cesto, poi a coppie"></div>
@@ -3835,23 +3880,30 @@ const ACT = {
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
   dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   cttipo(k){ U.ctTipo=+k; },
+  ctathrec(k){ U.ctAth = k || null; if(k){ const a=ath(k); U.ctGroup=a&&a.groupId; U.ctDate=todayISO(); } },
   octipo(k){ const d=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]; if(+k) d.ctTipo=+k; else delete d.ctTipo; save(); },
   ctday(k){ const [gid,tipo]=k.split(':'); U.ctTipo=+tipo; U.ctGroup=gid; U.ctDate=todayISO(); U.ctRec=true; U.ctBack={w:U.oWeek, d:U.oDay}; U.planMode='ctest'; window.scrollTo(0,0); },
   ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.ctRec=false; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
   ctnew(){ U.ed={id:null, ph:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null, ct:{tipo:+U.ctTipo, id:null}, area:'ten', kind:'pts', max:''}; window.scrollTo(0,0); },
-  ctedit(k){ const t=ctAll().find(x=>x.id===k); if(!t) return; U.ed={id:null, ph:'pr', t:t.t, chip:t.chip||'', x:(t.lines||[]).join('\n'), els:JSON.parse(JSON.stringify(t.els||[])), tool:'A', pend:null, ct:{tipo:t.tipo, id:t.id}, area:t.area, kind:t.kind, max:t.max||''}; U.confirm=null; window.scrollTo(0,0); },
+  ctedit(k){ const t=ctAll().find(x=>x.id===k); if(!t) return; U.ed={id:null, ph:'pr', t:t.t, chip:t.chip||'', x:(t.lines||[]).join('\n'), els:JSON.parse(JSON.stringify(t.els||[])), tool:'A', pend:null, ct:{tipo:t.tipo, id:t.id}, area:t.area, kind:t.kind||'pts', max:t.max||'', misure:JSON.parse(JSON.stringify(t.misure||[]))}; U.confirm=null; window.scrollTo(0,0); },
+  edmisadd(){ const E=U.ed; E.misure=E.misure||[]; if(!E.misure.length) E.misure.push({nome:'', kind:E.kind||'pts', max:E.max||''}); E.misure.push({nome:'', kind:'pts', max:''}); },
+  edmisdel(k){ const E=U.ed; E.misure.splice(+k,1); if(E.misure.length===1){ const p=E.misure[0]; E.kind=p.kind; E.max=p.max; E.misure=[]; } },
+  edmiskind(k){ const [j,v]=k.split(':'); U.ed.misure[+j].kind=v; if(v==='sec') U.ed.misure[+j].max=''; },
   edctset(k){ const [f,v]=k.split(':'); U.ed[f]=v; },
   ctdel(){ const E=U.ed; if(!E||!E.ct||!E.ct.id) return; ctSaveAll(ctAll().filter(x=>x.id!==E.ct.id)); save(); U.ed=null; U.confirm=null; toast('Test eliminato'); },
   ctrec(k){ U.ctRec = k==='1'; if(k!=='1' && U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } window.scrollTo(0,0); },
-  ctsave(){ const g=grp(U.ctGroup), tipo=+U.ctTipo, ts=ctOf(tipo), d=U.ctDate||todayISO(); if(!g) return; S.tests=S.tests||[]; let n=0;
-    S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ const v={}; ts.forEach(t=>{ const el=document.getElementById('ct-'+a.id+'-'+t.id); const x=el?String(el.value).trim().replace(',','.'):''; if(x!=='' && !isNaN(+x)) v[t.id]=+x; });
+  ctsave(){ const g=grp(U.ctGroup), tipo=+U.ctTipo, ts=ctOf(tipo), d=U.ctDate||todayISO(); if(!g) return; S.tests=S.tests||[]; let n=0, bad='';
+    S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ const v={}; ts.forEach(t=>{ const ps=ctParts(t), xs=ps.map((p,j)=>{ const el=document.getElementById('ct-'+a.id+'-'+t.id+'-'+j); const x=ctParse(el?el.value:'', p.kind); if(Number.isNaN(x)){ bad=bad||a.name; return null; } return x; });
+        if(xs.every(x=>x===null)) return; v[t.id] = (t.misure||[]).length ? xs : xs[0]; });
       if(!Object.keys(v).length) return; const cy=g.cycle||1, old=S.tests.find(r=>r.ct===tipo && r.athleteId===a.id && (r.cycle||1)===cy);
       if(old){ Object.assign(old.v, v); old.date=d; } else S.tests.push({id:uid(), athleteId:a.id, groupId:g.id, ct:tipo, cycle:cy, date:d, v}); n++; });
-    save(); U.ctRec=false; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
+    if(bad){ toast('Controlla i numeri di '+bad+' (per il tempo scrivi 90 oppure 1:30)'); return; }
+    save(); U.ctRec=false; U.ctAth=null; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
   exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
-    if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo); }
+    if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo);
+      E.misure = Array.isArray(e.misure) && e.misure.length>1 ? ctMisIn(e.misure) : []; if(Array.isArray(e.misure) && e.misure.length===1){ const p=ctMisIn(e.misure)[0]; E.kind=p.kind; E.max=p.max||''; } }
     if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
     if(!E.sheet && !E.ctx) E.lib=true;
     E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
@@ -4174,8 +4226,10 @@ const ACT = {
       if(E.tool==='z') E.els.push(['z',Math.min(x1,x),Math.min(y1,y),Math.abs(x-x1),Math.abs(y-y1)]);
       else E.els.push([E.tool, arrowPath(x1,y1,x,y, E.tool!=='ma')]); } },
   edsave(){ const E=U.ed; if(!E.t.trim()){ toast('Scrivi il titolo'); return; }
-    if(E.ct){ if(E.kind==='pts' && !(+E.max>0)){ toast('Scrivi il punteggio massimo'); return; }
-      const list = ctAll().slice(), t = {id:E.ct.id||('ct'+uid()), tipo:E.ct.tipo, area:E.area||'ten', kind:E.kind||'pts', max:E.kind==='pts'?+E.max:null, t:E.t.trim(), chip:E.chip.trim(), lines:E.x.split('\n').map(l=>l.trim()).filter(Boolean), els:E.els};
+    if(E.ct){ const mis = (E.misure||[]).map(p=>({nome:String(p.nome||'').trim(), kind:p.kind||'pts', max:p.kind==='sec'||!(+p.max>0)?null:+p.max}));
+      if(mis.length){ if(mis.some(p=>p.kind==='pts'&&!p.max)){ toast('Scrivi il massimo di ogni risultato a punti'); return; } mis.forEach((p,j)=>{ if(!p.nome) p.nome='Valore '+(j+1); }); }
+      else if(E.kind==='pts' && !(+E.max>0)){ toast('Scrivi il punteggio massimo'); return; }
+      const list = ctAll().slice(), t = Object.assign({id:E.ct.id||('ct'+uid()), tipo:E.ct.tipo, area:E.area||'ten', kind:mis.length?mis[0].kind:(E.kind||'pts'), max:mis.length?mis[0].max:(E.kind==='pts'?+E.max:null), t:E.t.trim(), chip:E.chip.trim(), lines:E.x.split('\n').map(l=>l.trim()).filter(Boolean), els:E.els}, mis.length?{misure:mis}:{});
       const i = list.findIndex(x=>x.id===t.id); if(i>=0) list[i]=t; else list.push(t); ctSaveAll(list); save(); U.ed=null; toast(i>=0?'Test modificato':'Test aggiunto'); return; }
     if(E.sheet){ const x=shFind(E.sheet.sid); if(!x){ U.ed=null; return; } const ph=x.phases[E.sheet.pi]; ph.ex=ph.ex||[];
       const ne={t:E.t.trim(), min:String(E.min||'').trim(), x:E.x.split('\n').map(l=>l.trim()).filter(Boolean), obj:String(E.obj||'').trim(), serie:String(E.serie||'').trim(), els:E.els, chip:E.chip.trim()};
@@ -4275,6 +4329,7 @@ document.addEventListener('input', e=>{
   const t = e.target, c = t.dataset?.c;
   if(c==='ftext' && U.form){ U.form.ans[t.dataset.k]=t.value; return; }
   if(c==='ctdate'){ U.ctDate=t.value; return; }
+  if(c==='edmis' && U.ed && U.ed.misure){ const [j,f]=t.dataset.k.split(':'); U.ed.misure[+j][f]=t.value; return; }
   if(c==='ed' && U.ed){ U.ed[t.dataset.k]=t.value; return; }
   if(c==='fitnote'){ const g=grp(U.planGroup); if(g){ g.fitNotes=g.fitNotes||{}; g.fitNotes[fitNoteKey(g)]=t.value; save(); } return; }
   if(c==='pdfd' && U.pdfDraft){ U.pdfDraft[t.dataset.k]=t.value; return; }
