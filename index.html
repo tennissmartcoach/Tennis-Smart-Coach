@@ -637,12 +637,24 @@ function curIdx(g){ if(!g || g.id===PRIV_ID) return -1; const m = sDone(g), t = 
 function nextFree(g){ const m = sDone(g); for(const i of pickOf(g)) if(!m[i]) return i; return -1; }
 function todayIdx(g){ if(g){ const i = curIdx(g), pk = pickOf(g); return i<0 ? pk[pk.length-1] : i; } const d = new Date().getDay(); return d>=1 && d<=5 ? d-1 : 4; }
 function sessDots(g){ const m = sDone(g), pk = pickOf(g); return `<span class="sdots" aria-label="${pk.filter(i=>m[i]).length} allenamenti su ${pk.length} fatti">${pk.map((i,k)=>`<i class="${m[i]?'on':''}">${k+1}</i>`).join('')}</span>`; }
-function sessBtns(g, di){ if(S.session.role!=='coach' || !g) return '';
+// a group is in its test week when it moved there with the button, or its own current week is a test week (made by hand)
+const inTestWeek = g => !!g && isOwnG(g) && !g.pp && (!!g.testFrom || (w => !!w && (w.days.some(d=>d.ctTipo) || /test/i.test(w.name||'')))(ownOf(g.id).weeks[ownOf(g.id).cur-1]));
+const testEndBtn = g => inTestWeek(g) && S.session.role==='coach' ? `<button class="btn clay block" data-a="testend" data-k="${g.id}">Fine dei test: torna alle 12 settimane</button>` : '';
+/* any week at any time: 1-12 or the test week (coach, groups on the 12 weeks or in their test week) */
+function weekChanger(g){
+  if(!g || g.pp || S.session.role!=='coach' || (isOwnG(g) && !inTestWeek(g))) return '';
+  if(U.wkChg!==g.id) return `<button class="chip" data-a="wkchgopen" data-k="${g.id}" style="align-self:flex-start">Cambia settimana</button>`;
+  const cur = inTestWeek(g) ? 'T' : String(g.week);
+  return `<div class="row" style="gap:8px"><select id="f-wkchg-${g.id}" class="input" style="flex:1;min-width:0" aria-label="Cambia settimana">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===cur?'selected':''}>Settimana ${n} · ${esc(W(n).name)}</option>`).join('')}<option value="T" ${cur==='T'?'selected':''}>Settimana dei test</option></select><button class="btn clay" data-a="wkchg" data-k="${g.id}">Vai</button></div>`;
+}
+function sessBtns(g, di){ return sessBtns0(g, di) + weekChanger(g); }
+function sessBtns0(g, di){ if(S.session.role!=='coach' || !g) return '';
+  if(nextFree(g)<0 && inTestWeek(g)) return `<div class="note"><b>Settimana dei test completata.</b> Con "Cambia settimana" scegli da quale settimana ripartire.</div>`;
   if(nextFree(g)<0){ const endC = !isOwnG(g) && (g.week===6 || g.week===12), st = g.week<=6 ? 1 : 7;
-    return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.${endC?` È finito il ciclo delle settimane ${st}–${st+5}.`:''}</div>${endC?`<button class="btn clay" data-a="cyclerep" data-k="${g.id}:${st}">Ripeti il ciclo (torna alla settimana ${st})</button>`:''}<button class="btn ghost" data-a="weekrep" data-k="${g.id}">Ripeti questa settimana</button>${(isOwnG(g) || Math.max(g.week,g.maxWeek||0)<12)?`<button class="btn ${endC?'ghost':'clay'}" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:nextWeekNo(g)}</button>`:''}
+    return `<div class="note"><b>Settimana completata.</b> Tutti e ${pickOf(g).length} gli allenamenti sono fatti.${endC?` È finito il ciclo delle settimane ${st}–${st+5}.`:''}</div>${endC?`<button class="btn clay" data-a="tweekgo" data-k="${g.id}">Inizia la settimana dei test</button>`:''}${endC?`<button class="btn ghost" data-a="cyclerep" data-k="${g.id}:${st}">Ripeti il ciclo (torna alla settimana ${st})</button>`:''}<button class="btn ghost" data-a="weekrep" data-k="${g.id}">Ripeti questa settimana</button>${(isOwnG(g) || Math.max(g.week,g.maxWeek||0)<12)?`<button class="btn ${endC?'ghost':'clay'}" data-a="weeknext" data-k="${g.id}">Passa alla settimana ${isOwnG(g)?ownOf(g.id).cur+1:nextWeekNo(g)}</button>`:''}
       ${isOwnG(g)?'':`<div class="row" style="gap:8px"><select id="f-goto-${g.id}" class="input" style="flex:1;min-width:0" aria-label="Rifai una settimana">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===g.week?'selected':''}>Rifai la sett. ${n} · ${esc(W(n).name)}</option>`).join('')}</select><button class="btn ghost" data-a="gotoweek" data-k="${g.id}">Vai</button></div>`}`; }
   const dd = doneDate(g,di), nx = nextFree(g);
-  return dd ? `<div class="row"><button class="btn ghost" data-a="sessdone" data-k="${g.id}:${di}" style="flex:1">✓ Fatto ${dd===todayISO()?'oggi':fdate(dd)} · annulla</button>${nx>=0?`<button class="btn ghost" data-a="sessdone" data-k="${g.id}:${nx}" style="flex:1">Oggi anche il ${sNo(g,nx)} (recupero)</button>`:''}</div>` : `<button class="btn" data-a="sessdone" data-k="${g.id}:${di}">Segna l'allenamento ${sNo(g,di)} come fatto</button>`; }
+  return (dd ? `<div class="row"><button class="btn ghost" data-a="sessdone" data-k="${g.id}:${di}" style="flex:1">✓ Fatto ${dd===todayISO()?'oggi':fdate(dd)} · annulla</button>${nx>=0?`<button class="btn ghost" data-a="sessdone" data-k="${g.id}:${nx}" style="flex:1">Oggi anche il ${sNo(g,nx)} (recupero)</button>`:''}</div>` : `<button class="btn" data-a="sessdone" data-k="${g.id}:${di}">Segna l'allenamento ${sNo(g,di)} come fatto</button>`); }
 const sessHead = (g, di, title) => nextFree(g)<0 ? 'Settimana completata ✓' : `${sLabel(g,di)}: ${title}`;
 let toastT;
 function toast(msg){ let t = document.querySelector('.toast'); if(!t){ t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); document.body.appendChild(t);} t.textContent=msg; clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),1800); }
@@ -1214,6 +1226,8 @@ function fitNoteField(g){ return `<div class="field"><label for="f-fitnote">Per 
 function planGroupBar(g){
   const tg = teamGroups();
   return `<section class="card"><div class="field"><label for="f-plangrp">Gruppo</label><select id="f-plangrp" class="input inbig" data-c="plangrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+    ${inTestWeek(g) ? `<p class="small muted">${esc(g.name)} è nella <b>settimana dei test</b>. Per tornare alle 12 settimane usa "Cambia settimana".</p>` : ''}
+    ${weekChanger(g)}
     <div class="field"><label>Programma assegnato</label><div class="seg" role="group"><button data-a="setprog" data-k="12w" aria-pressed="${!isOwnG(g)}">Le 12 settimane</button><button data-a="setprog" data-k="own" aria-pressed="${isOwnG(g)}">Programma personale</button></div></div>
     <p class="small muted">${isOwnG(g)?'Costruisci tu settimane e sedute, con gli esercizi della libreria. Atleti e genitori vedono questo programma.':'Il programma in 12 settimane per tipologie di gioco, con i test della tipologia nel filo fisso e partita guidata.'}</p>
     <div class="row between" style="gap:8px"><span class="small"><b>Durata e fasi:</b> ${noLesson(g)?'da impostare':durTxt(lessonOf(g).dur)+' · '+lessonOf(g).phases.filter(p=>!p.pause).length+' fasi'}</span><button class="chip" data-a="lessonopen" data-k="${g.id}">${noLesson(g)?'Imposta':'Modifica'}</button></div>
@@ -1287,7 +1301,7 @@ function ctRecView(tipo){
     <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
       <p class="small muted">${ts.map((t,i)=>`<b>${i+1}.</b> ${esc(t.t)} <span class="muted">(${esc(ctKindLab(t))})</span>`).join(' · ')}</p></section>
-    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">${ts.map((t,i)=>`<div class="field"><label for="ct-${a.id}-${t.id}">${i+1}. ${esc(t.t)}</label><input id="ct-${a.id}-${t.id}" class="input inbig" inputmode="decimal" placeholder="${t.kind==='pts'?'su '+t.max:t.kind==='sec'?'sec':'n.'}" value="${r&&r.v[t.id]!=null?r.v[t.id]:''}"></div>`).join('')}</div></section>`; }).join('')}
+    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:flex;flex-direction:column;gap:8px">${ts.map((t,i)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}</span></label><input id="ct-${a.id}-${t.id}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="decimal" placeholder="${t.kind==='pts'?'/'+t.max:t.kind==='sec'?'sec':'n.'}" value="${r&&r.v[t.id]!=null?String(r.v[t.id]).replace('.',','):''}"></div>`).join('')}</div></section>`; }).join('')}
     <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
 }
 /* athlete: the test sheet, by player type */
@@ -4049,6 +4063,19 @@ const ACT = {
   cyclerep(k){ const [gid,st]=k.split(':'), g=grp(gid); if(!g) return; const s0=+st; g.past=g.past||[]; const old={}; for(let w=s0; w<s0+6; w++){ if(g.sdone&&g.sdone[w]){ old[w]=g.sdone[w]; delete g.sdone[w]; } }
     g.past.push({end:todayISO(), from:s0, cycle:g.cycle||1, sdone:old}); g.cycle=(g.cycle||1)+1; g.week=s0; g.maxWeek=s0; save(); toast(g.name+': si ricomincia dalla settimana '+s0+' (giro '+g.cycle+')'); },
   // the same week once more: its ticks go to g.past, and a new round (g.cycle) keeps the new test results apart from the old ones
+  // end of week 6 or 12: the group moves to its test week (kept in its own programme) and comes back afterwards
+  tweekgo(k){ const g=grp(k); if(!g) return; const o=ownOf(g.id);
+    let i=o.weeks.findIndex(w=>w.days.some(d=>d.ctTipo) || /test/i.test(w.name||''));
+    if(i<0){ const blank = o.weeks.length===1 && !o.weeks[0].name && o.weeks[0].days.every(d=>!d.title && !d.ex.length); const w=blankWeek(); w.name='Settimana dei test';
+      w.days.forEach((d,j)=>{ if(j<6){ d.ctTipo=j+1; d.title='Test · '+W(j+1).name; } }); if(blank) o.weeks=[w]; else o.weeks.push(w); i=o.weeks.length-1; }
+    o.cur=i+1; const wk='o'+o.cur; if(g.sdone && g.sdone[wk] && Object.keys(g.sdone[wk]).length){ g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:g.sdone[wk]}}); delete g.sdone[wk]; }
+    g.testFrom=g.week; g.prog='own'; U.oWeek=null; U.oDay=null; save(); toast(g.name+': settimana dei test · '+(o.weeks[i].name||'settimana '+o.cur)); },
+  wkchgopen(k){ U.wkChg = U.wkChg===k ? null : k; },
+  wkchg(k){ const g=grp(k), el=document.getElementById('f-wkchg-'+k); if(!g||!el) return; const v=el.value; U.wkChg=null;
+    if(v==='T'){ if(!inTestWeek(g)) ACT.tweekgo(k); return; }
+    if(inTestWeek(g)){ delete g.testFrom; g.prog='12w'; }
+    gotoWeek(g, +v); U.oWeek=null; U.oDay=null; save(); toast(g.name+': settimana '+g.week+' · '+W(g.week).name); },
+  testend(k){ const g=grp(k); if(!g) return; const from=g.testFrom; delete g.testFrom; g.prog='12w'; U.oWeek=null; U.oDay=null; save(); toast(g.name+': di nuovo alle 12 settimane (settimana '+(from||g.week)+')'); },
   weekrep(k){ const g=grp(k); if(!g) return; const wk=gwk(g); g.past=g.past||[]; g.past.push({end:todayISO(), week:wk, cycle:g.cycle||1, sdone:{[wk]:(g.sdone||{})[wk]||{}}}); if(g.sdone) delete g.sdone[wk]; g.cycle=(g.cycle||1)+1; save(); toast(g.name+': si ripete la settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   weeknext(k){ const g=grp(k); if(!g) return; if(isOwnG(g)){ const o=ownOf(g.id); if(o.cur>=o.weeks.length){ toast('Aggiungi prima la settimana successiva nel programma'); return; } o.cur++; } else { if(Math.max(g.week, g.maxWeek||0)>=12){ toast('Il programma di 12 settimane è finito'); return; } gotoWeek(g, nextWeekNo(g)); } save(); toast('Si passa alla settimana '+(isOwnG(g)?ownOf(g.id).cur:g.week)); },
   homeday(k){ if(k.startsWith('o:')){ const [,gid,d]=k.split(':'); const o=ownOf(gid); U.tab='plan'; U.planMode='weeks'; U.planGroup=gid; U.oWeek=o.cur; U.oDay=+d; window.scrollTo(0,0); return; } const [w,d,gid]=k.split(':'); if(gid) U.planGroup=gid; U.tab='plan'; U.planMode='weeks'; U.weekOpen=w; U.dayOpen=d; window.scrollTo(0,0); },
