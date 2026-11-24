@@ -133,6 +133,19 @@ function ctGroupTable(tipo){
   if(!rows.length) return '';
   return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${ctHas(r,t)?esc(ctFmt(t, ctVals(r,t))):'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
 }
+function ctAthBoxes(a, ts, r){ return `<div style="display:flex;flex-direction:column;gap:10px">${ts.map((t,i)=>{ const ps = ctParts(t), vs = ctVals(r, t);
+        const box = (p,j) => `<input id="ct-${a.id}-${t.id}-${j}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="${p.kind==='sec'?'text':'decimal'}" placeholder="${p.kind==='sec'?'1:30':+p.max>0?'/'+p.max:'n.'}" value="${vs[j]===null?'':p.kind==='sec'&&vs[j]>=60?ctTime(vs[j]):String(vs[j]).replace('.',',')}" aria-label="${esc(t.t)}${p.nome?' · '+esc(p.nome):''}">`;
+        return ps.length===1 ? `<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-0" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}${ps[0].kind==='sec'?' · anche 1:30':''}</span></label>${box(ps[0],0)}</div>`
+          : `<div><b>${i+1}. ${esc(t.t)}</b>${t.area==='atl'?' <span class="small muted">· Atletica</span>':''}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${ps.map((p,j)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-${j}" style="flex:1;min-width:0;padding-left:14px">${esc(p.nome||'Valore '+(j+1))}<br><span class="small muted">${esc(ctKindLab1(p))}${p.kind==='sec'?' · anche 1:30':''}</span></label>${box(p,j)}</div>`).join('')}</div></div>`; }).join('')}</div>`; }
+/* coach or fitness coach inside an athlete's profile: record that athlete's tests for one player type */
+function ctAthEntry(id){
+  const a = ath(id), g = grp(a.groupId); if(!U.ctTipo) U.ctTipo = g && !isOwnG(g) ? ctTipoOfWeek(g.week) : 1; const tipo = +U.ctTipo, ts = ctOf(tipo), cy = (g&&g.cycle)||1;
+  const r = ctRecs(id, tipo).filter(x=>(x.cycle||1)===cy).pop();
+  return `<section class="card" style="border-color:var(--clay)"><div class="row between"><h3>Segna i test di ${esc(a.name)}</h3><button class="chip" data-a="ctathrec" data-k="">Chiudi</button></div>
+    <div class="chips">${CT_TIPI().map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?'':' · nessun test'}</button>`).join('')}</div>
+    <div class="field" style="max-width:200px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${U.ctDate||todayISO()}"></div>
+    ${ts.length ? ctAthBoxes(a, ts, r) + `<button class="btn clay block" data-a="ctsave">Salva</button>` : '<p class="small muted">Questa tipologia non ha ancora test: aggiungili in Test del ciclo.</p>'}</section>`;
+}
 function ctRecView(tipo){
   const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
   const ts = ctOf(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
@@ -142,10 +155,7 @@ function ctRecView(tipo){
     <section class="card"><div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ct-g">Gruppo</label><select id="ct-g" class="input" data-c="ctgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="field" style="flex:1;min-width:130px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${d}"></div></div>
       <p class="small muted">${ts.map((t,i)=>`<b>${i+1}.</b> ${esc(t.t)} <span class="muted">(${esc(ctKindLab(t))})</span>`).join(' · ')}</p></section>
-    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3><div style="display:flex;flex-direction:column;gap:10px">${ts.map((t,i)=>{ const ps = ctParts(t), vs = ctVals(r, t);
-        const box = (p,j) => `<input id="ct-${a.id}-${t.id}-${j}" class="input inbig" style="width:96px;flex:none;text-align:center" inputmode="${p.kind==='sec'?'text':'decimal'}" placeholder="${p.kind==='sec'?'1:30':+p.max>0?'/'+p.max:'n.'}" value="${vs[j]===null?'':p.kind==='sec'&&vs[j]>=60?ctTime(vs[j]):String(vs[j]).replace('.',',')}" aria-label="${esc(t.t)}${p.nome?' · '+esc(p.nome):''}">`;
-        return ps.length===1 ? `<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-0" style="flex:1;min-width:0"><b>${i+1}. ${esc(t.t)}</b><br><span class="small muted">${t.area==='atl'?'Atletica · ':''}${esc(ctKindLab(t))}${ps[0].kind==='sec'?' · anche 1:30':''}</span></label>${box(ps[0],0)}</div>`
-          : `<div><b>${i+1}. ${esc(t.t)}</b>${t.area==='atl'?' <span class="small muted">· Atletica</span>':''}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${ps.map((p,j)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-${j}" style="flex:1;min-width:0;padding-left:14px">${esc(p.nome||'Valore '+(j+1))}<br><span class="small muted">${esc(ctKindLab1(p))}${p.kind==='sec'?' · anche 1:30':''}</span></label>${box(p,j)}</div>`).join('')}</div></div>`; }).join('')}</div></section>`; }).join('')}
+    ${as.map(a=>{ const r = cur(a.id); return `<section class="card"><h3>${esc(a.name)}${r?' <span class="tag teal">segnato</span>':''}</h3>${ctAthBoxes(a, ts, r)}</section>`; }).join('')}
     <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
 }
 /* athlete: the test sheet, by player type */

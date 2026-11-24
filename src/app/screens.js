@@ -218,7 +218,8 @@ function athleteView(id, self){
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
-    body = (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
+    body = ((role==='coach'||role==='fit') ? (U.ctAth===id ? ctAthEntry(id) : `<button class="btn clay" data-a="ctathrec" data-k="${id}" style="align-self:flex-start">Segna i test di ${esc(ath(id).name)}</button>`) : '')
+      + (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){

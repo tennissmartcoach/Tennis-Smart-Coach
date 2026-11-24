@@ -115,6 +115,7 @@ const ACT = {
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
   dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   cttipo(k){ U.ctTipo=+k; },
+  ctathrec(k){ U.ctAth = k || null; if(k){ const a=ath(k); U.ctGroup=a&&a.groupId; U.ctDate=todayISO(); } },
   octipo(k){ const d=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]; if(+k) d.ctTipo=+k; else delete d.ctTipo; save(); },
   ctday(k){ const [gid,tipo]=k.split(':'); U.ctTipo=+tipo; U.ctGroup=gid; U.ctDate=todayISO(); U.ctRec=true; U.ctBack={w:U.oWeek, d:U.oDay}; U.planMode='ctest'; window.scrollTo(0,0); },
   ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.ctRec=false; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
@@ -132,7 +133,7 @@ const ACT = {
       if(!Object.keys(v).length) return; const cy=g.cycle||1, old=S.tests.find(r=>r.ct===tipo && r.athleteId===a.id && (r.cycle||1)===cy);
       if(old){ Object.assign(old.v, v); old.date=d; } else S.tests.push({id:uid(), athleteId:a.id, groupId:g.id, ct:tipo, cycle:cy, date:d, v}); n++; });
     if(bad){ toast('Controlla i numeri di '+bad+' (per il tempo scrivi 90 oppure 1:30)'); return; }
-    save(); U.ctRec=false; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
+    save(); U.ctRec=false; U.ctAth=null; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
   exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||''); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
