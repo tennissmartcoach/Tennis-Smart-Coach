@@ -59,10 +59,11 @@ const ACT = {
   ftsugg(k){ const x=FT_SUGG[+k]; Object.assign(U.ftNew,{l:x[0], u:x[1], better:x[2]}); },
   ftbetter(k){ U.ftNew.better=k; },
   ftsave(){ const N=U.ftNew; if(!N.l.trim()){ toast('Scrivi il nome del test'); return; } S.ftests=S.ftests||[]; const t={id:uid(), l:N.l.trim(), u:N.u.trim()||'', better:N.better, x:(N.x||'').trim()}; S.ftests.push(t); save(); U.ftNew=null; U.ftOpen=t.id; toast('Test creato'); },
-  ftopen(k){ U.ftOpen=k; U.confirm=null; window.scrollTo(0,0); }, ftclose(){ U.ftOpen=null; U.confirm=null; },
+  ftopen(k){ U.ftOpen=k; U.ftEntry=false; U.ftGroup=null; U.confirm=null; window.scrollTo(0,0); }, ftclose(){ U.ftOpen=null; U.confirm=null; },
   ftrec(){ const t=ftById(U.ftOpen), d=U.ftDate||todayISO(); S.fres=S.fres||[]; let n=0, bad=false;
     S.athletes.filter(a=>a.groupId===U.ftGroup).forEach(a=>{ const el=document.getElementById('ft-in-'+a.id); if(!el) return; const raw=el.value.trim().replace(',','.'); S.fres=S.fres.filter(r=>!(r.testId===t.id && r.athleteId===a.id && r.date===d)); if(raw===''){ return; } const v=+raw; if(isNaN(v)){ bad=true; return; } S.fres.push({id:uid(), testId:t.id, athleteId:a.id, date:d, v}); n++; });
-    save(); toast(bad?'Alcuni valori non sono numeri':`Salvati ${n} risultati`); },
+    if(bad){ toast('Alcuni valori non sono numeri: controllali'); save(); return; } U.ftEntry=false; save(); toast(`Salvati ${n} risultati`); },
+  ftentry(k){ U.ftEntry = k==='1'; U.ftDate = todayISO(); },
   ftdel(){ S.ftests=(S.ftests||[]).filter(t=>t.id!==U.ftOpen); S.fres=(S.fres||[]).filter(r=>r.testId!==U.ftOpen); U.ftOpen=null; U.confirm=null; save(); toast('Test eliminato'); },
   fpopen(k){ const [g,n]=k.split(':'); U.tab='fprog'; U.fpGroup=g; U.fpWeek=+n; window.scrollTo(0,0); },
   fpweek(k){ U.fpWeek = k?+k:null; U.confirm=null; window.scrollTo(0,0); },

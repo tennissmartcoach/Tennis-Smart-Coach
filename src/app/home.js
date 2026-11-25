@@ -131,17 +131,28 @@ function fitTestsView(){
       <div class="row"><button class="btn clay" data-a="ftsave" style="flex:1">Salva il test</button><button class="btn ghost" data-a="ftcancel">Annulla</button></div></section>`; }
   const t = U.ftOpen && ftById(U.ftOpen);
   if(t){
-    const tg = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID)); if(!U.ftGroup || !grp(U.ftGroup)) U.ftGroup = tg[0]?.id;
-    const d = U.ftDate || todayISO(), as = S.athletes.filter(a=>a.groupId===U.ftGroup);
-    const dates = [...new Set(S.fres.filter(r=>r.testId===t.id && as.some(a=>a.id===r.athleteId)).map(r=>r.date))].sort().slice(-4);
+    // results first: every athlete with the whole sequence of results of this test; entering new ones is a step you open
+    const tg = S.groups.slice().sort((x,y)=>(x.id===PRIV_ID)-(y.id===PRIV_ID));
+    if(!U.ftGroup || (U.ftGroup!=='all' && !grp(U.ftGroup))){ const withRes = tg.find(g=>S.athletes.some(a=>a.groupId===g.id && ftRes(t.id,a.id).length)); U.ftGroup = (withRes||tg[0]||{}).id; }
+    const all = U.ftGroup==='all', d = U.ftDate || todayISO();
+    const as = S.athletes.filter(a=>all ? ftRes(t.id,a.id).length : a.groupId===U.ftGroup).sort((a,b)=>(ftRes(t.id,b.id).length>0)-(ftRes(t.id,a.id).length>0));
+    const fmt = v => String(Math.round(v*100)/100).replace('.',',') + (t.u?' '+t.u:'');
+    const better = (x,y) => t.better==='low' ? x<y : x>y;
+    const row = a => { const rs = ftRes(t.id,a.id); if(!rs.length) return `<div class="row between" style="flex-wrap:nowrap;padding:6px 0;border-bottom:1px solid var(--line)"><b style="flex:1;min-width:0">${esc(a.name)}</b><span class="small muted">nessun risultato</span></div>`;
+      const l = rs[rs.length-1], p = rs[rs.length-2], tr = !p ? '' : better(l.v,p.v) ? ' <span style="color:var(--ok)">▲</span>' : l.v===p.v ? ' =' : ' <span style="color:var(--ko)">▼</span>';
+      return `<div style="display:flex;flex-direction:column;gap:4px;padding:6px 0;border-bottom:1px solid var(--line)"><div class="row between" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(a.name)}${all?` <span class="small muted">· ${esc(grp(a.groupId)?.id===PRIV_ID?'Lezioni private':grp(a.groupId)?.name||'')}</span>`:''}</b><span style="font-size:18px;font-weight:700">${fmt(l.v)}${tr}</span></div>
+        ${rs.length>1?`<div class="row" style="gap:6px;flex-wrap:wrap">${rs.map((r,i)=>`<span class="tag" style="text-transform:none;letter-spacing:0">${dLabel(r.date)}: <b>${fmt(r.v)}</b></span>${i<rs.length-1?'<span class="small muted">→</span>':''}`).join('')}</div>`:`<span class="small muted">${dLabel(l.date)}</span>`}</div>`; };
     return `<button class="btn ghost" data-a="ftclose" style="align-self:flex-start">‹ Test atletici</button>
       <section class="card"><span class="eyebrow">Test atletico · ${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'}</span><h1>${esc(t.l)}</h1>${t.x?`<p class="small">${esc(t.x)}</p>`:''}</section>
-      <section class="card"><h3>Inserisci i risultati</h3>
-        <div class="row"><div class="field" style="flex:1;min-width:130px"><label for="ft-d">Giorno</label><input id="ft-d" class="input" type="date" data-c="ftdate" value="${d}"></div>
-        <div class="field" style="flex:1;min-width:130px"><label for="ft-g">Gruppo</label><select id="ft-g" class="input" data-c="ftgrp">${tg.map(x=>`<option value="${x.id}" ${x.id===U.ftGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div></div>
-        <div class="list">${as.map(a=>{ const r = S.fres.find(z=>z.testId===t.id && z.athleteId===a.id && z.date===d); return `<div class="row between" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(a.name)}</b><input id="ft-in-${a.id}" class="input" style="width:110px" inputmode="decimal" value="${r?r.v:''}" placeholder="${esc(t.u)}"></div>`; }).join('')}</div>
-        <button class="btn clay block" data-a="ftrec">Salva i risultati</button></section>
-      ${dates.length?`<section class="card"><h3>Storico</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${dates.map(x=>`<th>${dLabel(x)}</th>`).join('')}<th></th></tr></thead><tbody>${as.map(a=>{ const rs = ftRes(t.id,a.id); return `<tr><td>${esc(a.name)}</td>${dates.map(x=>{ const r = rs.find(z=>z.date===x); return `<td>${r?r.v:'–'}</td>`; }).join('')}<td>${ftDelta(t,rs)}</td></tr>`; }).join('')}</tbody></table></div></section>`:''}
+      <section class="card"><div class="row between"><h3>Risultati</h3></div>
+        <div class="field"><label for="ft-g">Gruppo</label><select id="ft-g" class="input" data-c="ftgrp"><option value="all" ${all?'selected':''}>Tutti gli atleti testati</option>${tg.map(x=>`<option value="${x.id}" ${x.id===U.ftGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
+        ${as.length?`<div>${as.map(row).join('')}</div>`:'<p class="muted">Nessun atleta ha ancora fatto questo test.</p>'}
+        <p class="small muted">Accanto al nome l'ultimo risultato (▲ migliorato rispetto alla volta prima); sotto, tutti i risultati in ordine di data.</p></section>
+      ${U.ftEntry && !all ? `<section class="card" style="border-color:var(--clay)"><h3>Nuovi risultati</h3>
+        <div class="field" style="max-width:200px"><label for="ft-d">Giorno</label><input id="ft-d" class="input" type="date" data-c="ftdate" value="${d}"></div>
+        <div class="list">${S.athletes.filter(a=>a.groupId===U.ftGroup).map(a=>{ const r = S.fres.find(z=>z.testId===t.id && z.athleteId===a.id && z.date===d); return `<div class="row between" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(a.name)}</b><input id="ft-in-${a.id}" class="input" style="width:110px;text-align:center" inputmode="decimal" value="${r?String(r.v).replace('.',','):''}" placeholder="${esc(t.u||'valore')}" aria-label="${esc(a.name)}"></div>`; }).join('')}</div>
+        <div class="row"><button class="btn clay" data-a="ftrec" style="flex:1">Salva i risultati</button><button class="btn ghost" data-a="ftentry" data-k="0">Annulla</button></div></section>`
+        : all ? `<p class="small muted">Per inserire nuovi risultati scegli prima il gruppo.</p>` : `<button class="btn clay block" data-a="ftentry" data-k="1">+ Inserisci nuovi risultati</button>`}
       ${U.confirm==='ft'?`<div class="confirm"><span>Eliminare il test e tutti i suoi risultati?</span><div class="row"><button class="btn danger" data-a="ftdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askdel" data-k="ft" style="align-self:flex-start">Elimina test</button>`}`;
   }
   return `<button class="btn clay block" data-a="ftnew">+ Nuovo test atletico</button>
