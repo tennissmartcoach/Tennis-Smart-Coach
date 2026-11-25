@@ -197,3 +197,44 @@ function addFtDemo(d){
           d.fres.push({id:'fr'+t.id+a.id+k, testId:t.id, athleteId:a.id, date:day, v: t.u==='cm'||t.u==='s'&&t.id==='ftd5' ? Math.round(v) : v}); }); }); }); });
   d.ft1 = true; return d;
 }
+
+/* more history for the demo: three rounds of cycle tests, more matches and more forms for AGO 1, demo only */
+function addMoreDemo(d){
+  const r = rng(31), day = n => new Date(Date.now() - n*864e5).toISOString();
+  const g = (d.groups||[]).find(x=>x.id==='g1'); if(!g) { d.more1 = true; return d; }
+  const as = (d.athletes||[]).filter(a=>a.groupId==='g1').slice(0,5);
+  // cycle tests: what was already there becomes round 3 (now); rounds 1 and 2 are added before, for every player type
+  d.tests = d.tests || []; d.tests.forEach(x=>{ if(x.ct && x.groupId==='g1' && (x.cycle||1)===1) x.cycle = 3; });
+  if((g.cycle||1) < 3) g.cycle = 3;
+  const tests = (((d.ftests||[]).find(t=>t.ctests)||{}).ctests || []);
+  const base = {cx2b:7.0, cx5b:18.5, cx3b:4, cx4a:16};
+  const val = (t, i, c) => { const n = (r()-.5);
+    if(t.kind==='sec') return Math.round(((base[t.id]||8) + i*0.15 - c*0.3 + n*0.5)*10)/10;
+    if(t.kind==='pts' && +t.max>0) return Math.max(0, Math.min(+t.max, Math.round(+t.max*(0.42 + c*0.09 + i*0.02 + n*0.14))));
+    return Math.max(0, Math.round((base[t.id]||10) + c*1.5 + i*0.5 + n*3)); };
+  as.forEach((a,i)=>[1,2].forEach(c=>[1,2,3,4,5,6].forEach(tipo=>{
+    const ts = tests.filter(t=>t.tipo===tipo); if(!ts.length || d.tests.some(x=>x.athleteId===a.id && x.ct===tipo && x.cycle===c)) return;
+    const v = {}; ts.forEach(t=>{ v[t.id] = val(t, i, c); });
+    d.tests.push({id:'ctm'+c+tipo+a.id, athleteId:a.id, groupId:'g1', ct:tipo, cycle:c, date:(c===1?'2026-06-':'2026-09-')+String(8+tipo).padStart(2,'0'), v}); })));
+  // matches: three with score and choices and one with tasks for each athlete
+  d.matches = d.matches || [];
+  const f = {type:'set', sets:1, games:4, tb:true, decider:'tb10', ad:false, first:0};
+  as.forEach((a,i)=>[0,1,2].forEach(k=>{ const b = as[(i+k+1)%as.length], wk = 2+k+(i%2), m = {id:'mm'+a.id+k, groupId:'g1', week:wk, date:day(40-k*12-i), a:{id:a.id,name:a.name}, b:{id:b.id,name:b.name}, format:f, choices:W(wk).choices.map(c=>c.label), trackEx:true, points:[], done:true};
+    if(d.matches.some(x=>x.id===m.id)) return; let st = newState(f);
+    while(st.done===null && m.points.length<120){ const ch = r()<.9?Math.floor(r()*4):null, ex = ch===null?null:r()<.7, w = r()<(ex?.6+k*0.04:.4)?0:1; m.points.push({w, ch, ex, srv:curServer(st), pr:isPressure(f,st)}); applyPoint(f, st, w); }
+    d.matches.push(m); }));
+  as.slice(0,4).forEach((a,i)=>{ const id = 'mt'+a.id; if(d.matches.some(x=>x.id===id)) return; const pts = []; for(let j=0;j<20;j++){ const t = []; if(r()<.45) t.push(0); if(r()<.3) t.push(1); if(r()<.4) t.push(2); pts.push(t.length ? {t, w:r()<.55?0:1} : {t:[], w:null, empty:true}); }
+    d.matches.push({id, mode:'task', groupId:'g1', week:3, date:day(20+i), a:{id:a.id,name:a.name}, b:{id:null,name:'Compagna'}, kind:'Tie-break', tasks:['Palla corta','Cross stretto','Vado a rete'], points:pts, done:true}); });
+  // forms: weekly sheets and before/after match sheets
+  d.forms = d.forms || [];
+  const learn = ['Tenere la diagonale profonda prima di cambiare','Entrare sulla palla corta','Rispondere profondo al centro','Servire al corpo sulla seconda','Restare calma dopo un errore'];
+  const hard = ['Capire quando attaccare','Il rovescio in corsa','Tenere il ritmo negli scambi lunghi','La volée bassa','Respirare tra un punto e l’altro'];
+  const opp = ['Giocatrice mancina','Compagna del gruppo','Ragazza del circolo vicino','Avversaria che difende tanto'];
+  as.slice(0,4).forEach((a,i)=>{ if(d.forms.some(x=>x.id==='fm'+a.id+'s2')) return;
+    [2,3,4,5].forEach((wk,k)=>d.forms.push({id:'fm'+a.id+'s'+wk, athleteId:a.id, kind:'sett', by:'student', week:wk, date:day(36-k*7-i), ans:{r0:3+Math.round(r()*2),r1:3+Math.round(r()*2),r2:2+Math.round(r()*3),r3:2+Math.round(r()*3),r4:3+Math.round(r()*2),r5:3+Math.round(r()*2),t1:learn[(i+k)%5],t2:hard[(i+k+2)%5],t3:learn[(i+k+3)%5],used:k%3,best:(i+k)%4}}));
+    [0,1].forEach(k=>{ const won = r()<.55, dd = 30-k*12-i;
+      d.forms.push({id:'fm'+a.id+'p'+k, athleteId:a.id, kind:'pre', by:'student', week:3+k, date:day(dd), ans:{evento:k?'Torneo giovanile':'Amichevole al circolo',avv:opp[(i+k)%4],fis:3+(k+i)%3,car:3+(i%3),cal:3+(k%2),pianoA:'Diagonale profonda e poi entro',pianoB:'Palle alte e cariche',arma:'Diritto incrociato',focus:'Scegliere prima del punto',parola:'Profonda, poi entro',risc:'Sì'}});
+      d.forms.push({id:'fm'+a.id+'q'+k, athleteId:a.id, kind:'post', by:'student', week:3+k, date:day(dd), ans:{evento:k?'Torneo giovanile':'Amichevole al circolo',avv:opp[(i+k)%4],esito:won?'Vinta':'Persa',punteggio:won?'6-4 6-3':'4-6 5-7',pianoA:2+(i+k)%3,pianoB:won?'Sì':'No',imp:3+(k%2),emo:2+(i%3),impegno:4+(k%2),ok:learn[(i+k)%5],ko:hard[(i+k)%5],allena:hard[(i+k+1)%5]}}); }); });
+  as.slice(2).forEach((a,i)=>{ if(d.forms.some(x=>x.athleteId===a.id && x.kind==='tipo')) return; const ans = {}; for(let q=0;q<12;q++) ans[q] = Math.floor(r()*3); d.forms.push({id:'fm'+a.id+'tipo', athleteId:a.id, kind:'tipo', by:'student', week:1, date:day(50-i), ans}); });
+  d.more1 = true; return d;
+}
