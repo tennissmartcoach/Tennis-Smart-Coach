@@ -12,6 +12,10 @@ const ctTipoOfWeek = w => ((+w-1)%6)+1;
 const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
 const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
 /* the fitness coach works only on the athletic cycle tests; the tennis ones are the coach's */
+/* long histories: tables show only the latest columns; 'Vedi tutti' shows every round or day */
+const COLS = 3;
+const lastCols = a => U.allCols ? a : a.slice(-COLS);
+const colsBtn = (n, word) => n>COLS ? `<button class="chip" data-a="allcols" style="align-self:flex-start;margin-top:6px">${U.allCols ? `Mostra solo gli ultimi ${COLS}` : `Vedi tutti i ${n} ${word}`}</button>` : '';
 const ctMine = tipo => S.session && S.session.role==='fit' ? ctOf(tipo).filter(t=>t.area==='atl') : ctOf(tipo);
 function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
 const ctKindLab1 = p => p.kind==='sec' ? 'tempo (meno è meglio)' : p.kind==='num' ? (+p.max>0?'numero su '+p.max:'numero (più è meglio)') : 'punti su '+(p.max||'?');

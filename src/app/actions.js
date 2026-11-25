@@ -280,7 +280,7 @@ const ACT = {
   athnew(){ const n=document.getElementById('f-na-name').value.trim(), gid=document.getElementById('f-na-grp').value; if(!n){ toast('Scrivi il nome'); return; }
     const id=uid(); S.athletes.push({id, groupId:gid, name:n, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); save(); U.newAth=false; U.resGroup=gid; toast(n+' aggiunto a '+(gid===PRIV_ID?'Lezioni private':grp(gid).name)); },
   athpriv(k){ U.athPriv=k; window.scrollTo(0,0); },
-  athtab(k){ U.athTab=k; U.tOpen=null; window.scrollTo(0,0); }, grptests(){ U.grpTests=!U.grpTests; }, sprog(k){ U.tab='prog'; U.athTab=k; U.tOpen=null; U.form=null; window.scrollTo(0,0); }, sprogclose(){ U.sProg=false; window.scrollTo(0,0); }, toggleinbox(){ U.showInbox=!U.showInbox; }, closeath(){ U.athleteOpen=null; },
+  athtab(k){ U.athTab=k; U.tOpen=null; window.scrollTo(0,0); }, grptests(){ U.grpTests=!U.grpTests; }, allcols(){ U.allCols=!U.allCols; }, sprog(k){ U.tab='prog'; U.athTab=k; U.tOpen=null; U.form=null; window.scrollTo(0,0); }, sprogclose(){ U.sProg=false; window.scrollTo(0,0); }, toggleinbox(){ U.showInbox=!U.showInbox; }, closeath(){ U.athleteOpen=null; },
   openmatch(k){ U.tab = (S.session.role==='parent'||S.session.role==='fit'||S.session.role==='mind') ? 'pmatch' : 'match'; U.matchOpen=k; U.confirm=null; window.scrollTo(0,0); }, closematch(){ U.matchOpen=null; U.setup=null; if(S.session.role==='parent') U.tab='prog'; if(S.session.role==='fit'||S.session.role==='mind') U.tab='sath'; },
   newpin(k){ ath(k).pin=genPin(); save(); toast('Nuovo PIN atleta'); }, newppin(k){ ath(k).ppin=genPin(); save(); toast('Nuovo PIN genitore'); },
   askdel(k){ U.confirm=k; }, nodel(){ U.confirm=null; },

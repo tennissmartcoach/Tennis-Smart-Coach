@@ -254,20 +254,22 @@ const ftNum = v => String(Math.round(v*100)/100).replace('.',',');
 // cycle tests of one athlete: a row per test (grouped by player type), a column per round
 function athCtTable(id){
   const tipi = CT_TIPI().filter(x=>ctRecs(id,x.k).length); if(!tipi.length) return '';
-  const cys = [...new Set(tipi.flatMap(x=>ctRecs(id,x.k).map(r=>r.cycle||1)))].sort((a,b)=>a-b);
-  const body = tipi.map(x=>{ const rs = ctRecs(id,x.k), ts = ctOf(x.k).filter(t=>rs.some(r=>ctHas(r,t))); if(!ts.length) return '';
-    return `<tr><td colspan="${cys.length+1}" style="text-align:left;padding-top:12px;border-top:none"><span class="eyebrow">${esc(x.name)}</span></td></tr>` + ts.map(t=>{ let prev = null;
-      return `<tr><td style="${STICKY};min-width:120px">${esc(t.t)}</td>${cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>';
-        const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; }).join('')}</tr>`; }).join(''); }).join('');
-  return `<div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Test</th>${cys.map(c=>`<th>Giro ${c}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+  // each player type has its own rounds (some types are tested more often): its own header row with its latest rounds
+  const cysOf = k => [...new Set(ctRecs(id,k).map(r=>r.cycle||1))].sort((a,b)=>a-b);
+  const w = Math.max(...tipi.map(x=>lastCols(cysOf(x.k)).length)), pad = n => '<td style="border-top:none"></td>'.repeat(Math.max(0, w-n));
+  const body = tipi.map(x=>{ const rs = ctRecs(id,x.k), ts = ctOf(x.k).filter(t=>rs.some(r=>ctHas(r,t))), cys = cysOf(x.k), vis = lastCols(cys); if(!ts.length) return '';
+    return `<tr><td style="${STICKY};text-align:left;padding-top:14px;border-top:none;max-width:128px"><span class="eyebrow" style="letter-spacing:0;font-size:11px">${esc(x.name)}</span></td>${vis.map(c=>`<th style="padding-top:14px;white-space:nowrap">Giro ${c}</th>`).join('')}${pad(vis.length)}</tr>` + ts.map(t=>{ let prev = null;
+      return `<tr><td style="${STICKY};min-width:104px;max-width:128px">${esc(t.t)}</td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>';
+        const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; })).join('')}${pad(vis.length)}</tr>`; }).join(''); }).join('');
+  return `<div class="scroll-x"><table class="grid" style="font-size:14px"><tbody>${body}</tbody></table></div>${colsBtn(Math.max(...tipi.map(x=>cysOf(x.k).length)), 'giri')}`;
 }
 // fitness coach's own tests of one athlete: a row per test, a column per day
 function athFtTable(id){
   const ts = (S.ftests||[]).filter(t=>!t.ctests && !t.tdef && ftRes(t.id,id).length); if(!ts.length) return '';
   const ds = [...new Set(ts.flatMap(t=>ftRes(t.id,id).map(r=>r.date)))].sort();
-  return `<div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Test</th>${ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`).join('')}</tr></thead><tbody>${ts.map(t=>{ const rs = ftRes(t.id,id);
-    return `<tr><td style="${STICKY};min-width:110px">${esc(t.l)}${t.u?` <span class="small muted">${esc(t.u)}</span>`:''}</td>${ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); if(k<0) return '<td class="muted">–</td>';
-      return `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; }).join('')}</tr>`; }).join('')}</tbody></table></div>`;
+  return `<div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Test</th>${lastCols(ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`)).join('')}</tr></thead><tbody>${ts.map(t=>{ const rs = ftRes(t.id,id);
+    return `<tr><td style="${STICKY};min-width:110px">${esc(t.l)}${t.u?` <span class="small muted">${esc(t.u)}</span>`:''}</td>${lastCols(ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); if(k<0) return '<td class="muted">–</td>';
+      return `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; })).join('')}</tr>`; }).join('')}</tbody></table></div>${colsBtn(ds.length, 'giorni di test')}`;
 }
 function athSummary(id){
   const a = ath(id), pr = (S.profiles||{})[id], pv = privOf(id);
@@ -296,17 +298,17 @@ function grpTestsCard(g){
   if(!opts.length) return `<section class="card"><h3>Test del gruppo</h3><p class="muted small">Nessun atleta di ${esc(g.name)} ha ancora fatto test.</p></section>`;
   if(!opts.some(o=>o[0]===U.gTest)) U.gTest = opts[0][0];
   const [kind, tid] = [U.gTest.slice(0,1), U.gTest.slice(2)];
-  let head, rows;
+  let head, rows, more = '';
   if(kind==='c'){ const t = ctAll().find(x=>x.id===tid), cys = [...new Set((S.tests||[]).filter(r=>ids.has(r.athleteId) && r.ct===t.tipo && ctHas(r,t)).map(r=>r.cycle||1))].sort((a,b)=>a-b);
-    head = cys.map(c=>`<th>Giro ${c}</th>`).join('');
-    rows = as.map(a=>{ const rs = ctRecs(a.id, t.tipo); let prev = null; return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>'; const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; }).join('')}</tr>`; }).join('');
+    head = lastCols(cys.map(c=>`<th>Giro ${c}</th>`)).join(''); more = colsBtn(cys.length, 'giri');
+    rows = as.map(a=>{ const rs = ctRecs(a.id, t.tipo); let prev = null; return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>'; const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; })).join('')}</tr>`; }).join('');
   } else { const t = ftById(tid), ds = [...new Set((S.fres||[]).filter(r=>r.testId===t.id && ids.has(r.athleteId)).map(r=>r.date))].sort();
-    head = ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`).join('');
-    rows = as.map(a=>{ const rs = ftRes(t.id,a.id); return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); return k<0 ? '<td class="muted">–</td>' : `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; }).join('')}</tr>`; }).join('');
+    head = lastCols(ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`)).join(''); more = colsBtn(ds.length, 'giorni di test');
+    rows = as.map(a=>{ const rs = ftRes(t.id,a.id); return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); return k<0 ? '<td class="muted">–</td>' : `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; })).join('')}</tr>`; }).join('');
     head += ''; }
   return `<section class="card"><h3>Test del gruppo · ${esc(g.name)}</h3>
     <div class="field"><label for="f-gtest">Test</label><select id="f-gtest" class="input" data-c="gtest">${opts.map(o=>`<option value="${o[0]}" ${o[0]===U.gTest?'selected':''}>${esc(o[1])} · ${esc(o[2]||'')}</option>`).join('')}</select></div>
-    <div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Atleta</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Atleta</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>${more}
     <p class="small muted"><span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima.</p></section>`;
 }
 const TAB_OF = {tipo:'prof', arma:'prof', pre:'part', post:'part', sett:'quest', gen:'quest'};
