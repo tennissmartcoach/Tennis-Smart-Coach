@@ -28,8 +28,7 @@ function renderInner(){
     case 'fhome': body = fitHome(); break;
     case 'mhome': body = mindHome(); break;
     case 'sath': body = U.athleteOpen && ath(U.athleteOpen) ? athleteView(U.athleteOpen) : staffAthList(); break;
-    case 'stest': { const top = `<div class="seg" role="group"><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode!=='fit'}">Test del ciclo</button><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode==='fit'}">Test atletici liberi</button></div>`;
-      body = U.ed ? editorView() : U.ftMode==='fit' ? `<h1>Test</h1>${top}${fitTestsView()}` : ctestView(top); break; }
+    case 'stest': body = `<h1>Test personali</h1><p class="small muted" style="margin-top:-6px">I test che crei tu, con i risultati di ogni atleta.</p>${fitTestsView()}`; break;
     case 'mschede': body = mindSchede(); break;
     case 'mprog': body = mprogView(); break;
     case 'fprog': body = fitProgView(); break;
@@ -218,8 +217,8 @@ function athleteView(id, self){
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
-    body = ((role==='coach'||role==='fit') ? (U.ctAth===id ? ctAthEntry(id) : `<button class="btn clay" data-a="ctathrec" data-k="${id}" style="align-self:flex-start">Segna i test di ${esc(ath(id).name)}</button>`) : '')
-      + (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
+    body = (role==='coach' ? (U.ctAth===id ? ctAthEntry(id) : `<button class="btn clay" data-a="ctathrec" data-k="${id}" style="align-self:flex-start">Segna i test di ${esc(ath(id).name)}</button>`) : '')
+      + (role==='fit' ? '' : ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -236,7 +235,7 @@ function athleteView(id, self){
       <div class="row between"><span class="eyebrow">${esc(g.name)}</span>${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff">${tname(lt)}</span>`:''}</div>
       <h1>${esc(a.name)}</h1>
       <div class="kpis">
-        <div class="kpi"><b>${CT_TIPI().filter(x=>ctRecs(id,x.k).length).length}</b><span>tipologie testate</span></div>
+        ${S.session.role==='fit' ? `<div class="kpi"><b>${(S.ftests||[]).filter(t=>!t.ctests&&!t.tdef&&ftRes(t.id,id).length).length}</b><span>test personali fatti</span></div>` : `<div class="kpi"><b>${CT_TIPI().filter(x=>ctRecs(id,x.k).length).length}</b><span>tipologie testate</span></div>`}
         <div class="kpi"><b>${ms.length}</b><span>partite analizzate</span></div>
       </div>
     </section>
@@ -297,7 +296,7 @@ function athList(){
     return `<button class="acard" data-a="openath" data-k="${a.id}">
       <div class="row between" style="flex-wrap:nowrap"><b style="font-size:18px;font-family:var(--f-disp)">${esc(a.name)}</b>${nf?`<span class="tag">${nf} ${nf===1?'nuova':'nuove'}</span>`:''}</div>
       ${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff;align-self:flex-start">${tname(lt)}</span>`:'<span class="small muted">Tipologia: questionario da fare</span>'}
-      <span class="small muted">Test di fine ciclo: ${(n=>n?n+' '+(n===1?'tipologia':'tipologie'):'ancora nessuno')(CT_TIPI().filter(x=>ctRecs(a.id,x.k).length).length)}</span>
+      <span class="small muted">${S.session.role==='fit' ? (n=>'Test personali: '+(n?n+' '+(n===1?'test fatto':'test fatti'):'ancora nessuno'))((S.ftests||[]).filter(t=>!t.ctests&&!t.tdef&&ftRes(t.id,a.id).length).length) : `Test di fine ciclo: ${(n=>n?n+' '+(n===1?'tipologia':'tipologie'):'ancora nessuno')(CT_TIPI().filter(x=>ctRecs(a.id,x.k).length).length)}`}</span>
     </button>`; };
   return head + `
     ${recent.length?`<button class="news" data-a="toggleinbox"><span>${fresh.length?`<b>${fresh.length} ${fresh.length===1?'scheda nuova':'schede nuove'}</b>`:'Schede ricevute'}</span><span class="chev">${U.showInbox?'⌃':'⌄'}</span></button>

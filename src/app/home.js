@@ -84,7 +84,7 @@ function fitHome(){
     <section class="card" style="padding:4px 16px"><div class="list">
       ${notifTool()}
       ${toolRow('tab','fprog',IC.plan,'Programma atletico','settimane e sedute dei gruppi')}
-      ${toolRow('tab','stest',IC.test,'Test','test del ciclo e segna i risultati')}
+      ${toolRow('tab','stest',IC.test,'Test personali','crea i tuoi test e segna i risultati')}
       ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
     </div></section>`;
 }
@@ -122,7 +122,7 @@ function ftDelta(t, rs){ if(rs.length<2) return ''; const a = rs[rs.length-2].v,
 function fitTestsView(){
   S.ftests = S.ftests || []; S.fres = S.fres || [];
   if(U.ftNew){ const N = U.ftNew;
-    return `<section class="card"><h3>Nuovo test atletico</h3>
+    return `<section class="card"><h3>Nuovo test personale</h3>
       <div class="field"><label>Suggeriti</label><div class="chips">${FT_SUGG.map((x,i)=>`<button class="chip" data-a="ftsugg" data-k="${i}">${x[0]}</button>`).join('')}</div></div>
       <div class="field"><label for="ftn-l">Nome</label><input id="ftn-l" class="input" data-c="ftn" data-k="l" value="${esc(N.l)}" placeholder="Es. Sprint 20 m"></div>
       <div class="row"><div class="field" style="flex:1;min-width:120px"><label for="ftn-u">Unità</label><input id="ftn-u" class="input" data-c="ftn" data-k="u" value="${esc(N.u)}" placeholder="Es. s, cm, ripetizioni"></div>
@@ -146,8 +146,8 @@ function fitTestsView(){
     const sticky = 'position:sticky;left:0;background:var(--surface);z-index:1';
     const table = `<div class="scroll-x"><table class="grid"><thead><tr><th style="${sticky}">Atleta</th>${dates.map(x=>`<th style="white-space:nowrap">${dLabel(x)}</th>`).join('')}</tr></thead><tbody>${as.map(a=>{ const rs = ftRes(t.id,a.id);
       return `<tr><td style="${sticky};min-width:96px"><b>${esc(a.name)}</b>${all?`<div class="small muted">${esc(grp(a.groupId)?.id===PRIV_ID?'Lezioni private':grp(a.groupId)?.name||'')}</div>`:''}</td>${dates.map(x=>cell(rs,x)).join('')}</tr>`; }).join('')}</tbody></table></div>`;
-    return `<button class="btn ghost" data-a="ftclose" style="align-self:flex-start">‹ Test atletici</button>
-      <section class="card"><span class="eyebrow">Test atletico · ${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'}</span><h1>${esc(t.l)}</h1>${t.x?`<p class="small">${esc(t.x)}</p>`:''}</section>
+    return `<button class="btn ghost" data-a="ftclose" style="align-self:flex-start">‹ Test personali</button>
+      <section class="card"><span class="eyebrow">Test personale · ${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'}</span><h1>${esc(t.l)}</h1>${t.x?`<p class="small">${esc(t.x)}</p>`:''}</section>
       <section class="card"><div class="row between"><h3>Risultati</h3></div>
         <div class="field"><label for="ft-g">Gruppo</label><select id="ft-g" class="input" data-c="ftgrp"><option value="all" ${all?'selected':''}>Tutti gli atleti testati</option>${tg.map(x=>`<option value="${x.id}" ${x.id===U.ftGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
         ${as.length && dates.length ? table : as.length ? '<p class="muted">Nessun atleta di questo gruppo ha ancora fatto questo test.</p>' : '<p class="muted">Nessun atleta ha ancora fatto questo test.</p>'}
@@ -159,7 +159,7 @@ function fitTestsView(){
         : all ? `<p class="small muted">Per inserire nuovi risultati scegli prima il gruppo.</p>` : `<button class="btn clay block" data-a="ftentry" data-k="1">+ Inserisci nuovi risultati</button>`}
       ${U.confirm==='ft'?`<div class="confirm"><span>Eliminare il test e tutti i suoi risultati?</span><div class="row"><button class="btn danger" data-a="ftdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askdel" data-k="ft" style="align-self:flex-start">Elimina test</button>`}`;
   }
-  return `<button class="btn clay block" data-a="ftnew">+ Nuovo test atletico</button>
+  return `<button class="btn clay block" data-a="ftnew">+ Crea un test personale</button>
     ${S.ftests.filter(t=>!t.tdef&&!t.ctests).length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.filter(t=>!t.tdef&&!t.ctests).map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
 }
 function fitTestsCard(id){
