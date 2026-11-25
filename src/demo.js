@@ -174,3 +174,26 @@ function addCtDemo(d){
     d.tests.push({id:'ctd2'+a.id, athleteId:a.id, groupId:g.id, ct:2, cycle:1, date:'2026-11-23', v:{cx2a:r[2], cx2b:r[3]}}); });
   d.ct1 = true; return d;
 }
+
+/* example free athletic tests made by the fitness coach, with results on several days, demo only */
+function addFtDemo(d){
+  const ex = [
+    {id:'ftd1', l:'Sprint 20 m', u:'s', better:'low', x:'Partenza da fermo, due prove, vale la migliore.'},
+    {id:'ftd2', l:'Salto in lungo da fermo', u:'cm', better:'high', x:'Piedi uniti dietro la linea, si misura il tallone più vicino.'},
+    {id:'ftd3', l:'Navetta 5-10-5', u:'s', better:'low', x:'Partenza al centro, tocca la linea a destra, poi a sinistra, poi torna al centro.'},
+    {id:'ftd4', l:'Lancio palla medica 2 kg', u:'m', better:'high', x:'Da seduti, lancio a due mani dal petto.'},
+    {id:'ftd5', l:'Plank', u:'s', better:'high', x:'Tenuta sugli avambracci finché la posizione è corretta.'}
+  ];
+  d.ftests = d.ftests || []; ex.forEach(t=>{ if(!d.ftests.some(x=>x.id===t.id)) d.ftests.push(t); });
+  // start value, change at each test (the last athlete of each group has not done the tests yet)
+  const base = {ftd1:[3.9,-0.06], ftd2:[175,4], ftd3:[5.6,-0.08], ftd4:[5.2,0.2], ftd5:[60,8]};
+  const days = ['2026-09-22','2026-10-20','2026-11-17'];
+  d.fres = d.fres || [];
+  (d.groups||[]).filter(g=>g.id!=='priv').slice(0,2).forEach((g,gi)=>{
+    const as = (d.athletes||[]).filter(a=>a.groupId===g.id); as.slice(0, Math.max(1, as.length-1)).forEach((a,i)=>{
+      ex.forEach((t,ti)=>{ const [b,s] = base[t.id], n = (i+ti)%4===3 ? 2 : 3;   // some athletes missed the first test
+        days.slice(3-n).forEach((day,j)=>{ const k = 3-n+j, wobble = ((i*7+ti*3+k)%5-2)*Math.abs(s)*0.4;
+          const v = Math.round((b*(1+gi*0.04) + i*Math.abs(s)*0.5 + s*k + (k===2 && (i+ti)%5===0 ? -s*1.6 : wobble))*100)/100;
+          d.fres.push({id:'fr'+t.id+a.id+k, testId:t.id, athleteId:a.id, date:day, v: t.u==='cm'||t.u==='s'&&t.id==='ftd5' ? Math.round(v) : v}); }); }); }); });
+  d.ft1 = true; return d;
+}
