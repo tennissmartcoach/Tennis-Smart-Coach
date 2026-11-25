@@ -205,11 +205,14 @@ function athleteView(id, self){
   const tms = ms.filter(m=>m.mode==='task');
   const tw = TEST_WEEKS.filter(n=>S.tests.some(x=>x.athleteId===id&&x.week===n));
   const tabs = role==='parent' ? ATABS.slice(0,3) : role==='fit' ? ATABS.slice(0,3) : role==='mind' ? [ATABS[0],ATABS[2],ATABS[3]] : ATABS;
-  let tab = U.athTab || 'prof'; if(!tabs.some(t=>t[0]===tab)) tab = tabs[0][0];
+  const one = role==='coach' && !self;   // the coach sees one summary page; the full sections open from it
+  let tab = U.athTab || (one ? 'sum' : 'prof'); if(!(one && tab==='sum') && !tabs.some(t=>t[0]===tab)) tab = tabs[0][0];
   const X = athleteExtra(id), lt = latestTipo(id);
   let body = '';
   if(U.finalView===id) return finalProfile(id);
-  if(tab==='prof'){
+  if(tab==='sum'){
+    body = athSummary(id);
+  } else if(tab==='prof'){
     const pc = profileCard(id), pv = privOf(id);
     const goals = a.groupId===PRIV_ID ? '' : ((role==='coach'||role==='mind') ? `<section class="card"><h3>Obiettivi personali</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted small">Nessun obiettivo.</p>'}
       <div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
@@ -239,8 +242,72 @@ function athleteView(id, self){
         <div class="kpi"><b>${ms.length}</b><span>partite analizzate</span></div>
       </div>
     </section>
-    <div class="seg sub" role="group" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4">${tabs.map(([k,l])=>`<button data-a="athtab" data-k="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>
+    ${one ? (tab==='sum' ? '' : `<div class="row between" style="flex-wrap:nowrap"><button class="btn ghost" data-a="athtab" data-k="sum">‹ Tutto su ${esc(a.name)}</button><b>${esc((tabs.find(t=>t[0]===tab)||[])[1]||'')}</b></div>`) : `<div class="seg sub" role="group" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4">${tabs.map(([k,l])=>`<button data-a="athtab" data-k="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>`}
     ${body}`;
+}
+/* coach: everything about one athlete on one page; each full section opens with one tap */
+const ARW = s => s>0 ? '<span style="color:var(--ok);font-size:11px"> ▲</span>' : s<0 ? '<span style="color:var(--ko);font-size:11px"> ▼</span>' : '';
+const STICKY = 'position:sticky;left:0;background:var(--surface);z-index:1';
+const ctCmp = (t, a, b) => { const x = ctScore(t,a), y = ctScore(t,b); if(!x || !y || x.v===y.v) return 0; return (x.kind==='sec' ? x.v<y.v : x.v>y.v) ? 1 : -1; };
+const ftCmp = (t, v, p) => p===null || p===undefined || v===p ? 0 : (t.better==='low' ? v<p : v>p) ? 1 : -1;
+const ftNum = v => String(Math.round(v*100)/100).replace('.',',');
+// cycle tests of one athlete: a row per test (grouped by player type), a column per round
+function athCtTable(id){
+  const tipi = CT_TIPI().filter(x=>ctRecs(id,x.k).length); if(!tipi.length) return '';
+  const cys = [...new Set(tipi.flatMap(x=>ctRecs(id,x.k).map(r=>r.cycle||1)))].sort((a,b)=>a-b);
+  const body = tipi.map(x=>{ const rs = ctRecs(id,x.k), ts = ctOf(x.k).filter(t=>rs.some(r=>ctHas(r,t))); if(!ts.length) return '';
+    return `<tr><td colspan="${cys.length+1}" style="text-align:left;padding-top:12px;border-top:none"><span class="eyebrow">${esc(x.name)}</span></td></tr>` + ts.map(t=>{ let prev = null;
+      return `<tr><td style="${STICKY};min-width:120px">${esc(t.t)}</td>${cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>';
+        const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; }).join('')}</tr>`; }).join(''); }).join('');
+  return `<div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Test</th>${cys.map(c=>`<th>Giro ${c}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+// fitness coach's own tests of one athlete: a row per test, a column per day
+function athFtTable(id){
+  const ts = (S.ftests||[]).filter(t=>!t.ctests && !t.tdef && ftRes(t.id,id).length); if(!ts.length) return '';
+  const ds = [...new Set(ts.flatMap(t=>ftRes(t.id,id).map(r=>r.date)))].sort();
+  return `<div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Test</th>${ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`).join('')}</tr></thead><tbody>${ts.map(t=>{ const rs = ftRes(t.id,id);
+    return `<tr><td style="${STICKY};min-width:110px">${esc(t.l)}${t.u?` <span class="small muted">${esc(t.u)}</span>`:''}</td>${ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); if(k<0) return '<td class="muted">–</td>';
+      return `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; }).join('')}</tr>`; }).join('')}</tbody></table></div>`;
+}
+function athSummary(id){
+  const a = ath(id), pr = (S.profiles||{})[id], pv = privOf(id);
+  const sec = (title, k, body, extra) => `<section class="card"><div class="row between" style="flex-wrap:nowrap"><h3>${title}</h3><div class="row" style="gap:6px;flex-wrap:nowrap">${extra||''}${k?`<button class="chip" data-a="athtab" data-k="${k}">Apri ›</button>`:''}</div></div>${body}</section>`;
+  const imp = PAREAS.map(([k,l])=>pr && pr[k+'m'] ? `<div class="row" style="gap:8px;flex-wrap:nowrap;align-items:baseline"><span class="tag pri" style="flex:none">${l}</span><span>${esc(pr[k+'m'])}</span></div>` : '').join('');
+  const goals = pv.goals.filter(x=>x.st!=='done');
+  const ms = S.matches.filter(m=>m.done && m.a.id===id).slice().sort((x,y)=>x.date<y.date?1:-1);
+  const best = mergeStats(ms.filter(m=>m.mode!=='task')).filter(r=>r.n>=3).sort((x,y)=>y.won/y.n-x.won/x.n)[0];
+  const forms = S.forms.filter(f=>f.athleteId===id).sort((x,y)=>x.date<y.date?1:-1);
+  const ct = athCtTable(id), ft = athFtTable(id);
+  return `<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>
+    ${sec('Da migliorare','prof', (imp ? `<div style="display:flex;flex-direction:column;gap:6px">${imp}</div>` : '<p class="muted small">La scheda atleta non è ancora compilata: aprila per scrivere punti di forza e cose da migliorare.</p>')
+      + (goals.length ? `<p class="small muted" style="margin-top:6px">Obiettivi in corso: ${goals.slice(0,3).map(x=>esc(x.t||x.text||'')).filter(Boolean).join(' · ')}${goals.length>3?' …':''}</p>` : ''))}
+    ${U.ctAth===id ? ctAthEntry(id) : sec('Test del ciclo', '', ct ? ct + '<p class="small muted"><span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto al giro prima.</p>' : '<p class="muted small">Ancora nessun test segnato: si segnano nella settimana dei test.</p>', `<button class="chip" data-a="ctathrec" data-k="${id}">Segna</button>`)}
+    ${ft ? sec('Test del preparatore', '', ft) : ''}
+    ${sec('Partite', 'part', ms.length ? `<div class="list">${ms.slice(0,3).map(m=>matchItem(m)).join('')}</div>${best?`<p class="small" style="margin-top:6px">La scelta che funziona di più: <b>${esc(best.label)}</b> (${pct(best.won,best.n)}% dei punti vinti)</p>`:''}` : '<p class="muted small">Ancora nessuna partita analizzata.</p>')}
+    ${sec('Schede e questionari', 'quest', forms.length ? `<div class="list small">${forms.slice(0,3).map(f=>`<button class="item" data-a="athtab" data-k="${TAB_OF[f.kind]||'quest'}"><span class="grow"><b>${esc(fname(f.kind)||'Scheda')}</b>${f.by==='parent'?' <span class="tag teal">famiglia</span>':''}<br><span class="muted">${fdate(f.date)}</span></span><span class="chev">›</span></button>`).join('')}</div>` : '<p class="muted small">Nessuna scheda ricevuta.</p>')}
+    ${sec('Allenamento', 'allen', '<p class="small muted">Presenze, fatica e dolori, programma del preparatore.</p>')}`;
+}
+// group: one test, every athlete of the group; cycle tests by round, fitness coach's tests by day
+function grpTestsCard(g){
+  const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id));
+  const cts = ctAll().filter(t=>(S.tests||[]).some(r=>ids.has(r.athleteId) && r.ct===t.tipo && ctHas(r,t)));
+  const fts = (S.ftests||[]).filter(t=>!t.ctests && !t.tdef && (S.fres||[]).some(r=>r.testId===t.id && ids.has(r.athleteId)));
+  const opts = cts.map(t=>['c:'+t.id, t.t, (CT_TIPI().find(x=>x.k===t.tipo)||{}).name]).concat(fts.map(t=>['f:'+t.id, t.l, 'Preparatore']));
+  if(!opts.length) return `<section class="card"><h3>Test del gruppo</h3><p class="muted small">Nessun atleta di ${esc(g.name)} ha ancora fatto test.</p></section>`;
+  if(!opts.some(o=>o[0]===U.gTest)) U.gTest = opts[0][0];
+  const [kind, tid] = [U.gTest.slice(0,1), U.gTest.slice(2)];
+  let head, rows;
+  if(kind==='c'){ const t = ctAll().find(x=>x.id===tid), cys = [...new Set((S.tests||[]).filter(r=>ids.has(r.athleteId) && r.ct===t.tipo && ctHas(r,t)).map(r=>r.cycle||1))].sort((a,b)=>a-b);
+    head = cys.map(c=>`<th>Giro ${c}</th>`).join('');
+    rows = as.map(a=>{ const rs = ctRecs(a.id, t.tipo); let prev = null; return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>'; const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; }).join('')}</tr>`; }).join('');
+  } else { const t = ftById(tid), ds = [...new Set((S.fres||[]).filter(r=>r.testId===t.id && ids.has(r.athleteId)).map(r=>r.date))].sort();
+    head = ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`).join('');
+    rows = as.map(a=>{ const rs = ftRes(t.id,a.id); return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); return k<0 ? '<td class="muted">–</td>' : `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; }).join('')}</tr>`; }).join('');
+    head += ''; }
+  return `<section class="card"><h3>Test del gruppo · ${esc(g.name)}</h3>
+    <div class="field"><label for="f-gtest">Test</label><select id="f-gtest" class="input" data-c="gtest">${opts.map(o=>`<option value="${o[0]}" ${o[0]===U.gTest?'selected':''}>${esc(o[1])} · ${esc(o[2]||'')}</option>`).join('')}</select></div>
+    <div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Atleta</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="small muted"><span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima.</p></section>`;
 }
 const TAB_OF = {tipo:'prof', arma:'prof', pre:'part', post:'part', sett:'quest', gen:'quest'};
 function athList(){
@@ -263,7 +330,7 @@ function athList(){
   const gTools = g ? `<div class="row" style="gap:8px">${g.id!==PRIV_ID?`<span class="small muted">Codice gruppo <b style="font-family:var(--f-disp);font-size:17px;color:var(--ink);letter-spacing:.04em">${esc(g.code||'')}</b></span>`:''}
       <span style="flex:1"></span>
       <button class="chip" data-a="pinstoggle" aria-pressed="${!!U.showPins}">${U.showPins?'Nascondi PIN':'Codici e PIN'}</button>
-      ${g.id!==PRIV_ID?`<button class="chip" data-a="grpedit" aria-pressed="${!!U.grpEdit}">Gestisci gruppo</button>`:''}</div>` : '';
+      ${g.id!==PRIV_ID?`<button class="chip" data-a="grptests" aria-pressed="${!!U.grpTests}">Test del gruppo</button><button class="chip" data-a="grpedit" aria-pressed="${!!U.grpEdit}">Gestisci gruppo</button>`:''}</div>` : '';
   const newGrp = U.newGrp ? `<section class="card"><h3>Nuovo gruppo</h3>
       <div class="field"><label for="f-gname">Nome del gruppo</label><input id="f-gname" class="input" placeholder="Es. U12 Pre-agonistica"></div>
       <div class="row"><button class="btn clay" data-a="grpnew" style="flex:1">Crea il gruppo</button><button class="btn ghost" data-a="grpnewtoggle">Annulla</button></div>
@@ -280,7 +347,7 @@ function athList(){
       <p class="small muted">${HOOK.pinHelp || "Il PIN servirà ad atleti e genitori per entrare nell'app con il codice del gruppo. ↻ ne crea uno nuovo."} Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
   const head = `<div class="row between"><h1>Gruppi e atleti</h1></div>
     <div class="row" style="gap:8px">${U.newAth?'':`<button class="btn clay" data-a="athnewtoggle" style="flex:1">+ Nuovo atleta</button>`}${U.newGrp?'':`<button class="btn ghost" data-a="grpnewtoggle" style="flex:1">+ Nuovo gruppo</button>`}</div>
-    ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}`;
+    ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}${U.grpTests && g && g.id!==PRIV_ID ? grpTestsCard(g) : ''}`;
   if(!g) return head + `<section class="card"><p>Nessun gruppo. Crealo con "+ Nuovo gruppo".</p></section>`;
   const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id)), seen = S.seen || '';
   if(g.id===PRIV_ID){

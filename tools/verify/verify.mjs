@@ -70,9 +70,12 @@ async function local(browser, vp) {
     await walkTabs(page, `local-${vp.n}-${role}`);
     if (role === 'coach') { // athlete detail and its sub-tabs
       await page.evaluate(() => { U.tab = 'ath'; U.athleteOpen = 'r0'; render(); });
-      for (const k of await page.$$eval('[data-a="athtab"]', bs => bs.map(b => b.dataset.k))) {
-        await page.click(`[data-a="athtab"][data-k="${k}"]`);
+      // the coach sees one summary page ('sum'); every full section opens from it and has a way back
+      for (const k of ['sum', 'prof', 'allen', 'part', 'quest']) {
+        if (k === 'sum') await page.evaluate(() => { U.athTab = null; render(); });
+        else { await page.click(`[data-a="athtab"][data-k="${k}"]`); }
         await inspect(page, `${where} › atleta › ${k}`, `local-${vp.n}-coach-atleta-${k}`);
+        if (k !== 'sum') await page.click('[data-a="athtab"][data-k="sum"]');
       }
     }
     await page.click('[data-a="logout"]');

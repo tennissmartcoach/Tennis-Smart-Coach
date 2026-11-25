@@ -280,7 +280,7 @@ const ACT = {
   athnew(){ const n=document.getElementById('f-na-name').value.trim(), gid=document.getElementById('f-na-grp').value; if(!n){ toast('Scrivi il nome'); return; }
     const id=uid(); S.athletes.push({id, groupId:gid, name:n, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); save(); U.newAth=false; U.resGroup=gid; toast(n+' aggiunto a '+(gid===PRIV_ID?'Lezioni private':grp(gid).name)); },
   athpriv(k){ U.athPriv=k; window.scrollTo(0,0); },
-  athtab(k){ U.athTab=k; U.tOpen=null; }, sprog(k){ U.tab='prog'; U.athTab=k; U.tOpen=null; U.form=null; window.scrollTo(0,0); }, sprogclose(){ U.sProg=false; window.scrollTo(0,0); }, toggleinbox(){ U.showInbox=!U.showInbox; }, closeath(){ U.athleteOpen=null; },
+  athtab(k){ U.athTab=k; U.tOpen=null; window.scrollTo(0,0); }, grptests(){ U.grpTests=!U.grpTests; }, sprog(k){ U.tab='prog'; U.athTab=k; U.tOpen=null; U.form=null; window.scrollTo(0,0); }, sprogclose(){ U.sProg=false; window.scrollTo(0,0); }, toggleinbox(){ U.showInbox=!U.showInbox; }, closeath(){ U.athleteOpen=null; },
   openmatch(k){ U.tab = (S.session.role==='parent'||S.session.role==='fit'||S.session.role==='mind') ? 'pmatch' : 'match'; U.matchOpen=k; U.confirm=null; window.scrollTo(0,0); }, closematch(){ U.matchOpen=null; U.setup=null; if(S.session.role==='parent') U.tab='prog'; if(S.session.role==='fit'||S.session.role==='mind') U.tab='sath'; },
   newpin(k){ ath(k).pin=genPin(); save(); toast('Nuovo PIN atleta'); }, newppin(k){ ath(k).ppin=genPin(); save(); toast('Nuovo PIN genitore'); },
   askdel(k){ U.confirm=k; }, nodel(){ U.confirm=null; },
@@ -542,6 +542,7 @@ document.addEventListener('change', e=>{
   if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
   if(c==='athname'){ const a=ath(t.dataset.k), v=t.value.trim(); if(a && v){ a.name=v; save(); toast('Nome aggiornato'); render(); } return; }
   if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(HOOK.athMoved) HOOK.athMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
+  if(c==='gtest'){ U.gTest=t.value; render(); return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
