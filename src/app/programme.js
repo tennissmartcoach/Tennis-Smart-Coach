@@ -627,11 +627,16 @@ function exAiParse(txt){
   let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
   const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
   try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return null; }
-  let e = d && (d.esercizio || d.exercise);
-  if(!e && d && d.programma) e = (((d.programma.settimane||[])[0]||{}).lezioni||[{}])[0]?.esercizi?.[0];
-  if(!e && d && d.allievi) e = ((((d.allievi[0]||{}).lezioni||[])[0]||{}).fasi||[{}])[0]?.esercizi?.[0];
-  if(!e && d && (d.titolo || d.righe)) e = d;
-  return e && (e.titolo || (e.righe||[]).length) ? e : null;
+  // the exercise or test can come under several keys, and with "misura" OR "misure"
+  const looks = o => o && typeof o==='object' && !Array.isArray(o) && (o.titolo || o.nome || o.title || (o.righe||[]).length || o.svolgimento || o.descrizione || o.misura || (o.misure||[]).length);
+  let e = d && (d.esercizio || d.exercise || d.test || d.prova || d.valutazione);
+  if(!looks(e) && d && d.programma) e = (((d.programma.settimane||[])[0]||{}).lezioni||[{}])[0]?.esercizi?.[0];
+  if(!looks(e) && d && d.allievi) e = ((((d.allievi[0]||{}).lezioni||[])[0]||{}).fasi||[{}])[0]?.esercizi?.[0];
+  if(!looks(e) && d && Array.isArray(d.esercizi||d.test)) e = (d.esercizi||d.test)[0];
+  if(!looks(e) && d && typeof d==='object') e = looks(d) ? d : Object.values(d).find(looks);
+  if(!looks(e)) return null;
+  const lines = x => Array.isArray(x) ? x.map(String) : x ? String(x).split(/\n+/).map(l=>l.trim()).filter(Boolean) : [];
+  return Object.assign({}, e, {titolo: e.titolo || e.nome || e.title || '', etichetta: e.etichetta || e.organizzazione || '', righe: lines(e.righe).length ? lines(e.righe) : lines(e.svolgimento).length ? lines(e.svolgimento) : lines(e.descrizione)});
 }
 function exAiCard(E){
   if(!E.ai) return `<section class="card" style="border-color:var(--clay)"><div class="row between" style="gap:10px"><span class="grow small"><b>Crealo con l'IA</b><br><span class="muted">Racconta o detta l'esercizio: l'IA prepara titolo, descrizione e campetto, tu incolli qui la risposta.</span></span><button class="btn clay" data-a="exai" data-k="1">Inizia</button></div></section>`;
