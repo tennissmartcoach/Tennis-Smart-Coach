@@ -37,6 +37,39 @@ function ctScore(t, vals){ const ps = ctParts(t), pts = ps.map((p,j)=>p.kind==='
 const ctParse = (txt, kind) => { const x = String(txt||'').trim().replace(',','.'); if(x==='') return null; if(kind==='sec' && /^\d+:\d{1,2}(\.\d+)?$/.test(x)){ const [m,s] = x.split(':'); return +m*60 + +s; } return isNaN(+x) ? NaN : +x; };
 
 const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteId===aid).sort((a,b)=>(a.cycle||1)-(b.cycle||1) || String(a.date).localeCompare(String(b.date)));
+/* reading what an AI wrote: first as it is, then with small repairs. Curly quotes inside a text stay as they are
+   (turning them into straight ones used to break texts like "poi da “tre quarti”"); only quotes used as JSON delimiters are fixed. */
+function aiJSON(txt){
+  const raw = String(txt||'').trim().replace(/^```[a-zA-Z]*\s*/,'').replace(/\s*```\s*$/,'').trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}'), body = a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw;
+  const tries = [b=>b,
+    b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1'),
+    b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1').replace(/,(\s*[\]}])/g,'$1'),
+    b=>b.replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").replace(/,(\s*[\]}])/g,'$1')];
+  for(const f of tries){ try{ return JSON.parse(f(body)); }catch(e){} }
+  return null;
+}
+/* the court drawing of an imported exercise: what cannot be drawn is left out and noted in CAMPO_LOG (shown to the coach) */
+let CAMPO_LOG = [];
+function cleanCampo(c, where){
+  if(!Array.isArray(c)) return [];
+  const num = v => typeof v==='number' ? v : (typeof v==='string' && v.trim()!=='' && !isNaN(+v) ? +v : NaN), ok = v => Number.isFinite(v);
+  const PATH = /^\s*[Mm][\s\d.,\-+eEMmLlQqCcSsTtHhVvZz]*$/, out = [];
+  c.forEach((e,i)=>{ const why = (()=>{
+      if(!Array.isArray(e) || !e.length) return 'non è un elemento del campetto';
+      const k = String(e[0]); let x;
+      if(['A','B','M','c'].includes(k)){ x=[k, num(e[1]), num(e[2])]; if(!ok(x[1])||!ok(x[2])) return 'mancano le coordinate x e y'; if(k==='A'||k==='B') x.push(e[3]!=null?String(e[3]).slice(0,2):k); out.push(x); return ''; }
+      if(k==='z'){ x=[k,num(e[1]),num(e[2]),num(e[3]),num(e[4])]; if(x.slice(1).some(v=>!ok(v))) return 'servono x, y, larghezza e altezza'; out.push(x); return ''; }
+      if(k==='t'||k==='n'){ x=[k,num(e[1]),num(e[2])]; if(!ok(x[1])||!ok(x[2])) return 'mancano le coordinate x e y'; const tx = e[3]==null ? '' : String(e[3]).trim(); if(!tx) return 'manca il testo'; x.push(k==='n'?tx.slice(0,3):tx.slice(0,40)); out.push(x); return ''; }
+      if(['a','b','f','ma'].includes(k)){ let d = e[1];
+        if(typeof d!=='string' && e.length>=5 && [1,2,3,4].every(j=>ok(num(e[j])))) d = `M${num(e[1])} ${num(e[2])}L${num(e[3])} ${num(e[4])}`;   // [k,x1,y1,x2,y2] becomes a straight line
+        if(typeof d!=='string' || !PATH.test(d) || !/\d/.test(d)) return 'il percorso della freccia non è valido (deve essere tipo "M60 62Q110 34 150 28")';
+        out.push([k, d.trim()]); return ''; }
+      return 'tipo "'+k+'" sconosciuto'; })();
+    if(why) CAMPO_LOG.push({where:where||'', i:i+1, el:(()=>{ try{ return JSON.stringify(e).slice(0,60); }catch(_){ return String(e).slice(0,60); } })(), why}); });
+  return out;
+}
+const campoWarnHtml = log => log && log.length ? `<div class="note"><b>Campetto: ${log.length===1?'saltato 1 elemento':'saltati '+log.length+' elementi'}</b>, il resto è stato importato.<ul class="small" style="margin:6px 0 0;padding-left:18px">${log.slice(0,8).map(x=>`<li>${x.where?esc(x.where)+' · ':''}n. ${x.i} <code>${esc(x.el)}</code>: ${esc(x.why)}</li>`).join('')}${log.length>8?`<li>… e altri ${log.length-8}</li>`:''}</ul></div>` : '';
 const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const W = n => WEEKS[n-1];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

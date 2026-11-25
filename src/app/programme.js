@@ -560,9 +560,7 @@ APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
 }
 function dayAiParse(txt, t){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'}; }
+  const d = aiJSON(txt); if(d===null){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'}; }
   const L = d && (d.lezione || d.seduta); if(!L) return {err:'Nel testo non c\u2019è una lezione. Controlla di aver copiato la risposta giusta.'};
   const src = dayAiSrc(t), ks = src.phases.map(p=>p.k), byName = n => (src.phases.find(p=>impNorm(p.n)===impNorm(n))||{}).k;
   const fasi = (L.fasi||[]).map(f=>({k: ks.includes(f.fase) ? f.fase : (f.fase==='pr'&&ks.includes('ri') ? 'ri' : f.fase==='ri'&&ks.includes('pr') ? 'pr' : byName(f.fase||f.nome||'')), ex:(f.esercizi||[]).filter(e=>e && (e.titolo||(e.righe||[]).length))})).filter(f=>f.k);
@@ -591,7 +589,7 @@ function dayAiView(t){
 }
 function dayAiApply(t, R){
   S.customEx = S.customEx || [];
-  const mk = (e, k) => { const x = {id:'c'+uid(), custom:true, hidden:true, ph: k==='ri' ? 'pr' : (['att','pr','sr','ap'].includes(k) ? k : 'pr'), t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]}; S.customEx.push(x); return x.id; };
+  const mk = (e, k) => { const x = {id:'c'+uid(), custom:true, hidden:true, ph: k==='ri' ? 'pr' : (['att','pr','sr','ap'].includes(k) ? k : 'pr'), t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:cleanCampo(e.campo, String(e.titolo||''))}; S.customEx.push(x); return x.id; };
   if(t.kind==='w'){ const B = editableBlocks(t.w, t.d); R.fasi.forEach(f=>{ B[f.k] = f.ex.map(e=>mk(e, f.k)); });
     if(R.title || R.obj){ const k = dayKey(t.w,t.d)+':txt', o = Object.assign({}, S.plan[k]||{}); if(R.title) o.title = R.title; if(R.obj) o.obj = esc(R.obj); S.plan[k] = o; }
     return; }
@@ -624,9 +622,7 @@ APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
 }
 function exAiParse(txt){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return null; }
+  const d = aiJSON(txt); if(d===null){ return null; }
   // the exercise or test can come under several keys, and with "misura" OR "misure"
   const looks = o => o && typeof o==='object' && !Array.isArray(o) && (o.titolo || o.nome || o.title || (o.righe||[]).length || o.svolgimento || o.descrizione || o.misura || (o.misure||[]).length);
   let e = d && (d.esercizio || d.exercise || d.test || d.prova || d.valutazione);
@@ -657,7 +653,7 @@ function editorView(){
     <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.ct?'Test del ciclo':E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
     <h1>${E.ct?(E.ct.id?'Modifica test':'Nuovo test · '+esc(W(E.ct.tipo).name)):E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
-    ${exAiCard(E)}
+    ${exAiCard(E)}${campoWarnHtml(E.campoWarn)}
     <section class="card">
       ${E.ct?`<div class="field"><label>Area</label><div class="seg" role="group"><button data-a="edctset" data-k="area:ten" aria-pressed="${E.area!=='atl'}">Tennis</button><button data-a="edctset" data-k="area:atl" aria-pressed="${E.area==='atl'}">Atletica</button></div></div>
       ${(E.misure||[]).length ? `<div class="field"><label>Risultati del test</label><div style="display:flex;flex-direction:column;gap:8px">${E.misure.map((p,j)=>`<div class="card" style="padding:10px;gap:8px"><div class="row" style="gap:8px;flex-wrap:nowrap"><input class="input" style="flex:1;min-width:0" data-c="edmis" data-k="${j}:nome" value="${esc(p.nome||'')}" placeholder="Nome, es. Destra" aria-label="Nome del risultato ${j+1}"><button class="chip" data-a="edmisdel" data-k="${j}" aria-label="Togli">✕</button></div>

@@ -54,7 +54,7 @@ function renderInner(){
   if(U.tdEd) body = tdefView();
   root.innerHTML = `
     <header class="top"><svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x="1.5" y="1.5" width="117" height="117" rx="27" fill="#18222F" stroke="#2A374B" stroke-width="3"/><rect x="24" y="68" width="18" height="28" rx="5" fill="#FFFFFF" fill-opacity=".45"/><rect x="50" y="52" width="18" height="44" rx="5" fill="#FFFFFF" fill-opacity=".7"/><rect x="76" y="44" width="18" height="52" rx="5" fill="#FFFFFF"/><circle cx="85" cy="25" r="13" fill="#D7E84A"/></svg><div class="t"><small>TENNIS</small><b>Smart Coach</b><span>${who}</span></div><button data-a="logout">Esci</button></header>
-    <main>${exampleNote()}${body}</main>
+    <main>${exampleNote()}${U.campoNote&&U.campoNote.length?campoWarnHtml(U.campoNote)+'<button class="chip" data-a="campook" style="align-self:flex-start">Ho capito</button>':''}${body}</main>
     <div class="tabs"><nav>${tabs.map(([k,l,i])=>`<button data-a="tab" data-k="${k}" ${U.tab===k?'aria-current="page"':''} style="position:relative">${i}<span>${l}</span>${k==='ath'&&newForms()?`<b class="dot" aria-label="${newForms()} schede nuove">${newForms()}</b>`:''}</button>`).join('')}</nav></div>`;
 }
 function tdefView(){

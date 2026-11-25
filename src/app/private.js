@@ -66,9 +66,7 @@ function plPupilCard(id){
 const impNorm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function impMine(){ const A = typeof myAccess==='function' ? myAccess() : null; return S.athletes.filter(a=>a.groupId===PRIV_ID && (!A || athVis(a, A))); }
 function impParse(txt, forId){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
+  const d = aiJSON(txt); if(d===null){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
   if(!d || !Array.isArray(d.allievi) || !d.allievi.length) return {err:'Nel file non ci sono allievi da importare.'};
   const mine = impMine();
   if(forId && d.allievi.length>1) return {err:'Il testo contiene più allievi: incollalo dall’elenco Lezioni private.'};
@@ -170,9 +168,7 @@ APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
 }
 function gParse(txt){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell’IA con il tasto "Copia", senza modificarla.'}; }
+  const d = aiJSON(txt); if(d===null){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell’IA con il tasto "Copia", senza modificarla.'}; }
   const P = d && (d.programma || (d.gruppi && d.gruppi[0] && d.gruppi[0].programma) || (d.allievi && d.allievi[0] && d.allievi[0].programma));
   if(!P || !Array.isArray(P.settimane) || !P.settimane.length) return {err:'Nel testo non c’è un programma a settimane. Se è la lezione di un allievo privato, incollala nella sua pagina in Lezioni private.'};
   const W = P.settimane, L = W.reduce((t,w)=>t+(w.lezioni||[]).length,0), E = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).length,0),0), C = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).filter(e=>(e.campo||[]).length).length,0),0);
@@ -196,7 +192,7 @@ function impProgram(P, g){
   let added = 0;
   P.settimane.forEach(w=>{ if(seen.has(sig(w.nome, (w.lezioni||[])[0]&&w.lezioni[0].titolo))) return; const wk = blankWeek(); wk.name = w.nome || '';
     (w.lezioni||[]).slice(0,5).forEach((l,i)=>{ const day = wk.days[i]; day.title = l.titolo || ''; day.note = l.obiettivo || ''; day.ex = []; day.exPh = [];
-      (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]};
+      (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:cleanCampo(e.campo, String(e.titolo||''))};
         S.customEx.push(ex); day.ex.push(ex.id); day.exPh.push(keyOf(e.fase)); }); });
     o.weeks.push(wk); added++; });
   if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length || o.cur<1) o.cur = 1;
@@ -277,7 +273,7 @@ function impApply(d, forId){
     (x.lezioni||[]).forEach(l=>{ if(!l) return; const n = +l.n || (pv.sheets.length+1), old = pv.sheets.find(z=>z.n===n);
       const sh = {id: old ? old.id : 'sh'+uid(), n, date:l.data||'', title:String(l.titolo||''), sub:String(l.sottotitolo||''), dur:+l.durata||0, fmt:String(l.formato||''), obj:String(l.obiettivo||''),
         asp:Object.fromEntries(Object.entries(l.aspetti||{}).map(([k,v])=>[AR[impNorm(k)]||k, String(v)])),
-        phases:(l.fasi||[]).map(f=>({n:String(f.nome||''), m:+f.min||0, tags:String(f.temi||''), ex:(f.esercizi||[]).map(e=>({t:String(e.titolo||''), min:e.min||'', x:(e.righe||[]).map(String), obj:String(e.obiettivo||''), serie:String(e.serie||''), els:Array.isArray(e.campo)?e.campo:[]}))})),
+        phases:(l.fasi||[]).map(f=>({n:String(f.nome||''), m:+f.min||0, tags:String(f.temi||''), ex:(f.esercizi||[]).map(e=>({t:String(e.titolo||''), min:e.min||'', x:(e.righe||[]).map(String), obj:String(e.obiettivo||''), serie:String(e.serie||''), els:cleanCampo(e.campo, String(e.titolo||''))}))})),
         note:String(l.nota||''), touched:(l.toccati||[]).map(r=>refs[r] || (pv.goals.find(z=>impNorm(z.text)===impNorm(r))||{}).id).filter(Boolean),
         after: l.noteDopo || (old && old.after) || '', next: l.daRiprendere || (old && old.next) || ''};
       if(old) pv.sheets[pv.sheets.indexOf(old)] = sh; else pv.sheets.push(sh); });

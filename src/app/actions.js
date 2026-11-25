@@ -113,7 +113,7 @@ const ACT = {
   dayai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.dayAi = k==='1'; U.dayAiData=null; U.dayAiErr=''; U.aiCopied=false; U.aiShow=false; U.editDay=false; window.scrollTo(0,0); },
   dayaipaste(){ const r=dayAiParse(document.getElementById('dayai-txt').value||'', dayAiTarget()); if(r.err){ U.dayAiErr=r.err; U.dayAiData=null; } else { U.dayAiErr=''; U.dayAiData=r; } window.scrollTo(0,0); },
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
-  dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
+  dayaido(){ const R=U.dayAiData; if(!R) return; CAMPO_LOG=[]; dayAiApply(dayAiTarget(), R); save(); U.campoNote=CAMPO_LOG.length?CAMPO_LOG.slice():null; if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   cttipo(k){ U.ctTipo=+k; },
   ctathrec(k){ U.ctAth = k || null; if(k){ const a=ath(k); U.ctGroup=a&&a.groupId; U.ctDate=todayISO(); } },
   octipo(k){ const d=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]; if(+k) d.ctTipo=+k; else delete d.ctTipo; save(); },
@@ -135,21 +135,21 @@ const ACT = {
     if(bad){ toast('Controlla i numeri di '+bad+' (per il tempo scrivi 90 oppure 1:30)'); return; }
     save(); U.ctRec=false; U.ctAth=null; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
-  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
-    E.t=String(e.titolo||E.t||'Test'); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
+  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); CAMPO_LOG=[]; if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
+    E.t=String(e.titolo||E.t||'Test'); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=cleanCampo(e.campo); E.vis=null; } E.campoWarn=CAMPO_LOG.slice();
     if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo);
       E.misure = Array.isArray(e.misure) && e.misure.length>1 ? ctMisIn(e.misure) : []; if(Array.isArray(e.misure) && e.misure.length===1){ const p=ctMisIn(e.misure)[0]; E.kind=p.kind; E.max=p.max||''; } }
     if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
     if(!E.sheet && !E.ctx) E.lib=true;
-    E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
+    E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast(E.campoWarn.length?'Esercizio compilato: alcuni elementi del campetto sono stati saltati':'Esercizio compilato: controlla e salva'); },
   gimpopen(k){ U.gImp=k; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; U.oWeek=null; U.oDay=null; window.scrollTo(0,0); },
   gimpclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.gImp=null; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; window.scrollTo(0,0); },
   gimppaste(){ const r=gParse(document.getElementById('gimp-txt').value||''); if(r.err){ U.gImpErr=r.err; U.gImpData=null; } else { U.gImpErr=''; U.gImpData=r; } },
   gimpreset(){ U.gImpData=null; U.gImpErr=''; },
-  gimpdo(){ const g=grp(U.gImp), R=U.gImpData; if(!g||!R) return; const before=ownOf(g.id).weeks.filter(w=>w.name||w.days.some(d=>d.title||d.ex.length)).length; g.prog='own'; const n=impProgram(R.P, g); save();
+  gimpdo(){ const g=grp(U.gImp), R=U.gImpData; if(!g||!R) return; CAMPO_LOG=[]; const before=ownOf(g.id).weeks.filter(w=>w.name||w.days.some(d=>d.title||d.ex.length)).length; g.prog='own'; const n=impProgram(R.P, g); save(); U.campoNote=CAMPO_LOG.length?CAMPO_LOG.slice():null;
     if(U.aiNotes) U.aiNotes['g:'+g.id]=''; U.gImp=null; U.gImpData=null; U.aiCopied=false; U.aiShow=false; U.planGroup=g.id; U.planMode='weeks'; U.oDay=null; U.oWeek = n ? before+1 : null; toast(n?`${g.name}: ${n} ${n===1?'settimana aggiunta':'settimane aggiunte'}`:'Queste settimane c\u2019erano già'); window.scrollTo(0,0); },
   imppaste(){ const r = impParse(document.getElementById('imp-txt').value||'', U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
-  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; if(U.aiNotes) U.aiNotes[was||'_']=''; U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
+  impdo(){ const R=U.impData; if(!R) return; CAMPO_LOG=[]; const as = impApply(R.d, R.forId); save(); U.campoNote=CAMPO_LOG.length?CAMPO_LOG.slice():null; const was = R.forId; if(U.aiNotes) U.aiNotes[was||'_']=''; U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
   ppopen(k){ U.tab='plan'; U.planMode='weeks'; U.planGroup='pp_'+k; U.oWeek=null; U.oDay=null; U.pick=null; window.scrollTo(0,0); },
   ppback(k){ U.planGroup=null; U.oWeek=null; U.oDay=null; if(S.session.role==='coach'){ U.tab='home'; U.homeView='priv'; U.privOpen=k; } window.scrollTo(0,0); },
@@ -313,6 +313,7 @@ const ACT = {
   ex(k){ U.sel.ex = k==='ng' ? 'ng' : k==='1'; },
   // ace / double fault / return error: the point is not played and the app knows who won it (the receiver only on a double fault)
   fittennis(){ U.fitTennis = !U.fitTennis; },
+  campook(){ U.campoNote=null; },
   srvset(k){ if(S.live){ S.live.srvNow=+k; save(); } },
   quickpt(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const sv=curServer(st); if(U.sel.ch===undefined) U.sel.ch=null; U.sel.ex='ng'; U.sel.how=k; ACT.point(String(k==='df'?1-sv:sv)); },
   point(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const w=+k; const ng = U.sel.ex==='ng';
