@@ -36,6 +36,19 @@ function ctFmt(t, vals){ const ps = ctParts(t); if(ps.length===1) return ctFmtPa
   const pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
   return ps.map((p,j)=>(p.nome?p.nome+' ':'')+ctFmtPart(p, vals[j])).join(' · ') + (pts.length>1 ? ` · totale ${ctNum(pts.reduce((s,j)=>s+vals[j],0))}/${pts.reduce((s,j)=>s+ +ps[j].max,0)}` : ''); }
 // one number to draw the bar and compare: share of the points if the test has points, otherwise its first value
+// table cell: one short value; several values become the total (or the first one) with "D 3 · S 3" underneath
+function ctCell(t, vals){ const ps = ctParts(t); if(ps.length===1) return esc(ctFmt(t, vals));
+  const sec = ps.findIndex(p=>p.kind==='sec'), oth = ps.findIndex(p=>p.kind!=='sec');
+  if(ps.length===2 && sec>=0 && oth>=0 && vals[sec]!==null && vals[oth]!==null) return `${esc(ctFmtPart(ps[oth], vals[oth]))}<div class="small muted">in ${esc(ctTime(vals[sec]))}</div>`;
+  // short labels: words shared by all names are dropped ("Entrata di diritto" / "Entrata di rovescio" -> D / R)
+  const ws = ps.map(p=>(p.nome||'').toLowerCase().split(/\s+/).filter(w=>w.length>2)), common = w => ws.every(x=>x.includes(w));
+  const key = ws.map((x,j)=>(x.find(w=>!common(w)) || x[0] || String(j+1)));
+  const ini = key.map(k=>k.charAt(0).toUpperCase()), uniq = new Set(ini).size===ini.length;
+  const lab = (p,j) => uniq ? ini[j] : key[j].charAt(0).toUpperCase()+key[j].slice(1,3);
+  const pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
+  const parts = ps.map((p,j)=>vals[j]===null ? '' : `<span style="white-space:nowrap">${esc(lab(p,j))} ${esc(p.kind==='sec' ? ctTime(vals[j]) : ctNum(vals[j]))}</span>`).filter(Boolean);
+  if(pts.length<2) return parts.join('<br>');   // no total: one short line per value
+  return `${ctNum(pts.reduce((s,j)=>s+vals[j],0))}/${pts.reduce((s,j)=>s+ +ps[j].max,0)}<div class="small muted" style="white-space:normal">${parts.join('  ')}</div>`; }
 function ctScore(t, vals){ const ps = ctParts(t), pts = ps.map((p,j)=>p.kind==='pts'&&+p.max>0&&vals[j]!==null?j:-1).filter(j=>j>=0);
   if(pts.length) return {kind:'pct', v: pts.reduce((s,j)=>s+vals[j],0) / pts.reduce((s,j)=>s+ +ps[j].max,0)};
   const j = vals.findIndex(x=>x!==null); return j<0 ? null : {kind:ps[j].kind, v:vals[j], max:+ps[j].max||0}; }
@@ -166,7 +179,7 @@ const IC = {
 /* ---------- dates ---------- */
 const todayISO = () => { const d = new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
 const MONTHS = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-const dLabel = iso => { const d = new Date(iso+'T12:00'); return d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3); };
+const dLabel = iso => { const d = new Date(iso+'T12:00'); if(isNaN(d)) return String(iso||''); return d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+(d.getFullYear()!==new Date().getFullYear() ? ' '+String(d.getFullYear()).slice(2) : ''); };
 function firstMonday(y){ const j1 = new Date(Date.UTC(y,0,1)); const add = (8 - j1.getUTCDay()) % 7; return new Date(Date.UTC(y,0,1+add)); }
 function weekMonday(year, n){ return new Date(firstMonday(year).getTime() + (n-1)*7*864e5).toISOString().slice(0,10); }
 function weekOf(iso){ const t = new Date(iso+'T00:00Z'); let y = t.getUTCFullYear(); if(t < firstMonday(y)) y--; return {year:y, n:1+Math.floor((t-firstMonday(y))/(7*864e5))}; }

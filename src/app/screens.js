@@ -258,9 +258,9 @@ function athCtTable(id){
   const cysOf = k => [...new Set(ctRecs(id,k).map(r=>r.cycle||1))].sort((a,b)=>a-b);
   const w = Math.max(...tipi.map(x=>lastCols(cysOf(x.k)).length)), pad = n => '<td style="border-top:none"></td>'.repeat(Math.max(0, w-n));
   const body = tipi.map(x=>{ const rs = ctRecs(id,x.k), ts = ctOf(x.k).filter(t=>rs.some(r=>ctHas(r,t))), cys = cysOf(x.k), vis = lastCols(cys); if(!ts.length) return '';
-    return `<tr><td style="${STICKY};text-align:left;padding-top:14px;border-top:none;max-width:128px"><span class="eyebrow" style="letter-spacing:0;font-size:11px">${esc(x.name)}</span></td>${vis.map(c=>`<th style="padding-top:14px;white-space:nowrap">Giro ${c}</th>`).join('')}${pad(vis.length)}</tr>` + ts.map(t=>{ let prev = null;
+    return `<tr><td style="${STICKY};text-align:left;padding-top:14px;border-top:none;max-width:128px"><span class="eyebrow" style="letter-spacing:0;font-size:11px">${esc(x.name)}</span></td>${vis.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); return `<th style="padding-top:14px;white-space:nowrap">${r&&r.date?dLabel(String(r.date).slice(0,10)):'Giro '+c}</th>`; }).join('')}${pad(vis.length)}</tr>` + ts.map(t=>{ let prev = null;
       return `<tr><td style="${STICKY};min-width:104px;max-width:128px">${esc(t.t)}</td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>';
-        const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; })).join('')}${pad(vis.length)}</tr>`; }).join(''); }).join('');
+        const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; const cc = ctCell(t,v); return `<td style="white-space:nowrap">${cc.includes('<div') ? cc.replace('<div', ARW(s)+'<div') : cc.includes('<br>') ? cc.replace('<br>', ARW(s)+'<br>') : cc+ARW(s)}</td>`; })).join('')}${pad(vis.length)}</tr>`; }).join(''); }).join('');
   return `<div class="scroll-x"><table class="grid" style="font-size:14px"><tbody>${body}</tbody></table></div>${colsBtn(Math.max(...tipi.map(x=>cysOf(x.k).length)), 'giri')}`;
 }
 // fitness coach's own tests of one athlete: a row per test, a column per day
@@ -300,8 +300,9 @@ function grpTestsCard(g){
   const [kind, tid] = [U.gTest.slice(0,1), U.gTest.slice(2)];
   let head, rows, more = '';
   if(kind==='c'){ const t = ctAll().find(x=>x.id===tid), cys = [...new Set((S.tests||[]).filter(r=>ids.has(r.athleteId) && r.ct===t.tipo && ctHas(r,t)).map(r=>r.cycle||1))].sort((a,b)=>a-b);
-    head = lastCols(cys.map(c=>`<th>Giro ${c}</th>`)).join(''); more = colsBtn(cys.length, 'giri');
-    rows = as.map(a=>{ const rs = ctRecs(a.id, t.tipo); let prev = null; return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>'; const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; })).join('')}</tr>`; }).join('');
+    const dOf = c => (S.tests||[]).filter(r=>ids.has(r.athleteId) && r.ct===t.tipo && (r.cycle||1)===c && r.date).map(r=>String(r.date).slice(0,10)).sort()[0];
+    head = lastCols(cys.map(c=>`<th style="white-space:nowrap">${dOf(c)?dLabel(dOf(c)):'Giro '+c}</th>`)).join(''); more = colsBtn(cys.length, 'giri');
+    rows = as.map(a=>{ const rs = ctRecs(a.id, t.tipo); let prev = null; return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>'; const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; const cc = ctCell(t,v); return `<td style="white-space:nowrap">${cc.includes('<div') ? cc.replace('<div', ARW(s)+'<div') : cc.includes('<br>') ? cc.replace('<br>', ARW(s)+'<br>') : cc+ARW(s)}</td>`; })).join('')}</tr>`; }).join('');
   } else { const t = ftById(tid), ds = [...new Set((S.fres||[]).filter(r=>r.testId===t.id && ids.has(r.athleteId)).map(r=>r.date))].sort();
     head = lastCols(ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`)).join(''); more = colsBtn(ds.length, 'giorni di test');
     rows = as.map(a=>{ const rs = ftRes(t.id,a.id); return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); return k<0 ? '<td class="muted">–</td>' : `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; })).join('')}</tr>`; }).join('');
