@@ -136,18 +136,22 @@ function fitTestsView(){
     if(!U.ftGroup || (U.ftGroup!=='all' && !grp(U.ftGroup))){ const withRes = tg.find(g=>S.athletes.some(a=>a.groupId===g.id && ftRes(t.id,a.id).length)); U.ftGroup = (withRes||tg[0]||{}).id; }
     const all = U.ftGroup==='all', d = U.ftDate || todayISO();
     const as = S.athletes.filter(a=>all ? ftRes(t.id,a.id).length : a.groupId===U.ftGroup).sort((a,b)=>(ftRes(t.id,b.id).length>0)-(ftRes(t.id,a.id).length>0));
-    const fmt = v => String(Math.round(v*100)/100).replace('.',',') + (t.u?' '+t.u:'');
     const better = (x,y) => t.better==='low' ? x<y : x>y;
-    const row = a => { const rs = ftRes(t.id,a.id); if(!rs.length) return `<div class="row between" style="flex-wrap:nowrap;padding:6px 0;border-bottom:1px solid var(--line)"><b style="flex:1;min-width:0">${esc(a.name)}</b><span class="small muted">nessun risultato</span></div>`;
-      const l = rs[rs.length-1], p = rs[rs.length-2], tr = !p ? '' : better(l.v,p.v) ? ' <span style="color:var(--ok)">▲</span>' : l.v===p.v ? ' =' : ' <span style="color:var(--ko)">▼</span>';
-      return `<div style="display:flex;flex-direction:column;gap:4px;padding:6px 0;border-bottom:1px solid var(--line)"><div class="row between" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(a.name)}${all?` <span class="small muted">· ${esc(grp(a.groupId)?.id===PRIV_ID?'Lezioni private':grp(a.groupId)?.name||'')}</span>`:''}</b><span style="font-size:18px;font-weight:700">${fmt(l.v)}${tr}</span></div>
-        ${rs.length>1?`<div class="row" style="gap:6px;flex-wrap:wrap">${rs.map((r,i)=>`<span class="tag" style="text-transform:none;letter-spacing:0">${dLabel(r.date)}: <b>${fmt(r.v)}</b></span>${i<rs.length-1?'<span class="small muted">→</span>':''}`).join('')}</div>`:`<span class="small muted">${dLabel(l.date)}</span>`}</div>`; };
+    // table: one row per athlete, one column per test day; each value with ▲/▼ compared with that athlete's previous result
+    const dates = [...new Set(as.flatMap(a=>ftRes(t.id,a.id).map(r=>r.date)))].sort();
+    const num = v => String(Math.round(v*100)/100).replace('.',',');
+    const cell = (rs, x) => { const k = rs.findIndex(r=>r.date===x); if(k<0) return '<td class="muted">–</td>'; const v = rs[k].v, p = k ? rs[k-1].v : null;
+      const tr = p===null ? '' : better(v,p) ? '<span style="color:var(--ok);font-size:11px"> ▲</span>' : v===p ? '<span class="muted" style="font-size:11px"> =</span>' : '<span style="color:var(--ko);font-size:11px"> ▼</span>';
+      return `<td style="white-space:nowrap${k===rs.length-1?';font-weight:700':''}">${num(v)}${tr}</td>`; };
+    const sticky = 'position:sticky;left:0;background:var(--surface);z-index:1';
+    const table = `<div class="scroll-x"><table class="grid"><thead><tr><th style="${sticky}">Atleta</th>${dates.map(x=>`<th style="white-space:nowrap">${dLabel(x)}</th>`).join('')}</tr></thead><tbody>${as.map(a=>{ const rs = ftRes(t.id,a.id);
+      return `<tr><td style="${sticky};min-width:96px"><b>${esc(a.name)}</b>${all?`<div class="small muted">${esc(grp(a.groupId)?.id===PRIV_ID?'Lezioni private':grp(a.groupId)?.name||'')}</div>`:''}</td>${dates.map(x=>cell(rs,x)).join('')}</tr>`; }).join('')}</tbody></table></div>`;
     return `<button class="btn ghost" data-a="ftclose" style="align-self:flex-start">‹ Test atletici</button>
       <section class="card"><span class="eyebrow">Test atletico · ${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'}</span><h1>${esc(t.l)}</h1>${t.x?`<p class="small">${esc(t.x)}</p>`:''}</section>
       <section class="card"><div class="row between"><h3>Risultati</h3></div>
         <div class="field"><label for="ft-g">Gruppo</label><select id="ft-g" class="input" data-c="ftgrp"><option value="all" ${all?'selected':''}>Tutti gli atleti testati</option>${tg.map(x=>`<option value="${x.id}" ${x.id===U.ftGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
-        ${as.length?`<div>${as.map(row).join('')}</div>`:'<p class="muted">Nessun atleta ha ancora fatto questo test.</p>'}
-        <p class="small muted">Accanto al nome l'ultimo risultato (▲ migliorato rispetto alla volta prima); sotto, tutti i risultati in ordine di data.</p></section>
+        ${as.length && dates.length ? table : as.length ? '<p class="muted">Nessun atleta di questo gruppo ha ancora fatto questo test.</p>' : '<p class="muted">Nessun atleta ha ancora fatto questo test.</p>'}
+        ${dates.length?`<p class="small muted">Risultati in ${esc(t.u||'')}, una colonna per ogni giorno di test. <span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima; in grassetto l'ultimo risultato.${dates.length>3?' Scorri la tabella di lato per vedere tutte le date.':''}</p>`:''}</section>
       ${U.ftEntry && !all ? `<section class="card" style="border-color:var(--clay)"><h3>Nuovi risultati</h3>
         <div class="field" style="max-width:200px"><label for="ft-d">Giorno</label><input id="ft-d" class="input" type="date" data-c="ftdate" value="${d}"></div>
         <div class="list">${S.athletes.filter(a=>a.groupId===U.ftGroup).map(a=>{ const r = S.fres.find(z=>z.testId===t.id && z.athleteId===a.id && z.date===d); return `<div class="row between" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(a.name)}</b><input id="ft-in-${a.id}" class="input" style="width:110px;text-align:center" inputmode="decimal" value="${r?String(r.v).replace('.',','):''}" placeholder="${esc(t.u||'valore')}" aria-label="${esc(a.name)}"></div>`; }).join('')}</div>
