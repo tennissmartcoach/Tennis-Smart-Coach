@@ -11,6 +11,8 @@ const CT_TIPI = () => WEEKS.slice(0,6).map(w=>({k:w.n, name:w.name}));
 const ctTipoOfWeek = w => ((+w-1)%6)+1;
 const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
 const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
+/* the fitness coach works only on the athletic cycle tests; the tennis ones are the coach's */
+const ctMine = tipo => S.session && S.session.role==='fit' ? ctOf(tipo).filter(t=>t.area==='atl') : ctOf(tipo);
 function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
 const ctKindLab1 = p => p.kind==='sec' ? 'tempo (meno è meglio)' : p.kind==='num' ? (+p.max>0?'numero su '+p.max:'numero (più è meglio)') : 'punti su '+(p.max||'?');
 const ctKindLab = t => (t.misure||[]).length ? t.misure.map(p=>(p.nome||'')+': '+ctKindLab1(p)).join(' · ') : (t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?'));

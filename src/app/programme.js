@@ -121,19 +121,19 @@ function ctTestCard(t, edit){
 }
 function ctestView(top){
   const tipi = CT_TIPI(), pg = grp(U.planGroup); if(!U.ctTipo) U.ctTipo = pg && !isOwnG(pg) ? ctTipoOfWeek(pg.week) : 1;
-  const tipo = +U.ctTipo, ts = ctOf(tipo), name = (tipi.find(x=>x.k===tipo)||{}).name || '';
+  const tipo = +U.ctTipo, ts = ctMine(tipo), name = (tipi.find(x=>x.k===tipo)||{}).name || '';
   if(U.ctRec) return ctRecView(tipo);
   return `${top}<h1>Test del ciclo</h1>
-    <div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
-    <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?' · '+ctOf(x.k).length:''}</button>`).join('')}</div>
-    <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):'Ancora nessun test.'}</p>
+    ${S.session.role==='fit'?'<div class="note">Qui vedi solo i <b>test di atletica</b> del ciclo: quelli di tennis li prepara e li segna il maestro.</div>':''}<div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
+    <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctMine(x.k).length?' · '+ctMine(x.k).length:''}</button>`).join('')}</div>
+    <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):(S.session.role==='fit'?'Ancora nessun test di atletica per questa tipologia.':'Ancora nessun test.')}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-a="ctnew">+ Nuovo test</button></div>${ts.length?`<button class="btn clay block" data-a="ctrec" data-k="1" style="margin-top:4px">Segna i punteggi degli atleti</button><p class="small muted">Si usa nella settimana dei test: scegli gruppo e giorno e scrivi il punteggio di ogni atleta in ogni test.</p>`:''}</section>
     ${ts.map(t=>ctTestCard(t, true)).join('')}
     ${ts.length?ctGroupTable(tipo):''}`;
 }
 function ctGroupTable(tipo){
   const g = grp(U.ctGroup || U.planGroup); if(!g) return '';
-  const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctOf(tipo), cy = g.cycle||1;
+  const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctMine(tipo), cy = g.cycle||1;
   const rows = as.map(a=>{ const r = ctRecs(a.id, tipo).filter(x=>(x.cycle||1)===cy).pop(); return r ? {a, r} : null; }).filter(Boolean);
   if(!rows.length) return '';
   return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${ctHas(r,t)?esc(ctFmt(t, ctVals(r,t))):'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
@@ -144,16 +144,16 @@ function ctAthBoxes(a, ts, r){ return `<div style="display:flex;flex-direction:c
           : `<div><b>${i+1}. ${esc(t.t)}</b>${t.area==='atl'?' <span class="small muted">· Atletica</span>':''}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${ps.map((p,j)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-${j}" style="flex:1;min-width:0;padding-left:14px">${esc(p.nome||'Valore '+(j+1))}<br><span class="small muted">${esc(ctKindLab1(p))}${p.kind==='sec'?' · anche 1:30':''}</span></label>${box(p,j)}</div>`).join('')}</div></div>`; }).join('')}</div>`; }
 /* coach or fitness coach inside an athlete's profile: record that athlete's tests for one player type */
 function ctAthEntry(id){
-  const a = ath(id), g = grp(a.groupId); if(!U.ctTipo) U.ctTipo = g && !isOwnG(g) ? ctTipoOfWeek(g.week) : 1; const tipo = +U.ctTipo, ts = ctOf(tipo), cy = (g&&g.cycle)||1;
+  const a = ath(id), g = grp(a.groupId); if(!U.ctTipo) U.ctTipo = g && !isOwnG(g) ? ctTipoOfWeek(g.week) : 1; const tipo = +U.ctTipo, ts = ctMine(tipo), cy = (g&&g.cycle)||1;
   const r = ctRecs(id, tipo).filter(x=>(x.cycle||1)===cy).pop();
   return `<section class="card" style="border-color:var(--clay)"><div class="row between"><h3>Segna i test di ${esc(a.name)}</h3><button class="chip" data-a="ctathrec" data-k="">Chiudi</button></div>
-    <div class="chips">${CT_TIPI().map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?'':' · nessun test'}</button>`).join('')}</div>
+    <div class="chips">${CT_TIPI().map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctMine(x.k).length?'':' · nessun test'}</button>`).join('')}</div>
     <div class="field" style="max-width:200px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${U.ctDate||todayISO()}"></div>
     ${ts.length ? ctAthBoxes(a, ts, r) + `<button class="btn clay block" data-a="ctsave">Salva</button>` : '<p class="small muted">Questa tipologia non ha ancora test: aggiungili in Test del ciclo.</p>'}</section>`;
 }
 function ctRecView(tipo){
   const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
-  const ts = ctOf(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
+  const ts = ctMine(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
   const cur = aid => ctRecs(aid, tipo).filter(x=>(x.cycle||1)===cy).pop();
   return `<button class="btn ghost" data-a="ctrec" data-k="0" style="align-self:flex-start">‹ ${U.ctBack?'Seduta':'Test del ciclo'}</button>
     <h1>Settimana dei test</h1><p class="small muted" style="margin-top:-6px">${esc((CT_TIPI().find(x=>x.k===tipo)||{}).name)} · giro ${cy}</p>
