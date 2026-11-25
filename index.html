@@ -594,6 +594,47 @@ function addFtDemo(d){
           d.fres.push({id:'fr'+t.id+a.id+k, testId:t.id, athleteId:a.id, date:day, v: t.u==='cm'||t.u==='s'&&t.id==='ftd5' ? Math.round(v) : v}); }); }); }); });
   d.ft1 = true; return d;
 }
+
+/* more history for the demo: three rounds of cycle tests, more matches and more forms for AGO 1, demo only */
+function addMoreDemo(d){
+  const r = rng(31), day = n => new Date(Date.now() - n*864e5).toISOString();
+  const g = (d.groups||[]).find(x=>x.id==='g1'); if(!g) { d.more1 = true; return d; }
+  const as = (d.athletes||[]).filter(a=>a.groupId==='g1').slice(0,5);
+  // cycle tests: what was already there becomes round 3 (now); rounds 1 and 2 are added before, for every player type
+  d.tests = d.tests || []; d.tests.forEach(x=>{ if(x.ct && x.groupId==='g1' && (x.cycle||1)===1) x.cycle = 3; });
+  if((g.cycle||1) < 3) g.cycle = 3;
+  const tests = (((d.ftests||[]).find(t=>t.ctests)||{}).ctests || []);
+  const base = {cx2b:7.0, cx5b:18.5, cx3b:4, cx4a:16};
+  const val = (t, i, c) => { const n = (r()-.5);
+    if(t.kind==='sec') return Math.round(((base[t.id]||8) + i*0.15 - c*0.3 + n*0.5)*10)/10;
+    if(t.kind==='pts' && +t.max>0) return Math.max(0, Math.min(+t.max, Math.round(+t.max*(0.42 + c*0.09 + i*0.02 + n*0.14))));
+    return Math.max(0, Math.round((base[t.id]||10) + c*1.5 + i*0.5 + n*3)); };
+  as.forEach((a,i)=>[1,2].forEach(c=>[1,2,3,4,5,6].forEach(tipo=>{
+    const ts = tests.filter(t=>t.tipo===tipo); if(!ts.length || d.tests.some(x=>x.athleteId===a.id && x.ct===tipo && x.cycle===c)) return;
+    const v = {}; ts.forEach(t=>{ v[t.id] = val(t, i, c); });
+    d.tests.push({id:'ctm'+c+tipo+a.id, athleteId:a.id, groupId:'g1', ct:tipo, cycle:c, date:(c===1?'2026-06-':'2026-09-')+String(8+tipo).padStart(2,'0'), v}); })));
+  // matches: three with score and choices and one with tasks for each athlete
+  d.matches = d.matches || [];
+  const f = {type:'set', sets:1, games:4, tb:true, decider:'tb10', ad:false, first:0};
+  as.forEach((a,i)=>[0,1,2].forEach(k=>{ const b = as[(i+k+1)%as.length], wk = 2+k+(i%2), m = {id:'mm'+a.id+k, groupId:'g1', week:wk, date:day(40-k*12-i), a:{id:a.id,name:a.name}, b:{id:b.id,name:b.name}, format:f, choices:W(wk).choices.map(c=>c.label), trackEx:true, points:[], done:true};
+    if(d.matches.some(x=>x.id===m.id)) return; let st = newState(f);
+    while(st.done===null && m.points.length<120){ const ch = r()<.9?Math.floor(r()*4):null, ex = ch===null?null:r()<.7, w = r()<(ex?.6+k*0.04:.4)?0:1; m.points.push({w, ch, ex, srv:curServer(st), pr:isPressure(f,st)}); applyPoint(f, st, w); }
+    d.matches.push(m); }));
+  as.slice(0,4).forEach((a,i)=>{ const id = 'mt'+a.id; if(d.matches.some(x=>x.id===id)) return; const pts = []; for(let j=0;j<20;j++){ const t = []; if(r()<.45) t.push(0); if(r()<.3) t.push(1); if(r()<.4) t.push(2); pts.push(t.length ? {t, w:r()<.55?0:1} : {t:[], w:null, empty:true}); }
+    d.matches.push({id, mode:'task', groupId:'g1', week:3, date:day(20+i), a:{id:a.id,name:a.name}, b:{id:null,name:'Compagna'}, kind:'Tie-break', tasks:['Palla corta','Cross stretto','Vado a rete'], points:pts, done:true}); });
+  // forms: weekly sheets and before/after match sheets
+  d.forms = d.forms || [];
+  const learn = ['Tenere la diagonale profonda prima di cambiare','Entrare sulla palla corta','Rispondere profondo al centro','Servire al corpo sulla seconda','Restare calma dopo un errore'];
+  const hard = ['Capire quando attaccare','Il rovescio in corsa','Tenere il ritmo negli scambi lunghi','La volée bassa','Respirare tra un punto e l’altro'];
+  const opp = ['Giocatrice mancina','Compagna del gruppo','Ragazza del circolo vicino','Avversaria che difende tanto'];
+  as.slice(0,4).forEach((a,i)=>{ if(d.forms.some(x=>x.id==='fm'+a.id+'s2')) return;
+    [2,3,4,5].forEach((wk,k)=>d.forms.push({id:'fm'+a.id+'s'+wk, athleteId:a.id, kind:'sett', by:'student', week:wk, date:day(36-k*7-i), ans:{r0:3+Math.round(r()*2),r1:3+Math.round(r()*2),r2:2+Math.round(r()*3),r3:2+Math.round(r()*3),r4:3+Math.round(r()*2),r5:3+Math.round(r()*2),t1:learn[(i+k)%5],t2:hard[(i+k+2)%5],t3:learn[(i+k+3)%5],used:k%3,best:(i+k)%4}}));
+    [0,1].forEach(k=>{ const won = r()<.55, dd = 30-k*12-i;
+      d.forms.push({id:'fm'+a.id+'p'+k, athleteId:a.id, kind:'pre', by:'student', week:3+k, date:day(dd), ans:{evento:k?'Torneo giovanile':'Amichevole al circolo',avv:opp[(i+k)%4],fis:3+(k+i)%3,car:3+(i%3),cal:3+(k%2),pianoA:'Diagonale profonda e poi entro',pianoB:'Palle alte e cariche',arma:'Diritto incrociato',focus:'Scegliere prima del punto',parola:'Profonda, poi entro',risc:'Sì'}});
+      d.forms.push({id:'fm'+a.id+'q'+k, athleteId:a.id, kind:'post', by:'student', week:3+k, date:day(dd), ans:{evento:k?'Torneo giovanile':'Amichevole al circolo',avv:opp[(i+k)%4],esito:won?'Vinta':'Persa',punteggio:won?'6-4 6-3':'4-6 5-7',pianoA:2+(i+k)%3,pianoB:won?'Sì':'No',imp:3+(k%2),emo:2+(i%3),impegno:4+(k%2),ok:learn[(i+k)%5],ko:hard[(i+k)%5],allena:hard[(i+k+1)%5]}}); }); });
+  as.slice(2).forEach((a,i)=>{ if(d.forms.some(x=>x.athleteId===a.id && x.kind==='tipo')) return; const ans = {}; for(let q=0;q<12;q++) ans[q] = Math.floor(r()*3); d.forms.push({id:'fm'+a.id+'tipo', athleteId:a.id, kind:'tipo', by:'student', week:1, date:day(50-i), ans}); });
+  d.more1 = true; return d;
+}
 </script>
 <script>
 /* Basic tools, local storage, interface state, icons, dates */
@@ -609,6 +650,12 @@ const CT_TIPI = () => WEEKS.slice(0,6).map(w=>({k:w.n, name:w.name}));
 const ctTipoOfWeek = w => ((+w-1)%6)+1;
 const ctAll = () => ((S.ftests||[]).find(t=>t.ctests)||{}).ctests || [];
 const ctOf = tipo => ctAll().filter(t=>t.tipo===+tipo);
+/* the fitness coach works only on the athletic cycle tests; the tennis ones are the coach's */
+/* long histories: tables show only the latest columns; 'Vedi tutti' shows every round or day */
+const COLS = 3;
+const lastCols = a => U.allCols ? a : a.slice(-COLS);
+const colsBtn = (n, word) => n>COLS ? `<button class="chip" data-a="allcols" style="align-self:flex-start;margin-top:6px">${U.allCols ? `Mostra solo gli ultimi ${COLS}` : `Vedi tutti i ${n} ${word}`}</button>` : '';
+const ctMine = tipo => S.session && S.session.role==='fit' ? ctOf(tipo).filter(t=>t.area==='atl') : ctOf(tipo);
 function ctSaveAll(list){ S.ftests = (S.ftests||[]).filter(t=>!t.ctests).concat({id:'ctests', ctests:list}); }
 const ctKindLab1 = p => p.kind==='sec' ? 'tempo (meno è meglio)' : p.kind==='num' ? (+p.max>0?'numero su '+p.max:'numero (più è meglio)') : 'punti su '+(p.max||'?');
 const ctKindLab = t => (t.misure||[]).length ? t.misure.map(p=>(p.nome||'')+': '+ctKindLab1(p)).join(' · ') : (t.kind==='sec' ? 'tempo in secondi (meno è meglio)' : t.kind==='num' ? 'numero (più è meglio)' : 'punti su '+(t.max||'?'));
@@ -680,10 +727,10 @@ const HOOK = {};
 const KEY = 'smartcoach.v3';
 let S;
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
-function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return addFtDemo(addCtDemo(addTourDemo(addStaffDemo(addPlDemo(seed())))));
+function load(){ let d=null; try{ const r = localStorage.getItem(KEY); if(r) d = JSON.parse(r); }catch(e){} if(!d) return addMoreDemo(addFtDemo(addCtDemo(addTourDemo(addStaffDemo(addPlDemo(seed()))))));
   if(d.roster!==6){ const n = seed(); d = Object.assign(n, {coachCode:d.coachCode||'MAESTRO', customEx:d.customEx||[], plan:d.plan||{}, provaEdit:d.provaEdit||{}}); }
   ['forms','tests','results','matches','customEx'].forEach(k=>d[k]=d[k]||[]); d.profiles=d.profiles||{}; d.priv=d.priv||{}; d.att=d.att||{}; d.notes=d.notes||[]; d.well=d.well||[]; d.notices=d.notices||[]; d.season=d.season||{}; if(!d.season[2026]) d.season[2026]=JSON.parse(JSON.stringify(SEASON2026)); if(!d.groups.some(g=>g.id==='priv')) d.groups.push({id:'priv', name:'Lezioni private', code:'PRIV', week:1}); if(d.roster!==3){ addExample(d); d.roster=3; } if(!d.ex4) addExample4(d); if(!d.ex5) addExample5(d); d.plan=d.plan||{}; d.provaEdit=d.provaEdit||{};
-  if(!d.ct1) addCtDemo(d); if(!d.ft1) addFtDemo(d);
+  if(!d.ct1) addCtDemo(d); if(!d.ft1) addFtDemo(d); if(!d.more1) addMoreDemo(d);
   return addTourDemo(addStaffDemo(addPlDemo(d))); }
 
 
@@ -899,8 +946,7 @@ function renderInner(){
     case 'fhome': body = fitHome(); break;
     case 'mhome': body = mindHome(); break;
     case 'sath': body = U.athleteOpen && ath(U.athleteOpen) ? athleteView(U.athleteOpen) : staffAthList(); break;
-    case 'stest': { const top = `<div class="seg" role="group"><button data-a="ftmode" data-k="prog" aria-pressed="${U.ftMode!=='fit'}">Test del ciclo</button><button data-a="ftmode" data-k="fit" aria-pressed="${U.ftMode==='fit'}">Test atletici liberi</button></div>`;
-      body = U.ed ? editorView() : U.ftMode==='fit' ? `<h1>Test</h1>${top}${fitTestsView()}` : ctestView(top); break; }
+    case 'stest': body = `<h1>Test personali</h1><p class="small muted" style="margin-top:-6px">I test che crei tu, con i risultati di ogni atleta.</p>${fitTestsView()}`; break;
     case 'mschede': body = mindSchede(); break;
     case 'mprog': body = mprogView(); break;
     case 'fprog': body = fitProgView(); break;
@@ -1077,11 +1123,14 @@ function athleteView(id, self){
   const tms = ms.filter(m=>m.mode==='task');
   const tw = TEST_WEEKS.filter(n=>S.tests.some(x=>x.athleteId===id&&x.week===n));
   const tabs = role==='parent' ? ATABS.slice(0,3) : role==='fit' ? ATABS.slice(0,3) : role==='mind' ? [ATABS[0],ATABS[2],ATABS[3]] : ATABS;
-  let tab = U.athTab || 'prof'; if(!tabs.some(t=>t[0]===tab)) tab = tabs[0][0];
+  const one = role==='coach' && !self;   // the coach sees one summary page; the full sections open from it
+  let tab = U.athTab || (one ? 'sum' : 'prof'); if(!(one && tab==='sum') && !tabs.some(t=>t[0]===tab)) tab = tabs[0][0];
   const X = athleteExtra(id), lt = latestTipo(id);
   let body = '';
   if(U.finalView===id) return finalProfile(id);
-  if(tab==='prof'){
+  if(tab==='sum'){
+    body = athSummary(id);
+  } else if(tab==='prof'){
     const pc = profileCard(id), pv = privOf(id);
     const goals = a.groupId===PRIV_ID ? '' : ((role==='coach'||role==='mind') ? `<section class="card"><h3>Obiettivi personali</h3>${pv.goals.length?goalsHtml(pv,true,id):'<p class="muted small">Nessun obiettivo.</p>'}
       <div class="seg" role="group">${PAREAS.map(([k,l])=>`<button data-a="goalarea" data-k="${k}" aria-pressed="${(U.goalArea||(S.session.role==='mind'?'men':'tec'))===k}">${l}</button>`).join('')}</div>
@@ -1089,8 +1138,8 @@ function athleteView(id, self){
       : (pv.goals.length?`<section class="card"><h3>I miei obiettivi</h3>${goalsHtml(pv,false,id)}</section>`:''));
     body = (role==='coach'?`<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>`:'') + (pc || '<section class="card"><p class="muted">Il maestro non ha ancora condiviso la scheda.</p></section>') + goals + notesCard(id) + staffNotesCard(id) + (role==='fit' ? '' : X.tipo + X.arma);
   } else if(tab==='allen'){
-    body = ((role==='coach'||role==='fit') ? (U.ctAth===id ? ctAthEntry(id) : `<button class="btn clay" data-a="ctathrec" data-k="${id}" style="align-self:flex-start">Segna i test di ${esc(ath(id).name)}</button>`) : '')
-      + (ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
+    body = (role==='coach' ? (U.ctAth===id ? ctAthEntry(id) : `<button class="btn clay" data-a="ctathrec" data-k="${id}" style="align-self:flex-start">Segna i test di ${esc(ath(id).name)}</button>`) : '')
+      + (role==='fit' ? '' : ctCard(id) || '<section class="card"><h3>Test di fine ciclo</h3><p class="muted">Ancora nessun test segnato: si segnano nella settimana dei test.</p></section>') + staffProgCards(id) + fitTestsCard(id) + attCard(id) + (role!=='parent'?wellCard(id):'');
   } else if(tab==='tour'){
     body = athleteTours().replace('<h1>Tornei</h1>','');
   } else if(tab==='part'){
@@ -1107,12 +1156,78 @@ function athleteView(id, self){
       <div class="row between"><span class="eyebrow">${esc(g.name)}</span>${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff">${tname(lt)}</span>`:''}</div>
       <h1>${esc(a.name)}</h1>
       <div class="kpis">
-        <div class="kpi"><b>${CT_TIPI().filter(x=>ctRecs(id,x.k).length).length}</b><span>tipologie testate</span></div>
+        ${S.session.role==='fit' ? `<div class="kpi"><b>${(S.ftests||[]).filter(t=>!t.ctests&&!t.tdef&&ftRes(t.id,id).length).length}</b><span>test personali fatti</span></div>` : `<div class="kpi"><b>${CT_TIPI().filter(x=>ctRecs(id,x.k).length).length}</b><span>tipologie testate</span></div>`}
         <div class="kpi"><b>${ms.length}</b><span>partite analizzate</span></div>
       </div>
     </section>
-    <div class="seg sub" role="group" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4">${tabs.map(([k,l])=>`<button data-a="athtab" data-k="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>
+    ${one ? (tab==='sum' ? '' : `<div class="row between" style="flex-wrap:nowrap"><button class="btn ghost" data-a="athtab" data-k="sum">‹ Tutto su ${esc(a.name)}</button><b>${esc((tabs.find(t=>t[0]===tab)||[])[1]||'')}</b></div>`) : `<div class="seg sub" role="group" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4">${tabs.map(([k,l])=>`<button data-a="athtab" data-k="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>`}
     ${body}`;
+}
+/* coach: everything about one athlete on one page; each full section opens with one tap */
+const ARW = s => s>0 ? '<span style="color:var(--ok);font-size:11px"> ▲</span>' : s<0 ? '<span style="color:var(--ko);font-size:11px"> ▼</span>' : '';
+const STICKY = 'position:sticky;left:0;background:var(--surface);z-index:1';
+const ctCmp = (t, a, b) => { const x = ctScore(t,a), y = ctScore(t,b); if(!x || !y || x.v===y.v) return 0; return (x.kind==='sec' ? x.v<y.v : x.v>y.v) ? 1 : -1; };
+const ftCmp = (t, v, p) => p===null || p===undefined || v===p ? 0 : (t.better==='low' ? v<p : v>p) ? 1 : -1;
+const ftNum = v => String(Math.round(v*100)/100).replace('.',',');
+// cycle tests of one athlete: a row per test (grouped by player type), a column per round
+function athCtTable(id){
+  const tipi = CT_TIPI().filter(x=>ctRecs(id,x.k).length); if(!tipi.length) return '';
+  // each player type has its own rounds (some types are tested more often): its own header row with its latest rounds
+  const cysOf = k => [...new Set(ctRecs(id,k).map(r=>r.cycle||1))].sort((a,b)=>a-b);
+  const w = Math.max(...tipi.map(x=>lastCols(cysOf(x.k)).length)), pad = n => '<td style="border-top:none"></td>'.repeat(Math.max(0, w-n));
+  const body = tipi.map(x=>{ const rs = ctRecs(id,x.k), ts = ctOf(x.k).filter(t=>rs.some(r=>ctHas(r,t))), cys = cysOf(x.k), vis = lastCols(cys); if(!ts.length) return '';
+    return `<tr><td style="${STICKY};text-align:left;padding-top:14px;border-top:none;max-width:128px"><span class="eyebrow" style="letter-spacing:0;font-size:11px">${esc(x.name)}</span></td>${vis.map(c=>`<th style="padding-top:14px;white-space:nowrap">Giro ${c}</th>`).join('')}${pad(vis.length)}</tr>` + ts.map(t=>{ let prev = null;
+      return `<tr><td style="${STICKY};min-width:104px;max-width:128px">${esc(t.t)}</td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>';
+        const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; })).join('')}${pad(vis.length)}</tr>`; }).join(''); }).join('');
+  return `<div class="scroll-x"><table class="grid" style="font-size:14px"><tbody>${body}</tbody></table></div>${colsBtn(Math.max(...tipi.map(x=>cysOf(x.k).length)), 'giri')}`;
+}
+// fitness coach's own tests of one athlete: a row per test, a column per day
+function athFtTable(id){
+  const ts = (S.ftests||[]).filter(t=>!t.ctests && !t.tdef && ftRes(t.id,id).length); if(!ts.length) return '';
+  const ds = [...new Set(ts.flatMap(t=>ftRes(t.id,id).map(r=>r.date)))].sort();
+  return `<div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Test</th>${lastCols(ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`)).join('')}</tr></thead><tbody>${ts.map(t=>{ const rs = ftRes(t.id,id);
+    return `<tr><td style="${STICKY};min-width:110px">${esc(t.l)}${t.u?` <span class="small muted">${esc(t.u)}</span>`:''}</td>${lastCols(ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); if(k<0) return '<td class="muted">–</td>';
+      return `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; })).join('')}</tr>`; }).join('')}</tbody></table></div>${colsBtn(ds.length, 'giorni di test')}`;
+}
+function athSummary(id){
+  const a = ath(id), pr = (S.profiles||{})[id], pv = privOf(id);
+  const sec = (title, k, body, extra) => `<section class="card"><div class="row between" style="flex-wrap:nowrap"><h3>${title}</h3><div class="row" style="gap:6px;flex-wrap:nowrap">${extra||''}${k?`<button class="chip" data-a="athtab" data-k="${k}">Apri ›</button>`:''}</div></div>${body}</section>`;
+  const imp = PAREAS.map(([k,l])=>pr && pr[k+'m'] ? `<div class="row" style="gap:8px;flex-wrap:nowrap;align-items:baseline"><span class="tag pri" style="flex:none">${l}</span><span>${esc(pr[k+'m'])}</span></div>` : '').join('');
+  const goals = pv.goals.filter(x=>x.st!=='done');
+  const ms = S.matches.filter(m=>m.done && m.a.id===id).slice().sort((x,y)=>x.date<y.date?1:-1);
+  const best = mergeStats(ms.filter(m=>m.mode!=='task')).filter(r=>r.n>=3).sort((x,y)=>y.won/y.n-x.won/x.n)[0];
+  const forms = S.forms.filter(f=>f.athleteId===id).sort((x,y)=>x.date<y.date?1:-1);
+  const ct = athCtTable(id), ft = athFtTable(id);
+  return `<button class="btn clay" data-a="finalopen" data-k="${id}">Profilo di fine ciclo</button>
+    ${sec('Da migliorare','prof', (imp ? `<div style="display:flex;flex-direction:column;gap:6px">${imp}</div>` : '<p class="muted small">La scheda atleta non è ancora compilata: aprila per scrivere punti di forza e cose da migliorare.</p>')
+      + (goals.length ? `<p class="small muted" style="margin-top:6px">Obiettivi in corso: ${goals.slice(0,3).map(x=>esc(x.t||x.text||'')).filter(Boolean).join(' · ')}${goals.length>3?' …':''}</p>` : ''))}
+    ${U.ctAth===id ? ctAthEntry(id) : sec('Test del ciclo', '', ct ? ct + '<p class="small muted"><span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto al giro prima.</p>' : '<p class="muted small">Ancora nessun test segnato: si segnano nella settimana dei test.</p>', `<button class="chip" data-a="ctathrec" data-k="${id}">Segna</button>`)}
+    ${ft ? sec('Test del preparatore', '', ft) : ''}
+    ${sec('Partite', 'part', ms.length ? `<div class="list">${ms.slice(0,3).map(m=>matchItem(m)).join('')}</div>${best?`<p class="small" style="margin-top:6px">La scelta che funziona di più: <b>${esc(best.label)}</b> (${pct(best.won,best.n)}% dei punti vinti)</p>`:''}` : '<p class="muted small">Ancora nessuna partita analizzata.</p>')}
+    ${sec('Schede e questionari', 'quest', forms.length ? `<div class="list small">${forms.slice(0,3).map(f=>`<button class="item" data-a="athtab" data-k="${TAB_OF[f.kind]||'quest'}"><span class="grow"><b>${esc(fname(f.kind)||'Scheda')}</b>${f.by==='parent'?' <span class="tag teal">famiglia</span>':''}<br><span class="muted">${fdate(f.date)}</span></span><span class="chev">›</span></button>`).join('')}</div>` : '<p class="muted small">Nessuna scheda ricevuta.</p>')}
+    ${sec('Allenamento', 'allen', '<p class="small muted">Presenze, fatica e dolori, programma del preparatore.</p>')}`;
+}
+// group: one test, every athlete of the group; cycle tests by round, fitness coach's tests by day
+function grpTestsCard(g){
+  const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id));
+  const cts = ctAll().filter(t=>(S.tests||[]).some(r=>ids.has(r.athleteId) && r.ct===t.tipo && ctHas(r,t)));
+  const fts = (S.ftests||[]).filter(t=>!t.ctests && !t.tdef && (S.fres||[]).some(r=>r.testId===t.id && ids.has(r.athleteId)));
+  const opts = cts.map(t=>['c:'+t.id, t.t, (CT_TIPI().find(x=>x.k===t.tipo)||{}).name]).concat(fts.map(t=>['f:'+t.id, t.l, 'Preparatore']));
+  if(!opts.length) return `<section class="card"><h3>Test del gruppo</h3><p class="muted small">Nessun atleta di ${esc(g.name)} ha ancora fatto test.</p></section>`;
+  if(!opts.some(o=>o[0]===U.gTest)) U.gTest = opts[0][0];
+  const [kind, tid] = [U.gTest.slice(0,1), U.gTest.slice(2)];
+  let head, rows, more = '';
+  if(kind==='c'){ const t = ctAll().find(x=>x.id===tid), cys = [...new Set((S.tests||[]).filter(r=>ids.has(r.athleteId) && r.ct===t.tipo && ctHas(r,t)).map(r=>r.cycle||1))].sort((a,b)=>a-b);
+    head = lastCols(cys.map(c=>`<th>Giro ${c}</th>`)).join(''); more = colsBtn(cys.length, 'giri');
+    rows = as.map(a=>{ const rs = ctRecs(a.id, t.tipo); let prev = null; return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(cys.map(c=>{ const r = rs.filter(z=>(z.cycle||1)===c).pop(); if(!r || !ctHas(r,t)) return '<td class="muted">–</td>'; const v = ctVals(r,t), s = prev ? ctCmp(t,v,prev) : 0; prev = v; return `<td style="white-space:nowrap">${esc(ctFmt(t,v))}${ARW(s)}</td>`; })).join('')}</tr>`; }).join('');
+  } else { const t = ftById(tid), ds = [...new Set((S.fres||[]).filter(r=>r.testId===t.id && ids.has(r.athleteId)).map(r=>r.date))].sort();
+    head = lastCols(ds.map(d=>`<th style="white-space:nowrap">${dLabel(d)}</th>`)).join(''); more = colsBtn(ds.length, 'giorni di test');
+    rows = as.map(a=>{ const rs = ftRes(t.id,a.id); return `<tr><td style="${STICKY};min-width:96px"><b>${esc(a.name)}</b></td>${lastCols(ds.map(d=>{ const k = rs.findIndex(r=>r.date===d); return k<0 ? '<td class="muted">–</td>' : `<td style="white-space:nowrap">${ftNum(rs[k].v)}${ARW(k ? ftCmp(t, rs[k].v, rs[k-1].v) : 0)}</td>`; })).join('')}</tr>`; }).join('');
+    head += ''; }
+  return `<section class="card"><h3>Test del gruppo · ${esc(g.name)}</h3>
+    <div class="field"><label for="f-gtest">Test</label><select id="f-gtest" class="input" data-c="gtest">${opts.map(o=>`<option value="${o[0]}" ${o[0]===U.gTest?'selected':''}>${esc(o[1])} · ${esc(o[2]||'')}</option>`).join('')}</select></div>
+    <div class="scroll-x"><table class="grid"><thead><tr><th style="${STICKY}">Atleta</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>${more}
+    <p class="small muted"><span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima.</p></section>`;
 }
 const TAB_OF = {tipo:'prof', arma:'prof', pre:'part', post:'part', sett:'quest', gen:'quest'};
 function athList(){
@@ -1135,7 +1250,7 @@ function athList(){
   const gTools = g ? `<div class="row" style="gap:8px">${g.id!==PRIV_ID?`<span class="small muted">Codice gruppo <b style="font-family:var(--f-disp);font-size:17px;color:var(--ink);letter-spacing:.04em">${esc(g.code||'')}</b></span>`:''}
       <span style="flex:1"></span>
       <button class="chip" data-a="pinstoggle" aria-pressed="${!!U.showPins}">${U.showPins?'Nascondi PIN':'Codici e PIN'}</button>
-      ${g.id!==PRIV_ID?`<button class="chip" data-a="grpedit" aria-pressed="${!!U.grpEdit}">Gestisci gruppo</button>`:''}</div>` : '';
+      ${g.id!==PRIV_ID?`<button class="chip" data-a="grptests" aria-pressed="${!!U.grpTests}">Test del gruppo</button><button class="chip" data-a="grpedit" aria-pressed="${!!U.grpEdit}">Gestisci gruppo</button>`:''}</div>` : '';
   const newGrp = U.newGrp ? `<section class="card"><h3>Nuovo gruppo</h3>
       <div class="field"><label for="f-gname">Nome del gruppo</label><input id="f-gname" class="input" placeholder="Es. U12 Pre-agonistica"></div>
       <div class="row"><button class="btn clay" data-a="grpnew" style="flex:1">Crea il gruppo</button><button class="btn ghost" data-a="grpnewtoggle">Annulla</button></div>
@@ -1152,7 +1267,7 @@ function athList(){
       <p class="small muted">${HOOK.pinHelp || "Il PIN servirà ad atleti e genitori per entrare nell'app con il codice del gruppo. ↻ ne crea uno nuovo."} Dal menu "Gruppo" sposti un atleta in un altro gruppo.</p>`:'<p class="muted small">Nessun atleta in questo gruppo.</p>'}</section>`; })() : '';
   const head = `<div class="row between"><h1>Gruppi e atleti</h1></div>
     <div class="row" style="gap:8px">${U.newAth?'':`<button class="btn clay" data-a="athnewtoggle" style="flex:1">+ Nuovo atleta</button>`}${U.newGrp?'':`<button class="btn ghost" data-a="grpnewtoggle" style="flex:1">+ Nuovo gruppo</button>`}</div>
-    ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}`;
+    ${newGrp}${newForm}${picker}${gTools}${grpEdit}${pins}${U.grpTests && g && g.id!==PRIV_ID ? grpTestsCard(g) : ''}`;
   if(!g) return head + `<section class="card"><p>Nessun gruppo. Crealo con "+ Nuovo gruppo".</p></section>`;
   const as = S.athletes.filter(a=>a.groupId===g.id), ids = new Set(as.map(a=>a.id)), seen = S.seen || '';
   if(g.id===PRIV_ID){
@@ -1168,7 +1283,7 @@ function athList(){
     return `<button class="acard" data-a="openath" data-k="${a.id}">
       <div class="row between" style="flex-wrap:nowrap"><b style="font-size:18px;font-family:var(--f-disp)">${esc(a.name)}</b>${nf?`<span class="tag">${nf} ${nf===1?'nuova':'nuove'}</span>`:''}</div>
       ${lt?`<span class="tag" style="background:${tcol(lt)};color:#fff;align-self:flex-start">${tname(lt)}</span>`:'<span class="small muted">Tipologia: questionario da fare</span>'}
-      <span class="small muted">Test di fine ciclo: ${(n=>n?n+' '+(n===1?'tipologia':'tipologie'):'ancora nessuno')(CT_TIPI().filter(x=>ctRecs(a.id,x.k).length).length)}</span>
+      <span class="small muted">${S.session.role==='fit' ? (n=>'Test personali: '+(n?n+' '+(n===1?'test fatto':'test fatti'):'ancora nessuno'))((S.ftests||[]).filter(t=>!t.ctests&&!t.tdef&&ftRes(t.id,a.id).length).length) : `Test di fine ciclo: ${(n=>n?n+' '+(n===1?'tipologia':'tipologie'):'ancora nessuno')(CT_TIPI().filter(x=>ctRecs(a.id,x.k).length).length)}`}</span>
     </button>`; };
   return head + `
     ${recent.length?`<button class="news" data-a="toggleinbox"><span>${fresh.length?`<b>${fresh.length} ${fresh.length===1?'scheda nuova':'schede nuove'}</b>`:'Schede ricevute'}</span><span class="chev">${U.showInbox?'⌃':'⌄'}</span></button>
@@ -1360,19 +1475,19 @@ function ctTestCard(t, edit){
 }
 function ctestView(top){
   const tipi = CT_TIPI(), pg = grp(U.planGroup); if(!U.ctTipo) U.ctTipo = pg && !isOwnG(pg) ? ctTipoOfWeek(pg.week) : 1;
-  const tipo = +U.ctTipo, ts = ctOf(tipo), name = (tipi.find(x=>x.k===tipo)||{}).name || '';
+  const tipo = +U.ctTipo, ts = ctMine(tipo), name = (tipi.find(x=>x.k===tipo)||{}).name || '';
   if(U.ctRec) return ctRecView(tipo);
   return `${top}<h1>Test del ciclo</h1>
-    <div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
-    <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?' · '+ctOf(x.k).length:''}</button>`).join('')}</div>
-    <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):'Ancora nessun test.'}</p>
+    ${S.session.role==='fit'?'<div class="note">Qui vedi solo i <b>test di atletica</b> del ciclo: quelli di tennis li prepara e li segna il maestro.</div>':''}<div class="note">Per ogni tipologia i suoi test. Nelle settimane di quella tipologia compaiono nel <b>filo fisso</b> e si allenano; i risultati si segnano solo nella <b>settimana dei test</b> a fine ciclo.</div>
+    <div class="chips">${tipi.map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctMine(x.k).length?' · '+ctMine(x.k).length:''}</button>`).join('')}</div>
+    <section class="card"><span class="eyebrow">Tipologia</span><h2>${esc(name)}</h2><p class="small muted">Settimane ${tipo} e ${tipo+6}. ${ts.length?ts.length+(ts.length===1?' test':' test'):(S.session.role==='fit'?'Ancora nessun test di atletica per questa tipologia.':'Ancora nessun test.')}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-a="ctnew">+ Nuovo test</button></div>${ts.length?`<button class="btn clay block" data-a="ctrec" data-k="1" style="margin-top:4px">Segna i punteggi degli atleti</button><p class="small muted">Si usa nella settimana dei test: scegli gruppo e giorno e scrivi il punteggio di ogni atleta in ogni test.</p>`:''}</section>
     ${ts.map(t=>ctTestCard(t, true)).join('')}
     ${ts.length?ctGroupTable(tipo):''}`;
 }
 function ctGroupTable(tipo){
   const g = grp(U.ctGroup || U.planGroup); if(!g) return '';
-  const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctOf(tipo), cy = g.cycle||1;
+  const as = S.athletes.filter(a=>a.groupId===g.id), ts = ctMine(tipo), cy = g.cycle||1;
   const rows = as.map(a=>{ const r = ctRecs(a.id, tipo).filter(x=>(x.cycle||1)===cy).pop(); return r ? {a, r} : null; }).filter(Boolean);
   if(!rows.length) return '';
   return `<section class="card"><h3>Risultati · ${esc(g.name)} · giro ${cy}</h3><div class="scroll-x"><table class="grid"><thead><tr><th>Atleta</th>${ts.map(t=>`<th>${esc(t.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(({a,r})=>`<tr><td>${esc(a.name)}</td>${ts.map(t=>`<td>${ctHas(r,t)?esc(ctFmt(t, ctVals(r,t))):'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
@@ -1383,16 +1498,16 @@ function ctAthBoxes(a, ts, r){ return `<div style="display:flex;flex-direction:c
           : `<div><b>${i+1}. ${esc(t.t)}</b>${t.area==='atl'?' <span class="small muted">· Atletica</span>':''}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${ps.map((p,j)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><label for="ct-${a.id}-${t.id}-${j}" style="flex:1;min-width:0;padding-left:14px">${esc(p.nome||'Valore '+(j+1))}<br><span class="small muted">${esc(ctKindLab1(p))}${p.kind==='sec'?' · anche 1:30':''}</span></label>${box(p,j)}</div>`).join('')}</div></div>`; }).join('')}</div>`; }
 /* coach or fitness coach inside an athlete's profile: record that athlete's tests for one player type */
 function ctAthEntry(id){
-  const a = ath(id), g = grp(a.groupId); if(!U.ctTipo) U.ctTipo = g && !isOwnG(g) ? ctTipoOfWeek(g.week) : 1; const tipo = +U.ctTipo, ts = ctOf(tipo), cy = (g&&g.cycle)||1;
+  const a = ath(id), g = grp(a.groupId); if(!U.ctTipo) U.ctTipo = g && !isOwnG(g) ? ctTipoOfWeek(g.week) : 1; const tipo = +U.ctTipo, ts = ctMine(tipo), cy = (g&&g.cycle)||1;
   const r = ctRecs(id, tipo).filter(x=>(x.cycle||1)===cy).pop();
   return `<section class="card" style="border-color:var(--clay)"><div class="row between"><h3>Segna i test di ${esc(a.name)}</h3><button class="chip" data-a="ctathrec" data-k="">Chiudi</button></div>
-    <div class="chips">${CT_TIPI().map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctOf(x.k).length?'':' · nessun test'}</button>`).join('')}</div>
+    <div class="chips">${CT_TIPI().map(x=>`<button class="chip" data-a="cttipo" data-k="${x.k}" aria-pressed="${x.k===tipo}">${esc(x.name)}${ctMine(x.k).length?'':' · nessun test'}</button>`).join('')}</div>
     <div class="field" style="max-width:200px"><label for="ct-d">Giorno</label><input id="ct-d" class="input" type="date" data-c="ctdate" value="${U.ctDate||todayISO()}"></div>
     ${ts.length ? ctAthBoxes(a, ts, r) + `<button class="btn clay block" data-a="ctsave">Salva</button>` : '<p class="small muted">Questa tipologia non ha ancora test: aggiungili in Test del ciclo.</p>'}</section>`;
 }
 function ctRecView(tipo){
   const tg = teamGroups(); if(!U.ctGroup || !grp(U.ctGroup)) U.ctGroup = (grp(U.planGroup)||tg[0]||{}).id; const g = grp(U.ctGroup);
-  const ts = ctOf(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
+  const ts = ctMine(tipo), as = S.athletes.filter(a=>a.groupId===g.id), cy = g.cycle||1, d = U.ctDate || todayISO();
   const cur = aid => ctRecs(aid, tipo).filter(x=>(x.cycle||1)===cy).pop();
   return `<button class="btn ghost" data-a="ctrec" data-k="0" style="align-self:flex-start">‹ ${U.ctBack?'Seduta':'Test del ciclo'}</button>
     <h1>Settimana dei test</h1><p class="small muted" style="margin-top:-6px">${esc((CT_TIPI().find(x=>x.k===tipo)||{}).name)} · giro ${cy}</p>
@@ -3270,7 +3385,7 @@ function fitHome(){
     <section class="card" style="padding:4px 16px"><div class="list">
       ${notifTool()}
       ${toolRow('tab','fprog',IC.plan,'Programma atletico','settimane e sedute dei gruppi')}
-      ${toolRow('tab','stest',IC.test,'Test','test del ciclo e segna i risultati')}
+      ${toolRow('tab','stest',IC.test,'Test personali','crea i tuoi test e segna i risultati')}
       ${toolRow('tab','mschede',IC.form,'Schede e questionari','modifica, crea e assegna')}
     </div></section>`;
 }
@@ -3308,7 +3423,7 @@ function ftDelta(t, rs){ if(rs.length<2) return ''; const a = rs[rs.length-2].v,
 function fitTestsView(){
   S.ftests = S.ftests || []; S.fres = S.fres || [];
   if(U.ftNew){ const N = U.ftNew;
-    return `<section class="card"><h3>Nuovo test atletico</h3>
+    return `<section class="card"><h3>Nuovo test personale</h3>
       <div class="field"><label>Suggeriti</label><div class="chips">${FT_SUGG.map((x,i)=>`<button class="chip" data-a="ftsugg" data-k="${i}">${x[0]}</button>`).join('')}</div></div>
       <div class="field"><label for="ftn-l">Nome</label><input id="ftn-l" class="input" data-c="ftn" data-k="l" value="${esc(N.l)}" placeholder="Es. Sprint 20 m"></div>
       <div class="row"><div class="field" style="flex:1;min-width:120px"><label for="ftn-u">Unità</label><input id="ftn-u" class="input" data-c="ftn" data-k="u" value="${esc(N.u)}" placeholder="Es. s, cm, ripetizioni"></div>
@@ -3330,14 +3445,14 @@ function fitTestsView(){
       const tr = p===null ? '' : better(v,p) ? '<span style="color:var(--ok);font-size:11px"> ▲</span>' : v===p ? '<span class="muted" style="font-size:11px"> =</span>' : '<span style="color:var(--ko);font-size:11px"> ▼</span>';
       return `<td style="white-space:nowrap${k===rs.length-1?';font-weight:700':''}">${num(v)}${tr}</td>`; };
     const sticky = 'position:sticky;left:0;background:var(--surface);z-index:1';
-    const table = `<div class="scroll-x"><table class="grid"><thead><tr><th style="${sticky}">Atleta</th>${dates.map(x=>`<th style="white-space:nowrap">${dLabel(x)}</th>`).join('')}</tr></thead><tbody>${as.map(a=>{ const rs = ftRes(t.id,a.id);
-      return `<tr><td style="${sticky};min-width:96px"><b>${esc(a.name)}</b>${all?`<div class="small muted">${esc(grp(a.groupId)?.id===PRIV_ID?'Lezioni private':grp(a.groupId)?.name||'')}</div>`:''}</td>${dates.map(x=>cell(rs,x)).join('')}</tr>`; }).join('')}</tbody></table></div>`;
-    return `<button class="btn ghost" data-a="ftclose" style="align-self:flex-start">‹ Test atletici</button>
-      <section class="card"><span class="eyebrow">Test atletico · ${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'}</span><h1>${esc(t.l)}</h1>${t.x?`<p class="small">${esc(t.x)}</p>`:''}</section>
+    const table = `<div class="scroll-x"><table class="grid"><thead><tr><th style="${sticky}">Atleta</th>${lastCols(dates.map(x=>`<th style="white-space:nowrap">${dLabel(x)}</th>`)).join('')}</tr></thead><tbody>${as.map(a=>{ const rs = ftRes(t.id,a.id);
+      return `<tr><td style="${sticky};min-width:96px"><b>${esc(a.name)}</b>${all?`<div class="small muted">${esc(grp(a.groupId)?.id===PRIV_ID?'Lezioni private':grp(a.groupId)?.name||'')}</div>`:''}</td>${lastCols(dates.map(x=>cell(rs,x))).join('')}</tr>`; }).join('')}</tbody></table></div>${colsBtn(dates.length, 'giorni di test')}`;
+    return `<button class="btn ghost" data-a="ftclose" style="align-self:flex-start">‹ Test personali</button>
+      <section class="card"><span class="eyebrow">Test personale · ${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'}</span><h1>${esc(t.l)}</h1>${t.x?`<p class="small">${esc(t.x)}</p>`:''}</section>
       <section class="card"><div class="row between"><h3>Risultati</h3></div>
         <div class="field"><label for="ft-g">Gruppo</label><select id="ft-g" class="input" data-c="ftgrp"><option value="all" ${all?'selected':''}>Tutti gli atleti testati</option>${tg.map(x=>`<option value="${x.id}" ${x.id===U.ftGroup?'selected':''}>${esc(x.id===PRIV_ID?'Lezioni private':x.name)}</option>`).join('')}</select></div>
         ${as.length && dates.length ? table : as.length ? '<p class="muted">Nessun atleta di questo gruppo ha ancora fatto questo test.</p>' : '<p class="muted">Nessun atleta ha ancora fatto questo test.</p>'}
-        ${dates.length?`<p class="small muted">Risultati in ${esc(t.u||'')}, una colonna per ogni giorno di test. <span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima; in grassetto l'ultimo risultato.${dates.length>3?' Scorri la tabella di lato per vedere tutte le date.':''}</p>`:''}</section>
+        ${dates.length?`<p class="small muted">Risultati in ${esc(t.u||'')}, una colonna per ogni giorno di test. <span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima; in grassetto l'ultimo risultato.</p>`:''}</section>
       ${U.ftEntry && !all ? `<section class="card" style="border-color:var(--clay)"><h3>Nuovi risultati</h3>
         <div class="field" style="max-width:200px"><label for="ft-d">Giorno</label><input id="ft-d" class="input" type="date" data-c="ftdate" value="${d}"></div>
         <div class="list">${S.athletes.filter(a=>a.groupId===U.ftGroup).map(a=>{ const r = S.fres.find(z=>z.testId===t.id && z.athleteId===a.id && z.date===d); return `<div class="row between" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(a.name)}</b><input id="ft-in-${a.id}" class="input" style="width:110px;text-align:center" inputmode="decimal" value="${r?String(r.v).replace('.',','):''}" placeholder="${esc(t.u||'valore')}" aria-label="${esc(a.name)}"></div>`; }).join('')}</div>
@@ -3345,7 +3460,7 @@ function fitTestsView(){
         : all ? `<p class="small muted">Per inserire nuovi risultati scegli prima il gruppo.</p>` : `<button class="btn clay block" data-a="ftentry" data-k="1">+ Inserisci nuovi risultati</button>`}
       ${U.confirm==='ft'?`<div class="confirm"><span>Eliminare il test e tutti i suoi risultati?</span><div class="row"><button class="btn danger" data-a="ftdel">Sì, elimina</button><button class="btn ghost" data-a="nodel">Annulla</button></div></div>`:`<button class="btn danger" data-a="askdel" data-k="ft" style="align-self:flex-start">Elimina test</button>`}`;
   }
-  return `<button class="btn clay block" data-a="ftnew">+ Nuovo test atletico</button>
+  return `<button class="btn clay block" data-a="ftnew">+ Crea un test personale</button>
     ${S.ftests.filter(t=>!t.tdef&&!t.ctests).length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.filter(t=>!t.tdef&&!t.ctests).map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
 }
 function fitTestsCard(id){
@@ -3958,7 +4073,7 @@ const ACT = {
   octipo(k){ const d=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]; if(+k) d.ctTipo=+k; else delete d.ctTipo; save(); },
   ctday(k){ const [gid,tipo]=k.split(':'); U.ctTipo=+tipo; U.ctGroup=gid; U.ctDate=todayISO(); U.ctRec=true; U.ctBack={w:U.oWeek, d:U.oDay}; U.planMode='ctest'; window.scrollTo(0,0); },
   ctgo(k){ U.ctTipo=+k; U.planMode='ctest'; U.ctRec=false; U.weekOpen=null; U.dayOpen=null; U.editDay=false; window.scrollTo(0,0); },
-  ctnew(){ U.ed={id:null, ph:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null, ct:{tipo:+U.ctTipo, id:null}, area:'ten', kind:'pts', max:''}; window.scrollTo(0,0); },
+  ctnew(){ U.ed={id:null, ph:'pr', t:'', chip:'', x:'', els:[], tool:'A', pend:null, ct:{tipo:+U.ctTipo, id:null}, area:S.session.role==='fit'?'atl':'ten', kind:'pts', max:''}; window.scrollTo(0,0); },
   ctedit(k){ const t=ctAll().find(x=>x.id===k); if(!t) return; U.ed={id:null, ph:'pr', t:t.t, chip:t.chip||'', x:(t.lines||[]).join('\n'), els:JSON.parse(JSON.stringify(t.els||[])), tool:'A', pend:null, ct:{tipo:t.tipo, id:t.id}, area:t.area, kind:t.kind||'pts', max:t.max||'', misure:JSON.parse(JSON.stringify(t.misure||[]))}; U.confirm=null; window.scrollTo(0,0); },
   edmisadd(){ const E=U.ed; E.misure=E.misure||[]; if(!E.misure.length) E.misure.push({nome:'', kind:E.kind||'pts', max:E.max||''}); E.misure.push({nome:'', kind:'pts', max:''}); },
   edmisdel(k){ const E=U.ed; E.misure.splice(+k,1); if(E.misure.length===1){ const p=E.misure[0]; E.kind=p.kind; E.max=p.max; E.misure=[]; } },
@@ -3966,7 +4081,7 @@ const ACT = {
   edctset(k){ const [f,v]=k.split(':'); U.ed[f]=v; },
   ctdel(){ const E=U.ed; if(!E||!E.ct||!E.ct.id) return; ctSaveAll(ctAll().filter(x=>x.id!==E.ct.id)); save(); U.ed=null; U.confirm=null; toast('Test eliminato'); },
   ctrec(k){ U.ctRec = k==='1'; if(k!=='1' && U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } window.scrollTo(0,0); },
-  ctsave(){ const g=grp(U.ctGroup), tipo=+U.ctTipo, ts=ctOf(tipo), d=U.ctDate||todayISO(); if(!g) return; S.tests=S.tests||[]; let n=0, bad='';
+  ctsave(){ const g=grp(U.ctGroup), tipo=+U.ctTipo, ts=ctMine(tipo), d=U.ctDate||todayISO(); if(!g) return; S.tests=S.tests||[]; let n=0, bad='';
     S.athletes.filter(a=>a.groupId===g.id).forEach(a=>{ const v={}; ts.forEach(t=>{ const ps=ctParts(t), xs=ps.map((p,j)=>{ const el=document.getElementById('ct-'+a.id+'-'+t.id+'-'+j); const x=ctParse(el?el.value:'', p.kind); if(Number.isNaN(x)){ bad=bad||a.name; return null; } return x; });
         if(xs.every(x=>x===null)) return; v[t.id] = (t.misure||[]).length ? xs : xs[0]; });
       if(!Object.keys(v).length) return; const cy=g.cycle||1, old=S.tests.find(r=>r.ct===tipo && r.athleteId===a.id && (r.cycle||1)===cy);
@@ -4118,7 +4233,7 @@ const ACT = {
   athnew(){ const n=document.getElementById('f-na-name').value.trim(), gid=document.getElementById('f-na-grp').value; if(!n){ toast('Scrivi il nome'); return; }
     const id=uid(); S.athletes.push({id, groupId:gid, name:n, pin:genPin(), ppin:genPin()}); if(gid===PRIV_ID) privOf(id); save(); U.newAth=false; U.resGroup=gid; toast(n+' aggiunto a '+(gid===PRIV_ID?'Lezioni private':grp(gid).name)); },
   athpriv(k){ U.athPriv=k; window.scrollTo(0,0); },
-  athtab(k){ U.athTab=k; U.tOpen=null; }, sprog(k){ U.tab='prog'; U.athTab=k; U.tOpen=null; U.form=null; window.scrollTo(0,0); }, sprogclose(){ U.sProg=false; window.scrollTo(0,0); }, toggleinbox(){ U.showInbox=!U.showInbox; }, closeath(){ U.athleteOpen=null; },
+  athtab(k){ U.athTab=k; U.tOpen=null; window.scrollTo(0,0); }, grptests(){ U.grpTests=!U.grpTests; }, allcols(){ U.allCols=!U.allCols; }, sprog(k){ U.tab='prog'; U.athTab=k; U.tOpen=null; U.form=null; window.scrollTo(0,0); }, sprogclose(){ U.sProg=false; window.scrollTo(0,0); }, toggleinbox(){ U.showInbox=!U.showInbox; }, closeath(){ U.athleteOpen=null; },
   openmatch(k){ U.tab = (S.session.role==='parent'||S.session.role==='fit'||S.session.role==='mind') ? 'pmatch' : 'match'; U.matchOpen=k; U.confirm=null; window.scrollTo(0,0); }, closematch(){ U.matchOpen=null; U.setup=null; if(S.session.role==='parent') U.tab='prog'; if(S.session.role==='fit'||S.session.role==='mind') U.tab='sath'; },
   newpin(k){ ath(k).pin=genPin(); save(); toast('Nuovo PIN atleta'); }, newppin(k){ ath(k).ppin=genPin(); save(); toast('Nuovo PIN genitore'); },
   askdel(k){ U.confirm=k; }, nodel(){ U.confirm=null; },
@@ -4380,6 +4495,7 @@ document.addEventListener('change', e=>{
   if(c==='cleanopt'){ U.clean[t.dataset.k]=t.checked; return; }
   if(c==='athname'){ const a=ath(t.dataset.k), v=t.value.trim(); if(a && v){ a.name=v; save(); toast('Nome aggiornato'); render(); } return; }
   if(c==='athmove'){ const a=ath(t.dataset.k); if(a){ a.groupId=t.value; if(HOOK.athMoved) HOOK.athMoved(a); if(t.value===PRIV_ID) privOf(a.id); save(); toast(a.name+' spostato'); render(); } return; }
+  if(c==='gtest'){ U.gTest=t.value; render(); return; }
   if(c==='athgrp'){ U.resGroup=t.value; U.athleteOpen=null; render(); return; }
   if(c==='lessondur'){ const g=grp(U.lessonEd), n=Math.max(30,Math.min(240,+t.value||0)); if(g && n){ lessonSnap(); scalePhases(ensureLesson(g), n); save(); render(); } return; }
   if(c==='phmin'){ lessonSnap(); const L=ensureLesson(grp(U.lessonEd)); L.phases[+t.dataset.k].m=Math.max(0,Math.min(240,+t.value||0)); save(); render(); return; }
