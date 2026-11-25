@@ -612,6 +612,39 @@ function ctScore(t, vals){ const ps = ctParts(t), pts = ps.map((p,j)=>p.kind==='
 const ctParse = (txt, kind) => { const x = String(txt||'').trim().replace(',','.'); if(x==='') return null; if(kind==='sec' && /^\d+:\d{1,2}(\.\d+)?$/.test(x)){ const [m,s] = x.split(':'); return +m*60 + +s; } return isNaN(+x) ? NaN : +x; };
 
 const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteId===aid).sort((a,b)=>(a.cycle||1)-(b.cycle||1) || String(a.date).localeCompare(String(b.date)));
+/* reading what an AI wrote: first as it is, then with small repairs. Curly quotes inside a text stay as they are
+   (turning them into straight ones used to break texts like "poi da “tre quarti”"); only quotes used as JSON delimiters are fixed. */
+function aiJSON(txt){
+  const raw = String(txt||'').trim().replace(/^```[a-zA-Z]*\s*/,'').replace(/\s*```\s*$/,'').trim();
+  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}'), body = a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw;
+  const tries = [b=>b,
+    b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1'),
+    b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1').replace(/,(\s*[\]}])/g,'$1'),
+    b=>b.replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").replace(/,(\s*[\]}])/g,'$1')];
+  for(const f of tries){ try{ return JSON.parse(f(body)); }catch(e){} }
+  return null;
+}
+/* the court drawing of an imported exercise: what cannot be drawn is left out and noted in CAMPO_LOG (shown to the coach) */
+let CAMPO_LOG = [];
+function cleanCampo(c, where){
+  if(!Array.isArray(c)) return [];
+  const num = v => typeof v==='number' ? v : (typeof v==='string' && v.trim()!=='' && !isNaN(+v) ? +v : NaN), ok = v => Number.isFinite(v);
+  const PATH = /^\s*[Mm][\s\d.,\-+eEMmLlQqCcSsTtHhVvZz]*$/, out = [];
+  c.forEach((e,i)=>{ const why = (()=>{
+      if(!Array.isArray(e) || !e.length) return 'non è un elemento del campetto';
+      const k = String(e[0]); let x;
+      if(['A','B','M','c'].includes(k)){ x=[k, num(e[1]), num(e[2])]; if(!ok(x[1])||!ok(x[2])) return 'mancano le coordinate x e y'; if(k==='A'||k==='B') x.push(e[3]!=null?String(e[3]).slice(0,2):k); out.push(x); return ''; }
+      if(k==='z'){ x=[k,num(e[1]),num(e[2]),num(e[3]),num(e[4])]; if(x.slice(1).some(v=>!ok(v))) return 'servono x, y, larghezza e altezza'; out.push(x); return ''; }
+      if(k==='t'||k==='n'){ x=[k,num(e[1]),num(e[2])]; if(!ok(x[1])||!ok(x[2])) return 'mancano le coordinate x e y'; const tx = e[3]==null ? '' : String(e[3]).trim(); if(!tx) return 'manca il testo'; x.push(k==='n'?tx.slice(0,3):tx.slice(0,40)); out.push(x); return ''; }
+      if(['a','b','f','ma'].includes(k)){ let d = e[1];
+        if(typeof d!=='string' && e.length>=5 && [1,2,3,4].every(j=>ok(num(e[j])))) d = `M${num(e[1])} ${num(e[2])}L${num(e[3])} ${num(e[4])}`;   // [k,x1,y1,x2,y2] becomes a straight line
+        if(typeof d!=='string' || !PATH.test(d) || !/\d/.test(d)) return 'il percorso della freccia non è valido (deve essere tipo "M60 62Q110 34 150 28")';
+        out.push([k, d.trim()]); return ''; }
+      return 'tipo "'+k+'" sconosciuto'; })();
+    if(why) CAMPO_LOG.push({where:where||'', i:i+1, el:(()=>{ try{ return JSON.stringify(e).slice(0,60); }catch(_){ return String(e).slice(0,60); } })(), why}); });
+  return out;
+}
+const campoWarnHtml = log => log && log.length ? `<div class="note"><b>Campetto: ${log.length===1?'saltato 1 elemento':'saltati '+log.length+' elementi'}</b>, il resto è stato importato.<ul class="small" style="margin:6px 0 0;padding-left:18px">${log.slice(0,8).map(x=>`<li>${x.where?esc(x.where)+' · ':''}n. ${x.i} <code>${esc(x.el)}</code>: ${esc(x.why)}</li>`).join('')}${log.length>8?`<li>… e altri ${log.length-8}</li>`:''}</ul></div>` : '';
 const testsDef = () => ((S.ftests||[]).find(t=>t.tdef)||{}).tdef || TESTS;
 const W = n => WEEKS[n-1];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -869,7 +902,7 @@ function renderInner(){
   if(U.tdEd) body = tdefView();
   root.innerHTML = `
     <header class="top"><svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x="1.5" y="1.5" width="117" height="117" rx="27" fill="#18222F" stroke="#2A374B" stroke-width="3"/><rect x="24" y="68" width="18" height="28" rx="5" fill="#FFFFFF" fill-opacity=".45"/><rect x="50" y="52" width="18" height="44" rx="5" fill="#FFFFFF" fill-opacity=".7"/><rect x="76" y="44" width="18" height="52" rx="5" fill="#FFFFFF"/><circle cx="85" cy="25" r="13" fill="#D7E84A"/></svg><div class="t"><small>TENNIS</small><b>Smart Coach</b><span>${who}</span></div><button data-a="logout">Esci</button></header>
-    <main>${exampleNote()}${body}</main>
+    <main>${exampleNote()}${U.campoNote&&U.campoNote.length?campoWarnHtml(U.campoNote)+'<button class="chip" data-a="campook" style="align-self:flex-start">Ho capito</button>':''}${body}</main>
     <div class="tabs"><nav>${tabs.map(([k,l,i])=>`<button data-a="tab" data-k="${k}" ${U.tab===k?'aria-current="page"':''} style="position:relative">${i}<span>${l}</span>${k==='ath'&&newForms()?`<b class="dot" aria-label="${newForms()} schede nuove">${newForms()}</b>`:''}</button>`).join('')}</nav></div>`;
 }
 function tdefView(){
@@ -1743,9 +1776,7 @@ APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
 }
 function dayAiParse(txt, t){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'}; }
+  const d = aiJSON(txt); if(d===null){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'}; }
   const L = d && (d.lezione || d.seduta); if(!L) return {err:'Nel testo non c\u2019è una lezione. Controlla di aver copiato la risposta giusta.'};
   const src = dayAiSrc(t), ks = src.phases.map(p=>p.k), byName = n => (src.phases.find(p=>impNorm(p.n)===impNorm(n))||{}).k;
   const fasi = (L.fasi||[]).map(f=>({k: ks.includes(f.fase) ? f.fase : (f.fase==='pr'&&ks.includes('ri') ? 'ri' : f.fase==='ri'&&ks.includes('pr') ? 'pr' : byName(f.fase||f.nome||'')), ex:(f.esercizi||[]).filter(e=>e && (e.titolo||(e.righe||[]).length))})).filter(f=>f.k);
@@ -1774,7 +1805,7 @@ function dayAiView(t){
 }
 function dayAiApply(t, R){
   S.customEx = S.customEx || [];
-  const mk = (e, k) => { const x = {id:'c'+uid(), custom:true, hidden:true, ph: k==='ri' ? 'pr' : (['att','pr','sr','ap'].includes(k) ? k : 'pr'), t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]}; S.customEx.push(x); return x.id; };
+  const mk = (e, k) => { const x = {id:'c'+uid(), custom:true, hidden:true, ph: k==='ri' ? 'pr' : (['att','pr','sr','ap'].includes(k) ? k : 'pr'), t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:cleanCampo(e.campo, String(e.titolo||''))}; S.customEx.push(x); return x.id; };
   if(t.kind==='w'){ const B = editableBlocks(t.w, t.d); R.fasi.forEach(f=>{ B[f.k] = f.ex.map(e=>mk(e, f.k)); });
     if(R.title || R.obj){ const k = dayKey(t.w,t.d)+':txt', o = Object.assign({}, S.plan[k]||{}); if(R.title) o.title = R.title; if(R.obj) o.obj = esc(R.obj); S.plan[k] = o; }
     return; }
@@ -1807,9 +1838,7 @@ APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
 }
 function exAiParse(txt){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return null; }
+  const d = aiJSON(txt); if(d===null){ return null; }
   // the exercise or test can come under several keys, and with "misura" OR "misure"
   const looks = o => o && typeof o==='object' && !Array.isArray(o) && (o.titolo || o.nome || o.title || (o.righe||[]).length || o.svolgimento || o.descrizione || o.misura || (o.misure||[]).length);
   let e = d && (d.esercizio || d.exercise || d.test || d.prova || d.valutazione);
@@ -1840,7 +1869,7 @@ function editorView(){
     <button class="btn ghost" data-a="edclose" style="align-self:flex-start">‹ ${E.ct?'Test del ciclo':E.sheet?'Lezione':E.ctx?'Seduta':'Libreria'}</button>
     <h1>${E.ct?(E.ct.id?'Modifica test':'Nuovo test · '+esc(W(E.ct.tipo).name)):E.sheet?(E.sheet.j===null?'Nuovo esercizio':'Modifica esercizio'):E.id?'Modifica esercizio':E.from?'Modifica esercizio (la tua versione)':'Nuovo esercizio'}</h1>
     ${E.from?'<div class="note">Stai modificando un esercizio del programma: viene salvata <b>una tua versione</b>, l\'originale resta nella libreria.</div>':''}
-    ${exAiCard(E)}
+    ${exAiCard(E)}${campoWarnHtml(E.campoWarn)}
     <section class="card">
       ${E.ct?`<div class="field"><label>Area</label><div class="seg" role="group"><button data-a="edctset" data-k="area:ten" aria-pressed="${E.area!=='atl'}">Tennis</button><button data-a="edctset" data-k="area:atl" aria-pressed="${E.area==='atl'}">Atletica</button></div></div>
       ${(E.misure||[]).length ? `<div class="field"><label>Risultati del test</label><div style="display:flex;flex-direction:column;gap:8px">${E.misure.map((p,j)=>`<div class="card" style="padding:10px;gap:8px"><div class="row" style="gap:8px;flex-wrap:nowrap"><input class="input" style="flex:1;min-width:0" data-c="edmis" data-k="${j}:nome" value="${esc(p.nome||'')}" placeholder="Nome, es. Destra" aria-label="Nome del risultato ${j+1}"><button class="chip" data-a="edmisdel" data-k="${j}" aria-label="Togli">✕</button></div>
@@ -2254,9 +2283,7 @@ function plPupilCard(id){
 const impNorm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function impMine(){ const A = typeof myAccess==='function' ? myAccess() : null; return S.athletes.filter(a=>a.groupId===PRIV_ID && (!A || athVis(a, A))); }
 function impParse(txt, forId){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
+  const d = aiJSON(txt); if(d===null){ return {err:'Il file non è nel formato giusto. Usa il file preparato in chat, senza modificarlo.'}; }
   if(!d || !Array.isArray(d.allievi) || !d.allievi.length) return {err:'Nel file non ci sono allievi da importare.'};
   const mine = impMine();
   if(forId && d.allievi.length>1) return {err:'Il testo contiene più allievi: incollalo dall’elenco Lezioni private.'};
@@ -2358,9 +2385,7 @@ APPUNTI DEL MAESTRO
 ${notes.trim() || '(scrivi qui gli appunti)'}`;
 }
 function gParse(txt){
-  let d; const raw = String(txt).trim().replace(/^```(json)?/,'').replace(/```$/,'').replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").trim();
-  const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}');
-  try{ d = JSON.parse(a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw); }catch(e){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell’IA con il tasto "Copia", senza modificarla.'}; }
+  const d = aiJSON(txt); if(d===null){ return {err:'Il testo non è nel formato giusto. Copia tutta la risposta dell’IA con il tasto "Copia", senza modificarla.'}; }
   const P = d && (d.programma || (d.gruppi && d.gruppi[0] && d.gruppi[0].programma) || (d.allievi && d.allievi[0] && d.allievi[0].programma));
   if(!P || !Array.isArray(P.settimane) || !P.settimane.length) return {err:'Nel testo non c’è un programma a settimane. Se è la lezione di un allievo privato, incollala nella sua pagina in Lezioni private.'};
   const W = P.settimane, L = W.reduce((t,w)=>t+(w.lezioni||[]).length,0), E = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).length,0),0), C = W.reduce((t,w)=>t+(w.lezioni||[]).reduce((u,l)=>u+(l.esercizi||[]).filter(e=>(e.campo||[]).length).length,0),0);
@@ -2384,7 +2409,7 @@ function impProgram(P, g){
   let added = 0;
   P.settimane.forEach(w=>{ if(seen.has(sig(w.nome, (w.lezioni||[])[0]&&w.lezioni[0].titolo))) return; const wk = blankWeek(); wk.name = w.nome || '';
     (w.lezioni||[]).slice(0,5).forEach((l,i)=>{ const day = wk.days[i]; day.title = l.titolo || ''; day.note = l.obiettivo || ''; day.ex = []; day.exPh = [];
-      (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:Array.isArray(e.campo)?e.campo:[]};
+      (l.esercizi||[]).forEach(e=>{ const ex = {id:'c'+uid(), custom:true, hidden:true, ph:['att','pr','sr','ap'].includes(e.tipo)?e.tipo:'pr', t:String(e.titolo||'Esercizio'), chip:String(e.etichetta||''), lines:(e.righe||[]).map(String), els:cleanCampo(e.campo, String(e.titolo||''))};
         S.customEx.push(ex); day.ex.push(ex.id); day.exPh.push(keyOf(e.fase)); }); });
     o.weeks.push(wk); added++; });
   if(!o.weeks.length) o.weeks.push(blankWeek()); if(o.cur>o.weeks.length || o.cur<1) o.cur = 1;
@@ -2465,7 +2490,7 @@ function impApply(d, forId){
     (x.lezioni||[]).forEach(l=>{ if(!l) return; const n = +l.n || (pv.sheets.length+1), old = pv.sheets.find(z=>z.n===n);
       const sh = {id: old ? old.id : 'sh'+uid(), n, date:l.data||'', title:String(l.titolo||''), sub:String(l.sottotitolo||''), dur:+l.durata||0, fmt:String(l.formato||''), obj:String(l.obiettivo||''),
         asp:Object.fromEntries(Object.entries(l.aspetti||{}).map(([k,v])=>[AR[impNorm(k)]||k, String(v)])),
-        phases:(l.fasi||[]).map(f=>({n:String(f.nome||''), m:+f.min||0, tags:String(f.temi||''), ex:(f.esercizi||[]).map(e=>({t:String(e.titolo||''), min:e.min||'', x:(e.righe||[]).map(String), obj:String(e.obiettivo||''), serie:String(e.serie||''), els:Array.isArray(e.campo)?e.campo:[]}))})),
+        phases:(l.fasi||[]).map(f=>({n:String(f.nome||''), m:+f.min||0, tags:String(f.temi||''), ex:(f.esercizi||[]).map(e=>({t:String(e.titolo||''), min:e.min||'', x:(e.righe||[]).map(String), obj:String(e.obiettivo||''), serie:String(e.serie||''), els:cleanCampo(e.campo, String(e.titolo||''))}))})),
         note:String(l.nota||''), touched:(l.toccati||[]).map(r=>refs[r] || (pv.goals.find(z=>impNorm(z.text)===impNorm(r))||{}).id).filter(Boolean),
         after: l.noteDopo || (old && old.after) || '', next: l.daRiprendere || (old && old.next) || ''};
       if(old) pv.sheets[pv.sheets.indexOf(old)] = sh; else pv.sheets.push(sh); });
@@ -3888,7 +3913,7 @@ const ACT = {
   dayai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.dayAi = k==='1'; U.dayAiData=null; U.dayAiErr=''; U.aiCopied=false; U.aiShow=false; U.editDay=false; window.scrollTo(0,0); },
   dayaipaste(){ const r=dayAiParse(document.getElementById('dayai-txt').value||'', dayAiTarget()); if(r.err){ U.dayAiErr=r.err; U.dayAiData=null; } else { U.dayAiErr=''; U.dayAiData=r; } window.scrollTo(0,0); },
   dayaireset(){ U.dayAiData=null; U.dayAiErr=''; },
-  dayaido(){ const R=U.dayAiData; if(!R) return; dayAiApply(dayAiTarget(), R); save(); if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
+  dayaido(){ const R=U.dayAiData; if(!R) return; CAMPO_LOG=[]; dayAiApply(dayAiTarget(), R); save(); U.campoNote=CAMPO_LOG.length?CAMPO_LOG.slice():null; if(U.aiNotes) U.aiNotes.day=''; U.dayAi=false; U.dayAiData=null; U.aiCopied=false; U.aiShow=false; toast('Lezione sostituita'); window.scrollTo(0,0); },
   cttipo(k){ U.ctTipo=+k; },
   ctathrec(k){ U.ctAth = k || null; if(k){ const a=ath(k); U.ctGroup=a&&a.groupId; U.ctDate=todayISO(); } },
   octipo(k){ const d=ownOf(U.planGroup).weeks[U.oWeek-1].days[U.oDay]; if(+k) d.ctTipo=+k; else delete d.ctTipo; save(); },
@@ -3910,21 +3935,21 @@ const ACT = {
     if(bad){ toast('Controlla i numeri di '+bad+' (per il tempo scrivi 90 oppure 1:30)'); return; }
     save(); U.ctRec=false; U.ctAth=null; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
-  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
-    E.t=String(e.titolo||E.t||'Test'); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=e.campo; E.vis=null; }
+  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); CAMPO_LOG=[]; if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
+    E.t=String(e.titolo||E.t||'Test'); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=cleanCampo(e.campo); E.vis=null; } E.campoWarn=CAMPO_LOG.slice();
     if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo);
       E.misure = Array.isArray(e.misure) && e.misure.length>1 ? ctMisIn(e.misure) : []; if(Array.isArray(e.misure) && e.misure.length===1){ const p=ctMisIn(e.misure)[0]; E.kind=p.kind; E.max=p.max||''; } }
     if(E.sheet){ if(e.min) E.min=String(e.min); if(e.serie) E.serie=String(e.serie); if(e.obiettivo) E.obj=String(e.obiettivo); }
     if(!E.sheet && !E.ctx) E.lib=true;
-    E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast('Esercizio compilato: controlla e salva'); },
+    E.ai=false; U.exAiErr=''; U.aiCopied=false; U.aiShow=false; if(U.aiNotes) U.aiNotes.ex=''; toast(E.campoWarn.length?'Esercizio compilato: alcuni elementi del campetto sono stati saltati':'Esercizio compilato: controlla e salva'); },
   gimpopen(k){ U.gImp=k; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; U.oWeek=null; U.oDay=null; window.scrollTo(0,0); },
   gimpclose(){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.gImp=null; U.gImpData=null; U.gImpErr=''; U.aiCopied=false; U.aiShow=false; window.scrollTo(0,0); },
   gimppaste(){ const r=gParse(document.getElementById('gimp-txt').value||''); if(r.err){ U.gImpErr=r.err; U.gImpData=null; } else { U.gImpErr=''; U.gImpData=r; } },
   gimpreset(){ U.gImpData=null; U.gImpErr=''; },
-  gimpdo(){ const g=grp(U.gImp), R=U.gImpData; if(!g||!R) return; const before=ownOf(g.id).weeks.filter(w=>w.name||w.days.some(d=>d.title||d.ex.length)).length; g.prog='own'; const n=impProgram(R.P, g); save();
+  gimpdo(){ const g=grp(U.gImp), R=U.gImpData; if(!g||!R) return; CAMPO_LOG=[]; const before=ownOf(g.id).weeks.filter(w=>w.name||w.days.some(d=>d.title||d.ex.length)).length; g.prog='own'; const n=impProgram(R.P, g); save(); U.campoNote=CAMPO_LOG.length?CAMPO_LOG.slice():null;
     if(U.aiNotes) U.aiNotes['g:'+g.id]=''; U.gImp=null; U.gImpData=null; U.aiCopied=false; U.aiShow=false; U.planGroup=g.id; U.planMode='weeks'; U.oDay=null; U.oWeek = n ? before+1 : null; toast(n?`${g.name}: ${n} ${n===1?'settimana aggiunta':'settimane aggiunte'}`:'Queste settimane c\u2019erano già'); window.scrollTo(0,0); },
   imppaste(){ const r = impParse(document.getElementById('imp-txt').value||'', U.impFor||null); if(r.err){ U.impErr=r.err; U.impData=null; } else { U.impErr=''; U.impData=r; } },
-  impdo(){ const R=U.impData; if(!R) return; const as = impApply(R.d, R.forId); save(); const was = R.forId; if(U.aiNotes) U.aiNotes[was||'_']=''; U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
+  impdo(){ const R=U.impData; if(!R) return; CAMPO_LOG=[]; const as = impApply(R.d, R.forId); save(); U.campoNote=CAMPO_LOG.length?CAMPO_LOG.slice():null; const was = R.forId; if(U.aiNotes) U.aiNotes[was||'_']=''; U.aiCopied=false; U.aiShow=false; U.impFor=null; U.impOpen=false; U.impData=null; U.ppTab = was && R.d.allievi[0] && (R.d.allievi[0].lezioni||[]).length ? 'lezioni' : 'scheda'; U.sheetOpen=null; toast(as.length===1?`${as[0].name}: scheda importata`:`${as.length} allievi importati`); if(as.length===1){ if(U.tab==='home') U.homeView='priv'; U.privOpen=as[0].id; U.athPriv=as[0].id; } window.scrollTo(0,0); },
   ppcreate(k){ const pv=privOf(k); if(!pv.pg) pv.pg={id:'pp_'+k, pp:true, prog:'own', freq:1, week:1, lesson:{dur:60, phases:[]}}; ownOf('pp_'+k); save(); ACT.ppopen(k); toast('Programma creato'); },
   ppopen(k){ U.tab='plan'; U.planMode='weeks'; U.planGroup='pp_'+k; U.oWeek=null; U.oDay=null; U.pick=null; window.scrollTo(0,0); },
   ppback(k){ U.planGroup=null; U.oWeek=null; U.oDay=null; if(S.session.role==='coach'){ U.tab='home'; U.homeView='priv'; U.privOpen=k; } window.scrollTo(0,0); },
@@ -4088,6 +4113,7 @@ const ACT = {
   ex(k){ U.sel.ex = k==='ng' ? 'ng' : k==='1'; },
   // ace / double fault / return error: the point is not played and the app knows who won it (the receiver only on a double fault)
   fittennis(){ U.fitTennis = !U.fitTennis; },
+  campook(){ U.campoNote=null; },
   srvset(k){ if(S.live){ S.live.srvNow=+k; save(); } },
   quickpt(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const sv=curServer(st); if(U.sel.ch===undefined) U.sel.ch=null; U.sel.ex='ng'; U.sel.how=k; ACT.point(String(k==='df'?1-sv:sv)); },
   point(k){ const m=S.live, st=replay(m); if(st.done!==null) return; const w=+k; const ng = U.sel.ex==='ng';
