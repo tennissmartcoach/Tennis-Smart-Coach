@@ -698,14 +698,21 @@ const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteI
 /* reading what an AI wrote: first as it is, then with small repairs. Curly quotes inside a text stay as they are
    (turning them into straight ones used to break texts like "poi da “tre quarti”"); only quotes used as JSON delimiters are fixed. */
 function aiJSON(txt){
-  const raw = String(txt||'').trim().replace(/^```[a-zA-Z]*\s*/,'').replace(/\s*```\s*$/,'').trim();
+  // phones can paste invisible characters (non-breaking spaces, zero-width marks): JSON.parse refuses them
+  const raw = String(txt||'').replace(/[\u00a0\u2007\u202f]/g,' ').replace(/[\u200b-\u200d\u2060\ufeff]/g,'').trim().replace(/^```\s*(json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+  // the whole text from the first { to the last }, read in one go by JSON.parse (nested braces included)
   const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}'), body = a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw;
+  aiJSON.err = a0<0 || a1<=a0 ? 'nel testo non c\u2019è nessuna parentesi graffa { }' : '';
   const tries = [b=>b,
     b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1'),
     b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1').replace(/,(\s*[\]}])/g,'$1'),
     b=>b.replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").replace(/,(\s*[\]}])/g,'$1')];
-  for(const f of tries){ try{ return JSON.parse(f(body)); }catch(e){} }
+  for(const f of tries){ try{ return JSON.parse(f(body)); }catch(e){ if(!aiJSON.err) aiJSON.err = aiJSONwhere(body, e); } }
   return null;
+}
+// the exact JSON.parse error, with the bit of text where it stopped
+function aiJSONwhere(body, e){ const m = /position (\d+)/.exec(e.message||''); const at = m ? +m[1] : -1;
+  return (e.message||'testo non leggibile') + (at>=0 ? ` — vicino a: «${body.slice(Math.max(0,at-25), at+15).replace(/\s+/g,' ')}»` : '');
 }
 /* the court drawing of an imported exercise: what cannot be drawn is left out and noted in CAMPO_LOG (shown to the coach) */
 let CAMPO_LOG = [];
@@ -1911,6 +1918,7 @@ function dayAiPrompt(t){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Rimanda SOLO le fasi che cambiano: quelle che non metti restano come sono. Una fase che rimandi viene sostituita per intero, quindi mettici tutti i suoi esercizi (anche quelli che restano uguali).
 - In "fase" usa esattamente una di queste sigle: ${src.phases.map(p=>`"${p.k}" (${p.n})`).join(', ')}.
 - Non inventare contenuti: cambia quello che dicono gli appunti, il resto lo tieni. L'unica eccezione è il campetto.
@@ -1977,6 +1985,7 @@ ${JSON.stringify({titolo:E.t, etichetta:E.chip, righe:String(E.x||'').split('\n'
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Non inventare contenuti: puoi solo mettere in ordine, dare un titolo breve e scrivere in italiano chiaro. L'unica eccezione è il campetto.
 - Gli atleti non vanno nominati: nel campetto usa lettere (A, B, C…).
 
@@ -2462,6 +2471,7 @@ function aiPrompt(forId){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Non inventare contenuti: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro. L'unica eccezione è il campetto (vedi sotto).
 - Per un minorenne usa solo il nome (o nome e iniziale del cognome), mai altri dati personali.
 - Se gli appunti descrivono solo una lezione, non riscrivere identikit e obiettivi: metti solo "nome", gli obiettivi nuovi (se ce ne sono) e "lezioni".
@@ -2511,6 +2521,7 @@ function gAiPrompt(g){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Non inventare contenuti: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro. L'unica eccezione è il campetto (vedi sotto).
 - Gli atleti del gruppo non vanno nominati: nel campetto usa lettere (A, B, C…).
 
@@ -4103,7 +4114,7 @@ const ACT = {
     if(bad){ toast('Controlla i numeri di '+bad+' (per il tempo scrivi 90 oppure 1:30)'); return; }
     save(); U.ctRec=false; U.ctAth=null; if(U.ctBack){ U.planMode='weeks'; U.oWeek=U.ctBack.w; U.oDay=U.ctBack.d; U.ctBack=null; } toast(n?`Risultati salvati per ${n} ${n===1?'atleta':'atleti'}`:'Nessun numero da salvare'); window.scrollTo(0,0); },
   exai(k){ if(REC){ try{ REC.stop(); }catch(e){} REC=null; U.recOn=false; } U.ed.ai = k==='1'; U.aiCopied=false; U.aiShow=false; U.exAiErr=''; },
-  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); CAMPO_LOG=[]; if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
+  exaipaste(){ const E=U.ed, e=exAiParse(document.getElementById('exai-txt').value||''); CAMPO_LOG=[]; if(!e && aiJSON.err){ U.exAiErr='Il testo incollato non si riesce a leggere: '+aiJSON.err+'. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; } if(!e){ U.exAiErr='Non trovo un esercizio nel testo. Copia tutta la risposta dell\u2019IA con il tasto "Copia", senza modificarla.'; return; }
     E.t=String(e.titolo||E.t||'Test'); E.chip=String(e.etichetta||e.organizzazione||''); E.x=(e.righe||[]).map(String).join('\n'); if(Array.isArray(e.campo)){ E.els=cleanCampo(e.campo); E.vis=null; } E.campoWarn=CAMPO_LOG.slice();
     if(E.ct){ const m=String(e.misura||'').toLowerCase(); if(/sec/.test(m)) E.kind='sec'; else if(/num/.test(m)) E.kind='num'; else if(/punt/.test(m)||e.massimo) E.kind='pts'; if(e.massimo) E.max=String(e.massimo);
       E.misure = Array.isArray(e.misure) && e.misure.length>1 ? ctMisIn(e.misure) : []; if(Array.isArray(e.misure) && e.misure.length===1){ const p=ctMisIn(e.misure)[0]; E.kind=p.kind; E.max=p.max||''; } }
