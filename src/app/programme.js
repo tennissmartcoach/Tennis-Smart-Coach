@@ -543,6 +543,7 @@ function dayAiPrompt(t){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Rimanda SOLO le fasi che cambiano: quelle che non metti restano come sono. Una fase che rimandi viene sostituita per intero, quindi mettici tutti i suoi esercizi (anche quelli che restano uguali).
 - In "fase" usa esattamente una di queste sigle: ${src.phases.map(p=>`"${p.k}" (${p.n})`).join(', ')}.
 - Non inventare contenuti: cambia quello che dicono gli appunti, il resto lo tieni. L'unica eccezione è il campetto.
@@ -609,6 +610,7 @@ ${JSON.stringify({titolo:E.t, etichetta:E.chip, righe:String(E.x||'').split('\n'
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Non inventare contenuti: puoi solo mettere in ordine, dare un titolo breve e scrivere in italiano chiaro. L'unica eccezione è il campetto.
 - Gli atleti non vanno nominati: nel campetto usa lettere (A, B, C…).
 

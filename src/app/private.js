@@ -93,6 +93,7 @@ function aiPrompt(forId){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Non inventare contenuti: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro. L'unica eccezione è il campetto (vedi sotto).
 - Per un minorenne usa solo il nome (o nome e iniziale del cognome), mai altri dati personali.
 - Se gli appunti descrivono solo una lezione, non riscrivere identikit e obiettivi: metti solo "nome", gli obiettivi nuovi (se ce ne sono) e "lezioni".
@@ -142,6 +143,7 @@ function gAiPrompt(g){
 
 COME RISPONDERE
 - Rispondi SOLO con un blocco di codice che contiene il JSON, senza altro testo prima o dopo: il maestro lo copia con un tocco e lo incolla nell'app.
+- Scrivi il JSON tutto su UNA RIGA, senza andare a capo e senza rientri: copiandolo dal telefono gli spazi dei rientri possono diventare caratteri che l'app non legge.
 - Non inventare contenuti: quello che negli appunti non c'è lo lasci vuoto o lo togli. Puoi solo mettere in ordine, dare titoli brevi e scrivere in italiano chiaro. L'unica eccezione è il campetto (vedi sotto).
 - Gli atleti del gruppo non vanno nominati: nel campetto usa lettere (A, B, C…).
 
