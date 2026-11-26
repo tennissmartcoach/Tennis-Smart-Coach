@@ -59,14 +59,21 @@ const ctRecs = (aid, tipo) => (S.tests||[]).filter(r=>r.ct===+tipo && r.athleteI
 /* reading what an AI wrote: first as it is, then with small repairs. Curly quotes inside a text stay as they are
    (turning them into straight ones used to break texts like "poi da “tre quarti”"); only quotes used as JSON delimiters are fixed. */
 function aiJSON(txt){
-  const raw = String(txt||'').trim().replace(/^```[a-zA-Z]*\s*/,'').replace(/\s*```\s*$/,'').trim();
+  // phones can paste invisible characters (non-breaking spaces, zero-width marks): JSON.parse refuses them
+  const raw = String(txt||'').replace(/[\u00a0\u2007\u202f]/g,' ').replace(/[\u200b-\u200d\u2060\ufeff]/g,'').trim().replace(/^```\s*(json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+  // the whole text from the first { to the last }, read in one go by JSON.parse (nested braces included)
   const a0 = raw.indexOf('{'), a1 = raw.lastIndexOf('}'), body = a0>=0 && a1>a0 ? raw.slice(a0, a1+1) : raw;
+  aiJSON.err = a0<0 || a1<=a0 ? 'nel testo non c\u2019è nessuna parentesi graffa { }' : '';
   const tries = [b=>b,
     b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1'),
     b=>b.replace(/([{\[,:]\s*)[“”„«]/g,'$1"').replace(/[“”»](\s*[,:\]}])/g,'"$1').replace(/,(\s*[\]}])/g,'$1'),
     b=>b.replace(/[“”„«»]/g,'"').replace(/[‘’]/g,"'").replace(/,(\s*[\]}])/g,'$1')];
-  for(const f of tries){ try{ return JSON.parse(f(body)); }catch(e){} }
+  for(const f of tries){ try{ return JSON.parse(f(body)); }catch(e){ if(!aiJSON.err) aiJSON.err = aiJSONwhere(body, e); } }
   return null;
+}
+// the exact JSON.parse error, with the bit of text where it stopped
+function aiJSONwhere(body, e){ const m = /position (\d+)/.exec(e.message||''); const at = m ? +m[1] : -1;
+  return (e.message||'testo non leggibile') + (at>=0 ? ` — vicino a: «${body.slice(Math.max(0,at-25), at+15).replace(/\s+/g,' ')}»` : '');
 }
 /* the court drawing of an imported exercise: what cannot be drawn is left out and noted in CAMPO_LOG (shown to the coach) */
 let CAMPO_LOG = [];
