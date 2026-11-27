@@ -164,23 +164,10 @@ function ctRecView(tipo){
     <button class="btn clay block" data-a="ctsave">Salva i risultati</button>`;
 }
 /* athlete: the test sheet, by player type */
+/* cycle tests of one athlete as the athlete, the family and the final profile see them: the same table as the coach's page */
 function ctCard(id){
-  const a = ath(id); if(!a) return '';
-  const tipi = CT_TIPI().filter(x=>ctRecs(id, x.k).length); if(!tipi.length) return '';
-  const g = grp(a.groupId), mates = S.athletes.filter(x=>x.groupId===a.groupId).map(x=>x.id);
-  const block = x => { const rs = ctRecs(id, x.k), last = rs[rs.length-1], prev = rs.filter(r=>(r.cycle||1)<(last.cycle||1)).pop();
-    return `<div class="field"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${last.date?fdate(last.date+'T12:00'):''}</span></div>
-      <div class="bars">${ctOf(x.k).map(t=>{ const vals = ctVals(last, t); if(!vals.some(z=>z!==null)) return '';
-        const sc = ctScore(t, vals); if(!sc) return '';
-        const all = mates.map(m=>{ const r = ctRecs(m, x.k).filter(z=>(z.cycle||1)===(last.cycle||1)).pop(); const s2 = r && ctHas(r,t) ? ctScore(t, ctVals(r,t)) : null; return s2 && s2.kind===sc.kind ? s2.v : null; }).filter(z=>z!==null);
-        const avg = all.length>1 ? all.reduce((s,z)=>s+z,0)/all.length : null, best = sc.kind==='sec' ? Math.min(...all, sc.v) : Math.max(...all, sc.v, 1);
-        const w = sc.kind==='pct' ? Math.min(100, sc.v*100) : sc.kind==='sec' ? Math.min(100, best/(sc.v||1)*100) : sc.max>0 ? Math.min(100, sc.v/sc.max*100) : Math.min(100, sc.v/best*100);
-        const pvals = prev && ctHas(prev, t) ? ctVals(prev, t) : null, ps = pvals ? ctScore(t, pvals) : null;
-        const up = !ps || ps.kind!==sc.kind ? '' : (sc.kind==='sec' ? sc.v<ps.v : sc.v>ps.v) ? ' <span style="color:var(--ok)">▲</span>' : sc.v===ps.v ? ' =' : ' <span style="color:var(--ko)">▼</span>';
-        const avgTxt = avg===null ? '' : 'Media del gruppo: ' + (sc.kind==='pct' ? Math.round(avg*100)+'%' : sc.kind==='sec' ? ctTime(avg) : ctNum(avg));
-        const many = ctParts(t).length>1;
-        return `<div class="bar"><div class="lab"><span>${esc(t.t)}</span><span>${many?'':`<b>${esc(ctFmt(t, vals))}</b>`}${up}</span></div>${many?`<div class="small"><b>${esc(ctFmt(t, vals))}</b></div>`:''}<div class="track"><div class="fill ok" style="width:${w}%"></div></div><div class="small muted">${pvals?'Ciclo prima: '+esc(ctFmt(t, pvals))+(avgTxt?' · ':''):''}${avgTxt}</div></div>`; }).join('')}</div></div>`; };
-  return `<section class="card"><h3>Test di fine ciclo</h3><p class="small muted">Per tipologia di giocatore: la barra piena è il massimo (o il migliore del gruppo). ▲ migliorato rispetto al ciclo prima.</p>${tipi.map(block).join('')}</section>`;
+  if(!ath(id)) return ''; const tb = athCtTable(id); if(!tb) return '';
+  return `<section class="card"><h3>Test di fine ciclo</h3>${tb}<p class="small muted">In ogni colonna la data del test. <span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima.</p></section>`;
 }
 /* coach: programme */
 function planView(){

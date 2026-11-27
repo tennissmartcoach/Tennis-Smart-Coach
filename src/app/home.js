@@ -162,9 +162,10 @@ function fitTestsView(){
   return `<button class="btn clay block" data-a="ftnew">+ Crea un test personale</button>
     ${S.ftests.filter(t=>!t.tdef&&!t.ctests).length?`<section class="card" style="padding:4px 16px"><div class="list">${S.ftests.filter(t=>!t.tdef&&!t.ctests).map(t=>{ const n = new Set(S.fres.filter(r=>r.testId===t.id).map(r=>r.date)).size; return `<button class="item" data-a="ftopen" data-k="${t.id}"><span class="grow"><b style="font-size:17px">${esc(t.l)}</b><br><span class="small muted">${esc(t.u)} · meglio ${t.better==='low'?'più basso':'più alto'} · ${n} ${n===1?'rilevazione':'rilevazioni'}</span></span><span class="chev">›</span></button>`; }).join('')}</div></section>`:'<section class="card"><p class="muted">Nessun test atletico. Creane uno: puoi partire dai suggeriti (sprint, salto, spider test…).</p></section>'}`;
 }
+/* the fitness coach's tests of one athlete (athlete, family, coach, fitness coach): a row per test, a column per day */
 function fitTestsCard(id){
-  const ts = (S.ftests||[]).filter(t=>ftRes(t.id,id).length); if(!ts.length) return '';
-  return `<section class="card"><h3>Test atletici</h3><div class="list small">${ts.map(t=>{ const rs = ftRes(t.id,id), l = rs[rs.length-1]; return `<div class="row between" style="flex-wrap:nowrap"><span><b>${esc(t.l)}</b><br><span class="muted">${dLabel(l.date)}${rs.length>1?` · prima ${rs[rs.length-2].v}`:''}</span></span><span style="text-align:right"><b style="font-size:18px">${l.v}</b> ${esc(t.u)}<br>${ftDelta(t,rs)}</span></div>`; }).join('')}</div></section>`;
+  const tb = athFtTable(id); if(!tb) return '';
+  return `<section class="card"><h3>Test atletici</h3>${tb}<p class="small muted"><span style="color:var(--ok)">▲</span> migliorato, <span style="color:var(--ko)">▼</span> peggiorato rispetto alla volta prima.</p></section>`;
 }
 function fitTodayCard(g){
   if(!g || g.id===PRIV_ID || curIdx(g)<0) return '';
